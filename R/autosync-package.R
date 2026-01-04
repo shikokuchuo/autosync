@@ -45,6 +45,5 @@
 #' @importFrom httpuv startServer stopServer
 #' @importFrom later run_now
 #' @importFrom nanonext random
-#' @importFrom secretbase base64enc base64dec sha256
-#' @importFrom gmp as.bigz
+#' @importFrom secretbase base64enc base64dec base58enc base58dec
 "_PACKAGE"

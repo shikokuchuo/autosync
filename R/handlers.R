@@ -94,7 +94,7 @@ handle_sync <- function(server, client_id, msg, is_request) {
 
   # Validate document ID format (base58check)
   doc_bytes <- tryCatch(
-    base58check_decode(doc_id),
+    base58dec(doc_id, convert = FALSE),
     error = function(e) NULL
   )
   if (is.null(doc_bytes)) {

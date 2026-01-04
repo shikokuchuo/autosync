@@ -24,7 +24,7 @@ test_that("create_document generates valid ID", {
 
   doc_id <- create_document(server)
   expect_type(doc_id, "character")
-  expect_true(nchar(doc_id) %in% 27:28)
+  expect_true(nchar(doc_id) > 20)  # Base58Check encoded 16 bytes + version + checksum
   expect_true(doc_id %in% list_documents(server))
 })
 
@@ -65,4 +65,13 @@ test_that("print.amsync_server works", {
   output <- capture.output(print(server))
   expect_true(any(grepl("Automerge Sync Server", output)))
   expect_true(any(grepl("Port: 3030", output)))
+})
+
+test_that("generate_document_id creates valid IDs", {
+  id <- generate_document_id()
+  expect_type(id, "character")
+  expect_true(nchar(id) %in% 27:28)
+  # Should be decodable to 16 bytes
+  bytes <- secretbase::base58dec(id, convert = FALSE)
+  expect_length(bytes, 16L)
 })

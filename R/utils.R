@@ -1,5 +1,15 @@
 # Utility functions for autosync
 
+#' Generate a new document ID
+#'
+#' Creates a new unique document ID compatible with automerge-repo.
+#' The ID is a 16-byte random value encoded with Base58Check.
+#'
+#' @return Character string (Base58Check encoded).
+#'
+#' @export
+generate_document_id <- function() base58enc(nanonext::random(16L, convert = FALSE))
+
 #' Generate a peer ID
 #'
 #' Creates a new unique peer ID compatible with automerge-repo.
