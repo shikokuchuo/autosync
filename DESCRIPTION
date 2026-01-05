@@ -22,7 +22,7 @@ Imports:
     httpuv (>= 1.6.0),
     later,
     nanonext (>= 1.5.0),
-    secretbase (>= 1.0.5)
+    secretbase (>= 1.0.5.9000)
 Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

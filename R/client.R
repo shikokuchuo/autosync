@@ -65,7 +65,7 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, verbose = F
     peerMetadata = list(isEphemeral = TRUE),
     supportedProtocolVersions = list("1")
   )
-  join_bytes <- cbor_encode(join)
+  join_bytes <- cborenc(join)
   if (verbose) {
     message("[CLIENT] Sending join (", length(join_bytes), " bytes): ",
             paste(sprintf("%02x", as.integer(join_bytes[1:min(20, length(join_bytes))])), collapse = " "))
@@ -85,7 +85,7 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, verbose = F
             paste(sprintf("%02x", as.integer(peer_raw[1:min(20, length(peer_raw))])), collapse = " "))
   }
 
-  peer_msg <- cbor_decode(peer_raw)
+  peer_msg <- cbordec(peer_raw)
 
   if (verbose) message("[CLIENT] Message type: ", peer_msg$type)
 
@@ -118,7 +118,7 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, verbose = F
     documentId = doc_id,
     data = sync_data %||% raw(0)
   )
-  request_bytes <- cbor_encode(request)
+  request_bytes <- cborenc(request)
   if (verbose) message("[CLIENT] Sending request (", length(request_bytes), " bytes)")
   nanonext::send(s, request_bytes, mode = "raw", block = TRUE)
 
@@ -142,7 +142,7 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, verbose = F
     }
 
     msg <- tryCatch(
-      cbor_decode(result),
+      cbordec(result),
       error = function(e) {
         if (verbose) message("[CLIENT] CBOR decode error: ", conditionMessage(e))
         return(NULL)
@@ -191,7 +191,7 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, verbose = F
           documentId = doc_id,
           data = reply_data
         )
-        nanonext::send(s, cbor_encode(response), mode = "raw", block = TRUE)
+        nanonext::send(s, cborenc(response), mode = "raw", block = TRUE)
       } else {
         if (verbose) message("[CLIENT] No more data to send from our side")
       }

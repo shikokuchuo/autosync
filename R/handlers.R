@@ -12,7 +12,7 @@
 #' @noRd
 handle_message <- function(server, client_id, temp_id, raw_msg) {
   msg <- tryCatch(
-    cbor_decode(raw_msg),
+    cbordec(raw_msg),
     error = function(e) {
       warning("CBOR decode error from ", client_id, ": ", conditionMessage(e))
       return(NULL)
@@ -231,7 +231,7 @@ handle_disconnect <- function(server, client_id) {
 send_to_peer <- function(server, peer_id, msg) {
   conn <- server$connections[[peer_id]]
   if (!is.null(conn) && !is.null(conn$ws)) {
-    raw_msg <- cbor_encode(msg)
+    raw_msg <- cborenc(msg)
     conn$ws$send(raw_msg)
   }
   invisible()
@@ -254,7 +254,7 @@ send_error <- function(server, temp_id, target_id, message) {
   )
   conn <- server$connections[[temp_id]]
   if (!is.null(conn) && !is.null(conn$ws)) {
-    raw_msg <- cbor_encode(response)
+    raw_msg <- cborenc(response)
     conn$ws$send(raw_msg)
   }
   invisible()
