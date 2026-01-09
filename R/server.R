@@ -50,22 +50,17 @@ amsync_server <- function(
   tls = NULL
 ) {
   server <- new.env(hash = TRUE, parent = emptyenv())
-
-  # Server configuration
   server$port <- as.integer(port)
   server$host <- host
   server$data_dir <- data_dir
   server$auto_create_docs <- auto_create_docs
   server$tls <- if (!is.null(tls)) tls_config(server = tls)
 
-  # Construct URL for nanonext http_server
   scheme <- if (is.null(tls)) "http" else "https"
   server$url <- sprintf("%s://%s:%d", scheme, host, port)
 
-  # Server identity
   server$peer_id <- generate_peer_id()
   server$storage_id <- if (is.null(storage_id)) {
-    # Generate persistent storage ID
     generate_peer_id()
   } else if (is.na(storage_id)) {
     NULL # Ephemeral server
@@ -73,14 +68,12 @@ amsync_server <- function(
     storage_id # User-provided
   }
 
-  # Runtime state (initialized empty)
   server$documents <- new.env(hash = TRUE, parent = emptyenv())
   server$sync_states <- new.env(hash = TRUE, parent = emptyenv())
   server$connections <- new.env(hash = TRUE, parent = emptyenv())
   server$running <- FALSE
   server$nano_server <- NULL
 
-  # Ensure data directory exists
   if (!dir.exists(data_dir)) {
     dir.create(data_dir, recursive = TRUE)
   }
@@ -110,13 +103,9 @@ serve <- function(server) {
     stop("'server' must be an amsync_server object")
   }
 
-  # Load existing documents from disk on startup
+  server$running <- TRUE
   load_all_documents(server)
 
-  # Mark server as running
-  server$running <- TRUE
-
-  # WebSocket open handler
   onWSOpen <- function(ws) {
     ws_id <- as.character(ws$id)
     server$connections[[ws_id]] <- list(
@@ -127,7 +116,6 @@ serve <- function(server) {
     )
   }
 
-  # WebSocket message handler
   onWSMessage <- function(ws, data) {
     ws_id <- as.character(ws$id)
     conn <- server$connections[[ws_id]]
@@ -135,7 +123,6 @@ serve <- function(server) {
     handle_message(server, client_id, ws_id, data)
   }
 
-  # WebSocket close handler
   onWSClose <- function(ws) {
     ws_id <- as.character(ws$id)
     conn <- server$connections[[ws_id]]
@@ -151,7 +138,6 @@ serve <- function(server) {
     }
   }
 
-  # Create and start server
   server$nano_server <- nanonext::http_server(
     url = server$url,
     handlers = list(),
@@ -164,7 +150,6 @@ serve <- function(server) {
   )
   server$nano_server$start()
 
-  # Display appropriate URL
   ws_scheme <- if (is.null(server$tls)) "ws" else "wss"
   cat(
     "Autosync server running on ",
@@ -178,11 +163,10 @@ serve <- function(server) {
   )
   cat("Press Ctrl+C to stop\n")
 
-  # Event loop - process callbacks
   tryCatch(
     {
       while (server$running) {
-        later::run_now(timeoutSecs = 0.1)
+        later::run_now(timeoutSecs = Inf)
       }
     },
     interrupt = function(e) {
@@ -191,7 +175,6 @@ serve <- function(server) {
   )
 
   stop_server(server)
-
   invisible(server)
 }
 
@@ -208,13 +191,11 @@ stop_server <- function(server) {
   if (!inherits(server, "amsync_server")) {
     stop("'server' must be an amsync_server object")
   }
-
   server$running <- FALSE
   if (!is.null(server$nano_server)) {
     server$nano_server$close()
     server$nano_server <- NULL
   }
-
   invisible(server)
 }
 

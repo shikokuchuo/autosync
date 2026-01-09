@@ -10,7 +10,6 @@
 #'   or "wss://sync.automerge.org/"). Note: trailing slash may be required.
 #' @param doc_id Document ID (base58check encoded string)
 #' @param timeout Timeout in milliseconds for each receive operation. Default 5000.
-#' @param n Maximum bytes to receive per message. Default 8388608L (8MB).
 #' @param tls (optional) for secure wss:// connections to servers with
 #'   self-signed or custom CA certificates, supply either: (i) a character
 #'   path to a file containing the PEM-encoded TLS certificate, or (ii) a
@@ -47,30 +46,39 @@
 #' }
 #'
 #' @export
-amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, tls = NULL, verbose = FALSE) {
-
-  # Create a local document and sync state
+amsync_fetch <- function(
+  url,
+  doc_id,
+  timeout = 5000L,
+  tls = NULL,
+  verbose = FALSE
+) {
   doc <- am_create()
   sync_state <- am_sync_state_new()
 
-  # Generate our peer ID
   peer_id <- generate_peer_id()
 
-  if (verbose) message("[CLIENT] Connecting to ", url)
-  if (verbose) message("[CLIENT] Our peer ID: ", peer_id)
-  if (verbose) message("[CLIENT] Requesting document: ", doc_id)
+  if (verbose) {
+    message("[CLIENT] Connecting to ", url)
+  }
+  if (verbose) {
+    message("[CLIENT] Our peer ID: ", peer_id)
+  }
+  if (verbose) {
+    message("[CLIENT] Requesting document: ", doc_id)
+  }
 
- # Connect to WebSocket using nanonext stream
-  s <- nanonext::stream(
+  s <- stream(
     dial = url,
     tls = if (!is.null(tls)) tls_config(client = tls),
     textframes = FALSE
   )
-  on.exit(close(s), add = TRUE)
+  on.exit(close(s))
 
-  if (verbose) message("[CLIENT] Connected, sending join message")
+  if (verbose) {
+    message("[CLIENT] Connected, sending join message")
+  }
 
-  # Send join message
   join <- list(
     type = "join",
     senderId = peer_id,
@@ -79,27 +87,44 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, tls = NULL,
   )
   join_bytes <- cborenc(join)
   if (verbose) {
-    message("[CLIENT] Sending join (", length(join_bytes), " bytes): ",
-            paste(sprintf("%02x", as.integer(join_bytes[1:min(20, length(join_bytes))])), collapse = " "))
+    message(
+      "[CLIENT] Sending join (",
+      length(join_bytes),
+      " bytes): ",
+      paste(
+        sprintf("%02x", as.integer(join_bytes[1:min(20, length(join_bytes))])),
+        collapse = " "
+      )
+    )
   }
-  nanonext::send(s, join_bytes, mode = "raw", block = TRUE)
+  send(s, join_bytes, mode = "raw", block = TRUE)
 
-  # Receive peer response
-  if (verbose) message("[CLIENT] Waiting for peer response...")
-  peer_raw <- nanonext::recv(s, mode = "raw", block = timeout, n = n)
+  if (verbose) {
+    message("[CLIENT] Waiting for peer response...")
+  }
+  peer_raw <- recv(s, mode = "raw", block = timeout)
 
   if (inherits(peer_raw, "errorValue")) {
     stop("Failed to receive peer response: ", peer_raw)
   }
 
   if (verbose) {
-    message("[CLIENT] Received ", length(peer_raw), " bytes: ",
-            paste(sprintf("%02x", as.integer(peer_raw[1:min(20, length(peer_raw))])), collapse = " "))
+    message(
+      "[CLIENT] Received ",
+      length(peer_raw),
+      " bytes: ",
+      paste(
+        sprintf("%02x", as.integer(peer_raw[1:min(20, length(peer_raw))])),
+        collapse = " "
+      )
+    )
   }
 
   peer_msg <- cbordec(peer_raw)
 
-  if (verbose) message("[CLIENT] Message type: ", peer_msg$type)
+  if (verbose) {
+    message("[CLIENT] Message type: ", peer_msg$type)
+  }
 
   if (peer_msg$type == "error") {
     stop("Server error: ", peer_msg$message)
@@ -115,14 +140,14 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, tls = NULL,
     message("[CLIENT] Protocol version: ", peer_msg$selectedProtocolVersion)
   }
 
-  # Generate initial sync message for our (empty) document
   sync_data <- am_sync_encode(doc, sync_state)
   if (verbose) {
-    message("[CLIENT] Initial sync data: ",
-            if (is.null(sync_data)) "NULL" else paste(length(sync_data), "bytes"))
+    message(
+      "[CLIENT] Initial sync data: ",
+      if (is.null(sync_data)) "NULL" else paste(length(sync_data), "bytes")
+    )
   }
 
-  # Send sync request
   request <- list(
     type = "request",
     senderId = peer_id,
@@ -131,71 +156,110 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, tls = NULL,
     data = sync_data %||% raw(0)
   )
   request_bytes <- cborenc(request)
-  if (verbose) message("[CLIENT] Sending request (", length(request_bytes), " bytes)")
-  nanonext::send(s, request_bytes, mode = "raw", block = TRUE)
+  if (verbose) {
+    message("[CLIENT] Sending request (", length(request_bytes), " bytes)")
+  }
+  send(s, request_bytes, mode = "raw", block = TRUE)
 
   # Sync loop - receive and process messages until timeout
   sync_rounds <- 0L
-  idle_timeout <- 2000L  # Wait 2 seconds for additional messages after sync
+  idle_timeout <- 2000L # Wait 2 seconds for additional messages after sync
 
-  while (TRUE) {
+  repeat {
     # Receive with timeout
-    result <- nanonext::recv(s, mode = "raw", block = idle_timeout, n = n)
+    result <- recv(s, mode = "raw", block = idle_timeout)
 
     if (inherits(result, "errorValue")) {
       # Timeout or error - no more messages
-      if (verbose) message("[CLIENT] No more messages (timeout)")
+      if (verbose) {
+        message("[CLIENT] No more messages (timeout)")
+      }
       break
     }
 
     if (verbose) {
-      message("[CLIENT] Received ", length(result), " bytes: ",
-              paste(sprintf("%02x", as.integer(result[1:min(20, length(result))])), collapse = " "))
+      message(
+        "[CLIENT] Received ",
+        length(result),
+        " bytes: ",
+        paste(
+          sprintf("%02x", as.integer(result[1:min(20, length(result))])),
+          collapse = " "
+        )
+      )
     }
 
     msg <- tryCatch(
       cbordec(result),
       error = function(e) {
-        if (verbose) message("[CLIENT] CBOR decode error: ", conditionMessage(e))
+        if (verbose) {
+          message("[CLIENT] CBOR decode error: ", conditionMessage(e))
+        }
         return(NULL)
       }
     )
 
-    if (is.null(msg)) next
+    if (is.null(msg)) {
+      next
+    }
 
-    if (verbose) message("[CLIENT] Message type: ", msg$type)
+    if (verbose) {
+      message("[CLIENT] Message type: ", msg$type)
+    }
 
     if (msg$type == "sync") {
       sync_rounds <- sync_rounds + 1L
       data_len <- if (is.null(msg$data)) 0L else length(msg$data)
-      if (verbose) message("[CLIENT] Sync round ", sync_rounds, " - received ", data_len, " bytes of sync data")
+      if (verbose) {
+        message(
+          "[CLIENT] Sync round ",
+          sync_rounds,
+          " - received ",
+          data_len,
+          " bytes of sync data"
+        )
+      }
 
-      # Apply incoming sync data
       if (!is.null(msg$data) && length(msg$data) > 0L) {
         if (verbose) {
-          message("[CLIENT] Sync data hex: ",
-                  paste(sprintf("%02x", as.integer(msg$data[1:min(30, length(msg$data))])), collapse = " "))
+          message(
+            "[CLIENT] Sync data hex: ",
+            paste(
+              sprintf(
+                "%02x",
+                as.integer(msg$data[1:min(30, length(msg$data))])
+              ),
+              collapse = " "
+            )
+          )
         }
-        tryCatch({
-          am_sync_decode(doc, sync_state, msg$data)
-          if (verbose) message("[CLIENT] Applied sync data successfully")
-        }, error = function(e) {
-          warning("[CLIENT] am_sync_decode error: ", conditionMessage(e))
-        })
+        tryCatch(
+          {
+            am_sync_decode(doc, sync_state, msg$data)
+            if (verbose) message("[CLIENT] Applied sync data successfully")
+          },
+          error = function(e) {
+            warning("[CLIENT] am_sync_decode error: ", conditionMessage(e))
+          }
+        )
       }
 
-      # Check document state after applying sync
       if (verbose) {
         keys <- tryCatch(am_keys(doc), error = function(e) character(0))
-        message("[CLIENT] Document now has ", length(keys), " keys: ",
-                paste(keys[1:min(5, length(keys))], collapse = ", "),
-                if (length(keys) > 5) "..." else "")
+        message(
+          "[CLIENT] Document now has ",
+          length(keys),
+          " keys: ",
+          paste(keys[1:min(5, length(keys))], collapse = ", "),
+          if (length(keys) > 5) "..." else ""
+        )
       }
 
-      # Check if we need to send more data
       reply_data <- am_sync_encode(doc, sync_state)
       if (!is.null(reply_data)) {
-        if (verbose) message("[CLIENT] Sending ", length(reply_data), " bytes in response")
+        if (verbose) {
+          message("[CLIENT] Sending ", length(reply_data), " bytes in response")
+        }
         response <- list(
           type = "sync",
           senderId = peer_id,
@@ -203,23 +267,19 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, tls = NULL,
           documentId = doc_id,
           data = reply_data
         )
-        nanonext::send(s, cborenc(response), mode = "raw", block = TRUE)
+        send(s, cborenc(response), mode = "raw", block = TRUE)
       } else {
         if (verbose) message("[CLIENT] No more data to send from our side")
       }
-
     } else if (msg$type == "error") {
       stop("Server error: ", msg$message)
-
     } else if (msg$type == "doc-unavailable") {
       stop("Document not available on server: ", doc_id)
-
     } else {
       if (verbose) message("[CLIENT] Ignoring message type: ", msg$type)
     }
   }
 
-  # Report final state
   if (sync_rounds == 0L) {
     warning("No sync messages received - document may be empty or unavailable")
   }
@@ -244,7 +304,6 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, tls = NULL,
 #' @param url WebSocket URL of the sync server.
 #' @param doc_id Document ID (base58check encoded string).
 #' @param timeout Timeout in milliseconds. Default 5000.
-#' @param n Maximum bytes to receive per message. Default 8388608L (8MB).
 #' @param tls (optional) for secure wss:// connections to servers with
 #'   self-signed or custom CA certificates, supply either: (i) a character
 #'   path to a file containing the PEM-encoded TLS certificate, or (ii) a
@@ -260,11 +319,23 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, tls = NULL,
 #' }
 #'
 #' @export
-amsync_inspect <- function(url, doc_id, timeout = 5000L, n = 8388608L, tls = NULL, max_depth = 2) {
+amsync_inspect <- function(
+  url,
+  doc_id,
+  timeout = 5000L,
+  tls = NULL,
+  max_depth = 2
+) {
   cat("Fetching document:", doc_id, "\n")
   cat("From server:", url, "\n\n")
 
-  doc <- amsync_fetch(url, doc_id, timeout = timeout, n = n, tls = tls, verbose = TRUE)
+  doc <- amsync_fetch(
+    url,
+    doc_id,
+    timeout = timeout,
+    tls = tls,
+    verbose = TRUE
+  )
 
   cat("\n=== Document Structure ===\n")
   print_doc_structure(doc, max_depth = max_depth)
@@ -281,7 +352,12 @@ amsync_inspect <- function(url, doc_id, timeout = 5000L, n = 8388608L, tls = NUL
 #' @param current_depth Current recursion depth
 #'
 #' @noRd
-print_doc_structure <- function(doc, prefix = "", max_depth = 2, current_depth = 0) {
+print_doc_structure <- function(
+  doc,
+  prefix = "",
+  max_depth = 2,
+  current_depth = 0
+) {
   keys <- tryCatch(am_keys(doc), error = function(e) character(0))
 
   if (length(keys) == 0L) {
@@ -295,7 +371,6 @@ print_doc_structure <- function(doc, prefix = "", max_depth = 2, current_depth =
     if (is.null(val)) {
       cat(prefix, key, ": NULL\n", sep = "")
     } else if (is.character(val) && length(val) == 1L) {
-      # Truncate long strings
       display <- if (nchar(val) > 60) paste0(substr(val, 1, 57), "...") else val
       cat(prefix, key, ': "', display, '"\n', sep = "")
     } else if (is.numeric(val) && length(val) == 1L) {
@@ -310,20 +385,39 @@ print_doc_structure <- function(doc, prefix = "", max_depth = 2, current_depth =
           item <- tryCatch(am_get(val, i), error = function(e) NULL)
           cat(prefix, "  [", i, "]: ", sep = "")
           if (is.character(item)) {
-            cat('"', substr(item, 1, 40), '"', if (nchar(item) > 40) "..." else "", "\n", sep = "")
+            cat(
+              '"',
+              substr(item, 1, 40),
+              '"',
+              if (nchar(item) > 40) "..." else "",
+              "\n",
+              sep = ""
+            )
           } else if (inherits(item, "am_obj_id")) {
             cat("{object}\n")
-            print_doc_structure(item, paste0(prefix, "    "), max_depth, current_depth + 1)
+            print_doc_structure(
+              item,
+              paste0(prefix, "    "),
+              max_depth,
+              current_depth + 1
+            )
           } else {
             cat(class(item)[1], "\n")
           }
         }
-        if (len > 5L) cat(prefix, "  ... and ", len - 5L, " more items\n", sep = "")
+        if (len > 5L) {
+          cat(prefix, "  ... and ", len - 5L, " more items\n", sep = "")
+        }
       }
     } else if (inherits(val, "am_obj_id")) {
       cat(prefix, key, ": {object}\n", sep = "")
       if (current_depth < max_depth) {
-        print_doc_structure(val, paste0(prefix, "  "), max_depth, current_depth + 1)
+        print_doc_structure(
+          val,
+          paste0(prefix, "  "),
+          max_depth,
+          current_depth + 1
+        )
       }
     } else {
       cat(prefix, key, ": <", class(val)[1], ">\n", sep = "")

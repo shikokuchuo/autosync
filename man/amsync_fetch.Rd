@@ -4,14 +4,7 @@
 \alias{amsync_fetch}
 \title{Fetch a document from a sync server}
 \usage{
-amsync_fetch(
-  url,
-  doc_id,
-  timeout = 5000L,
-  n = 8388608L,
-  tls = NULL,
-  verbose = FALSE
-)
+amsync_fetch(url, doc_id, timeout = 5000L, tls = NULL, verbose = FALSE)
 }
 \arguments{
 \item{url}{WebSocket URL of the sync server (e.g., "ws://localhost:3030/"
@@ -20,8 +13,6 @@ or "wss://sync.automerge.org/"). Note: trailing slash may be required.}
 \item{doc_id}{Document ID (base58check encoded string)}
 
 \item{timeout}{Timeout in milliseconds for each receive operation. Default 5000.}
-
-\item{n}{Maximum bytes to receive per message. Default 8388608L (8MB).}
 
 \item{tls}{(optional) for secure wss:// connections to servers with
 self-signed or custom CA certificates, supply either: (i) a character

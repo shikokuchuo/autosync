@@ -18,9 +18,12 @@ handle_message <- function(server, client_id, temp_id, raw_msg) {
       return(NULL)
     }
   )
-  if (is.null(msg)) return(invisible())
+  if (is.null(msg)) {
+    return(invisible())
+  }
 
-  switch(msg$type,
+  switch(
+    msg$type,
     "join" = handle_join(server, temp_id, msg),
     "request" = handle_sync(server, client_id, msg, is_request = TRUE),
     "sync" = handle_sync(server, client_id, msg, is_request = FALSE),
@@ -59,7 +62,6 @@ handle_join <- function(server, temp_id, msg) {
   # Also store connection indexed by client_id for message routing
   server$connections[[client_id]] <- server$connections[[temp_id]]
 
-  # Send peer response
   response <- list(
     type = "peer",
     senderId = server$peer_id,
@@ -87,7 +89,7 @@ handle_join <- function(server, temp_id, msg) {
 handle_sync <- function(server, client_id, msg, is_request) {
   # Validate targetId matches this server
   if (!is.null(msg$targetId) && msg$targetId != server$peer_id) {
-    return(invisible())  # Message not intended for us
+    return(invisible()) # Message not intended for us
   }
 
   doc_id <- msg$documentId
@@ -126,7 +128,6 @@ handle_sync <- function(server, client_id, msg, is_request) {
     server$sync_states[[state_key]] <- sync_state
   }
 
-  # Apply incoming sync message
   if (!is.null(msg$data) && length(msg$data) > 0L) {
     tryCatch(
       am_sync_decode(doc, sync_state, msg$data),
@@ -134,11 +135,9 @@ handle_sync <- function(server, client_id, msg, is_request) {
         warning("am_sync_decode error: ", conditionMessage(e))
       }
     )
-    # Persist document
     save_document(server, doc_id, doc)
   }
 
-  # Generate response
   reply_data <- tryCatch(
     am_sync_encode(doc, sync_state),
     error = function(e) NULL
@@ -154,7 +153,6 @@ handle_sync <- function(server, client_id, msg, is_request) {
     send_to_peer(server, client_id, response)
   }
 
-  # Broadcast to other connected peers
   broadcast_sync(server, client_id, doc_id, doc)
 
   invisible()
@@ -209,9 +207,9 @@ handle_error <- function(server, client_id, msg) {
 #'
 #' @noRd
 handle_disconnect <- function(server, client_id) {
-  if (is.null(client_id)) return(invisible())
-
-  # Remove all sync states for this client
+  if (is.null(client_id)) {
+    return(invisible())
+  }
   all_keys <- ls(server$sync_states)
   client_keys <- all_keys[startsWith(all_keys, paste0(client_id, ":"))]
   if (length(client_keys) > 0L) {
@@ -305,23 +303,29 @@ send_unavailable <- function(server, client_id, doc_id) {
 #'
 #' @noRd
 broadcast_sync <- function(server, sender_client_id, doc_id, doc) {
-  # Iterate over all connections
   for (cid in ls(server$connections)) {
     conn <- server$connections[[cid]]
 
     # Skip: sender, pre-handshake connections, and duplicate entries (temp_id)
-    if (is.null(conn$client_id)) next
-    if (conn$client_id == sender_client_id) next
-    if (cid != conn$client_id) next  # Skip temp_id entries
+    if (is.null(conn$client_id)) {
+      next
+    }
+    if (conn$client_id == sender_client_id) {
+      next
+    }
+    if (cid != conn$client_id) {
+      next
+    } # Skip temp_id entries
 
     client_id <- conn$client_id
 
     # Check if this client has a sync state for this document
     state_key <- paste(client_id, doc_id, sep = ":")
     sync_state <- server$sync_states[[state_key]]
-    if (is.null(sync_state)) next  # Client not subscribed to this doc
+    if (is.null(sync_state)) {
+      next
+    }
 
-    # Generate sync message for this client
     reply_data <- am_sync_encode(doc, sync_state)
     if (!is.null(reply_data)) {
       response <- list(

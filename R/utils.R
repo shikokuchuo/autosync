@@ -8,7 +8,7 @@
 #' @return Character string (Base58Check encoded).
 #'
 #' @export
-generate_document_id <- function() base58enc(nanonext::random(16L, convert = FALSE))
+generate_document_id <- function() base58enc(random(16L, convert = FALSE))
 
 #' Generate a peer ID
 #'
@@ -18,9 +18,7 @@ generate_document_id <- function() base58enc(nanonext::random(16L, convert = FAL
 #' @return Character string (Base64 encoded).
 #'
 #' @noRd
-generate_peer_id <- function() {
-  secretbase::base64enc(nanonext::random(16L, convert = FALSE))
-}
+generate_peer_id <- function() base64enc(random(16L, convert = FALSE))
 
 #' Null-coalescing operator
 #'
