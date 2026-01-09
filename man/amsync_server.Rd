@@ -9,7 +9,8 @@ amsync_server(
   host = "0.0.0.0",
   data_dir = ".amrg",
   auto_create_docs = TRUE,
-  storage_id = NULL
+  storage_id = NULL,
+  tls = NULL
 )
 }
 \arguments{
@@ -25,6 +26,9 @@ clients request unknown document IDs. Default TRUE.}
 \item{storage_id}{Optional storage ID for this server. If NULL (default),
 generates a new persistent identity. Set to NA for an ephemeral server
 (no persistence identity).}
+
+\item{tls}{Optional TLS configuration for wss:// connections.
+Created with \code{\link[=amsync_tls]{amsync_tls()}} or \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
 }
 \value{
 An amsync_server object.
@@ -35,13 +39,22 @@ compatible with JavaScript, Rust, and other Automerge clients.
 }
 \examples{
 \dontrun{
-# Create a server on default port
+# Basic ws:// server on default port
 server <- amsync_server()
+serve(server)
 
 # Create server on custom port with specific data directory
 server <- amsync_server(port = 8080, data_dir = "my_docs")
+serve(server)
 
-# Start the server (blocking)
+# Secure wss:// server with self-signed certificate
+tls <- amsync_tls(self_signed = TRUE, hostname = "localhost")
+server <- amsync_server(port = 3030, tls = tls)
+serve(server)
+
+# Secure wss:// server with real certificate
+tls <- amsync_tls(cert_file = "/etc/ssl/private/server.pem")
+server <- amsync_server(port = 443, tls = tls)
 serve(server)
 }
 

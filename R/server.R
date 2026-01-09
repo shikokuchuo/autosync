@@ -1,4 +1,4 @@
-# Automerge sync server implementation using httpuv
+# Automerge sync server implementation using nanonext
 
 #' Create an Automerge sync server
 #'
@@ -13,26 +13,41 @@
 #' @param storage_id Optional storage ID for this server. If NULL (default),
 #'   generates a new persistent identity. Set to NA for an ephemeral server
 #'   (no persistence identity).
+#' @param tls Optional TLS configuration for wss:// connections.
+#'   Created with [amsync_tls()] or [nanonext::tls_config()].
 #'
 #' @return An amsync_server object.
 #'
 #' @examples
 #' \dontrun{
-#' # Create a server on default port
-
+#' # Basic ws:// server on default port
 #' server <- amsync_server()
+#' serve(server)
 #'
 #' # Create server on custom port with specific data directory
 #' server <- amsync_server(port = 8080, data_dir = "my_docs")
+#' serve(server)
 #'
-#' # Start the server (blocking)
+#' # Secure wss:// server with self-signed certificate
+#' tls <- amsync_tls(self_signed = TRUE, hostname = "localhost")
+#' server <- amsync_server(port = 3030, tls = tls)
+#' serve(server)
+#'
+#' # Secure wss:// server with real certificate
+#' tls <- amsync_tls(cert_file = "/etc/ssl/private/server.pem")
+#' server <- amsync_server(port = 443, tls = tls)
 #' serve(server)
 #' }
 #'
 #' @export
-amsync_server <- function(port = 3030L, host = "0.0.0.0",
-                          data_dir = ".amrg",
-                          auto_create_docs = TRUE, storage_id = NULL) {
+amsync_server <- function(
+  port = 3030L,
+  host = "0.0.0.0",
+  data_dir = ".amrg",
+  auto_create_docs = TRUE,
+  storage_id = NULL,
+  tls = NULL
+) {
   server <- new.env(hash = TRUE, parent = emptyenv())
 
   # Server configuration
@@ -40,6 +55,11 @@ amsync_server <- function(port = 3030L, host = "0.0.0.0",
   server$host <- host
   server$data_dir <- data_dir
   server$auto_create_docs <- auto_create_docs
+  server$tls <- tls
+
+  # Construct URL for nanonext http_server
+  scheme <- if (is.null(tls)) "http" else "https"
+  server$url <- sprintf("%s://%s:%d", scheme, host, port)
 
   # Server identity
   server$peer_id <- generate_peer_id()
@@ -47,9 +67,9 @@ amsync_server <- function(port = 3030L, host = "0.0.0.0",
     # Generate persistent storage ID
     generate_peer_id()
   } else if (is.na(storage_id)) {
-    NULL  # Ephemeral server
+    NULL # Ephemeral server
   } else {
-    storage_id  # User-provided
+    storage_id # User-provided
   }
 
   # Runtime state (initialized empty)
@@ -57,8 +77,7 @@ amsync_server <- function(port = 3030L, host = "0.0.0.0",
   server$sync_states <- new.env(hash = TRUE, parent = emptyenv())
   server$connections <- new.env(hash = TRUE, parent = emptyenv())
   server$running <- FALSE
-  server$httpuv_server <- NULL
-  server$.conn_counter <- 0L
+  server$nano_server <- NULL
 
   # Ensure data directory exists
   if (!dir.exists(data_dir)) {
@@ -96,65 +115,79 @@ serve <- function(server) {
   # Mark server as running
   server$running <- TRUE
 
-  # Build the httpuv app
-  app <- list(
-    onWSOpen = function(ws) {
-      # Create temporary connection entry with unique temp ID
-      # Will be re-keyed by client's senderId after join handshake
-      server$.conn_counter <- server$.conn_counter + 1L
-      temp_id <- paste0(".temp_", server$.conn_counter)
+  # WebSocket open handler
+  onWSOpen <- function(ws) {
+    ws_id <- as.character(ws$id)
+    server$connections[[ws_id]] <- list(
+      ws = ws,
+      client_id = NULL,
+      metadata = NULL,
+      connected_at = Sys.time()
+    )
+  }
 
-      server$connections[[temp_id]] <- list(
-        ws = ws,
-        client_id = NULL,
-        metadata = NULL,
-        connected_at = Sys.time()
-      )
+  # WebSocket message handler
+  onWSMessage <- function(ws, data) {
+    ws_id <- as.character(ws$id)
+    conn <- server$connections[[ws_id]]
+    client_id <- if (!is.null(conn$client_id)) conn$client_id else ws_id
+    handle_message(server, client_id, ws_id, data)
+  }
 
-      # Set up message handler for this connection
-      ws$onMessage(function(binary, message) {
-        raw_msg <- if (binary) message else charToRaw(message)
-        # Look up current client_id (may still be temp_id if pre-handshake)
-        conn <- server$connections[[temp_id]]
-        client_id <- if (!is.null(conn$client_id)) conn$client_id else temp_id
-        handle_message(server, client_id, temp_id, raw_msg)
-      })
-
-      # Set up close handler
-      ws$onClose(function() {
-        # Find connection by temp_id
-        conn <- server$connections[[temp_id]]
-        if (!is.null(conn)) {
-          client_id <- conn$client_id
-          handle_disconnect(server, client_id)
-          rm(list = temp_id, envir = server$connections)
-          # Also remove by client_id if it was set
-          if (!is.null(client_id) && exists(client_id, envir = server$connections)) {
-            rm(list = client_id, envir = server$connections)
-          }
-        }
-      })
+  # WebSocket close handler
+  onWSClose <- function(ws) {
+    ws_id <- as.character(ws$id)
+    conn <- server$connections[[ws_id]]
+    if (!is.null(conn)) {
+      client_id <- conn$client_id
+      handle_disconnect(server, client_id)
+      rm(list = ws_id, envir = server$connections)
+      if (
+        !is.null(client_id) && exists(client_id, envir = server$connections)
+      ) {
+        rm(list = client_id, envir = server$connections)
+      }
     }
-  )
+  }
 
-  # Start the server (non-blocking, runs in background thread)
-  server$httpuv_server <- httpuv::startServer(
-    host = server$host,
-    port = server$port,
-    app = app
+  # Create and start server
+  server$nano_server <- nanonext::http_server(
+    url = server$url,
+    handlers = list(),
+    ws_path = "/",
+    onWSOpen = onWSOpen,
+    onWSMessage = onWSMessage,
+    onWSClose = onWSClose,
+    tls = server$tls,
+    textframes = FALSE
   )
+  server$nano_server$start()
 
-  cat("Autosync server running on ws://", server$host, ":", server$port, "\n", sep = "")
+  # Display appropriate URL
+  ws_scheme <- if (is.null(server$tls)) "ws" else "wss"
+  cat(
+    "Autosync server running on ",
+    ws_scheme,
+    "://",
+    server$host,
+    ":",
+    server$port,
+    "\n",
+    sep = ""
+  )
   cat("Press Ctrl+C to stop\n")
 
   # Event loop - process callbacks
-  tryCatch({
-    while (server$running) {
-      later::run_now(timeoutSecs = 0.1)
+  tryCatch(
+    {
+      while (server$running) {
+        later::run_now(timeoutSecs = 0.1)
+      }
+    },
+    interrupt = function(e) {
+      message("\nShutting down...")
     }
-  }, interrupt = function(e) {
-    message("\nShutting down...")
-  })
+  )
 
   stop_server(server)
 
@@ -176,9 +209,9 @@ stop_server <- function(server) {
   }
 
   server$running <- FALSE
-  if (!is.null(server$httpuv_server)) {
-    httpuv::stopServer(server$httpuv_server)
-    server$httpuv_server <- NULL
+  if (!is.null(server$nano_server)) {
+    server$nano_server$close()
+    server$nano_server <- NULL
   }
 
   invisible(server)
@@ -260,4 +293,50 @@ print.amsync_server <- function(x, ...) {
   cat("  Documents:", length(ls(x$documents)), "\n")
   cat("  Connections:", length(ls(x$connections)), "\n")
   invisible(x)
+}
+
+#' Create TLS configuration for secure WebSocket server
+#'
+#' Creates a TLS configuration for wss:// connections.
+#'
+#' @param cert_file Path to PEM file containing certificate and private key,
+#'   or a list with `$server` component from [nanonext::write_cert()].
+#' @param self_signed If TRUE and cert_file is NULL, generates a self-signed
+#'   certificate for the specified hostname.
+#' @param hostname Hostname for self-signed certificate (default "127.0.0.1").
+#'
+#' @return A TLS configuration object for use with [amsync_server()], or NULL
+#'   if neither cert_file nor self_signed is specified.
+#'
+#' @examples
+#' \dontrun{
+#' # Using self-signed certificate
+#' tls <- amsync_tls(self_signed = TRUE, hostname = "localhost")
+#' server <- amsync_server(port = 3030, tls = tls)
+#'
+#' # Using existing certificate
+#' tls <- amsync_tls(cert_file = "/path/to/cert.pem")
+#' server <- amsync_server(port = 3030, tls = tls)
+#' }
+#'
+#' @export
+amsync_tls <- function(
+  cert_file = NULL,
+  self_signed = FALSE,
+  hostname = "127.0.0.1"
+) {
+  if (!is.null(cert_file)) {
+    if (is.list(cert_file) && !is.null(cert_file$server)) {
+      # write_cert() output
+      tls_config(server = cert_file$server)
+    } else {
+      # File path
+      tls_config(server = cert_file)
+    }
+  } else if (self_signed) {
+    cert <- write_cert(cn = hostname)
+    tls_config(server = cert$server)
+  } else {
+    NULL
+  }
 }

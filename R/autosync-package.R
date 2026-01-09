@@ -42,8 +42,7 @@
 #' @aliases autosync
 #'
 #' @importFrom automerge am_create am_get am_keys am_length am_load am_save am_sync_decode am_sync_encode am_sync_state_new
-#' @importFrom httpuv startServer stopServer
 #' @importFrom later run_now
-#' @importFrom nanonext random
+#' @importFrom nanonext http_server random tls_config write_cert
 #' @importFrom secretbase base64enc base64dec base58enc base58dec cborenc cbordec
 "_PACKAGE"
