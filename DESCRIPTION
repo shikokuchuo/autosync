@@ -29,5 +29,5 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Remotes:
-    r-lib/nanonext@stream,
-    shikokuchuo/automerge-r
+    automerge=shikokuchuo/automerge-r,
+    r-lib/nanonext@stream
