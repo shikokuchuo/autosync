@@ -7,14 +7,7 @@ remote servers like sync.automerge.org.
 ## Usage
 
 ``` r
-amsync_fetch(
-  url,
-  doc_id,
-  timeout = 5000L,
-  n = 8388608L,
-  tls = NULL,
-  verbose = FALSE
-)
+amsync_fetch(url, doc_id, timeout = 5000L, tls = NULL, verbose = FALSE)
 ```
 
 ## Arguments
@@ -31,10 +24,6 @@ amsync_fetch(
 - timeout:
 
   Timeout in milliseconds for each receive operation. Default 5000.
-
-- n:
-
-  Maximum bytes to receive per message. Default 8388608L (8MB).
 
 - tls:
 

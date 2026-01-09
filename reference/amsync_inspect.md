@@ -5,14 +5,7 @@ Fetches a document and prints its structure for debugging.
 ## Usage
 
 ``` r
-amsync_inspect(
-  url,
-  doc_id,
-  timeout = 5000L,
-  n = 8388608L,
-  tls = NULL,
-  max_depth = 2
-)
+amsync_inspect(url, doc_id, timeout = 5000L, tls = NULL, max_depth = 2)
 ```
 
 ## Arguments
@@ -28,10 +21,6 @@ amsync_inspect(
 - timeout:
 
   Timeout in milliseconds. Default 5000.
-
-- n:
-
-  Maximum bytes to receive per message. Default 8388608L (8MB).
 
 - tls:
 
