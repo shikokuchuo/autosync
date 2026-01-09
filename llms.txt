@@ -1,0 +1,86 @@
+# autosync
+
+R sync server for [Automerge](https://automerge.org/) CRDT documents.
+Implements the automerge-repo WebSocket protocol, enabling R to serve as
+a synchronization hub for Automerge clients (in R, JavaScript, Rust,
+etc.).
+
+### Features
+
+- Full automerge-repo protocol compatibility (interoperates with
+  sync.automerge.org)
+- Secure connections via TLS (<wss://>)
+- Persistent document storage
+- Client functions for fetching documents from remote servers
+
+## Installation
+
+``` r
+pak::pak("shikokuchuo/autosync")
+```
+
+## Server
+
+``` r
+library(autosync)
+
+# Start a sync server
+server <- amsync_server(port = 3030)
+serve(server)  # Blocks until Ctrl+C
+```
+
+Connect from JavaScript:
+
+``` javascript
+import { Repo } from "@automerge/automerge-repo"
+import { BrowserWebSocketClientAdapter } from "@automerge/automerge-repo-network-websocket"
+
+const repo = new Repo({
+  network: [new BrowserWebSocketClientAdapter("ws://localhost:3030")]
+})
+```
+
+## Client
+
+Fetch documents from any automerge-repo sync server:
+
+``` r
+# Fetch from public sync server
+doc <- amsync_fetch("wss://sync.automerge.org", "your-document-id")
+
+# Inspect document structure
+automerge::am_keys(doc)
+```
+
+## Links
+
+Documentation: <https://shikokuchuo.net/autosync/>
+
+# Package index
+
+## All functions
+
+- [`amsync_fetch()`](http://shikokuchuo.net/autosync/reference/amsync_fetch.md)
+  : Fetch a document from a sync server
+- [`amsync_inspect()`](http://shikokuchuo.net/autosync/reference/amsync_inspect.md)
+  : Inspect a document from a sync server
+- [`amsync_server()`](http://shikokuchuo.net/autosync/reference/amsync_server.md)
+  : Create an Automerge sync server
+- [`autosync-package`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
+  [`autosync`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
+  : autosync: Automerge Sync Server for R
+- [`create_document()`](http://shikokuchuo.net/autosync/reference/create_document.md)
+  : Create a new document on the server
+- [`generate_document_id()`](http://shikokuchuo.net/autosync/reference/generate_document_id.md)
+  : Generate a new document ID
+- [`get_document()`](http://shikokuchuo.net/autosync/reference/get_document.md)
+  : Get a document from the server
+- [`list_documents()`](http://shikokuchuo.net/autosync/reference/list_documents.md)
+  : List all document IDs
+- [`print(`*`<amsync_server>`*`)`](http://shikokuchuo.net/autosync/reference/print.amsync_server.md)
+  : Print method for amsync_server
+- [`serve()`](http://shikokuchuo.net/autosync/reference/serve.md) :
+  Start the sync server (blocking)
+- [`stop_server()`](http://shikokuchuo.net/autosync/reference/stop_server.md)
+  : Stop the sync server
+
