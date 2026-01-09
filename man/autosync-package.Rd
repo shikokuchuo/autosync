@@ -55,6 +55,7 @@ serve(server)  # Blocks until stopped
 Useful links:
 \itemize{
   \item \url{https://github.com/shikokuchuo/autosync}
+  \item \url{http://shikokuchuo.net/autosync/}
   \item Report bugs at \url{https://github.com/shikokuchuo/autosync/issues}
 }
 

@@ -1,0 +1,4 @@
+url: http://shikokuchuo.net/autosync/
+template:
+  package: tidytemplate
+  bootstrap: 5
