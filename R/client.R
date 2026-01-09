@@ -11,6 +11,10 @@
 #' @param doc_id Document ID (base58check encoded string)
 #' @param timeout Timeout in milliseconds for each receive operation. Default 5000.
 #' @param n Maximum bytes to receive per message. Default 8388608L (8MB).
+#' @param tls (optional) for secure wss:// connections to servers with
+#'   self-signed or custom CA certificates, supply either: (i) a character
+#'   path to a file containing the PEM-encoded TLS certificate, or (ii) a
+#'   certificate from [nanonext::write_cert()].
 #' @param verbose Logical, print debug messages. Default FALSE.
 #'
 #' @return An automerge document object containing the fetched data.
@@ -34,12 +38,16 @@
 #' # Fetch from local server with debug output
 #' doc <- amsync_fetch("ws://localhost:3030", "myDocId", verbose = TRUE)
 #'
+#' # Fetch from server with self-signed certificate
+#' doc <- amsync_fetch("wss://localhost:3030", "myDocId",
+#'                     tls = nanonext::write_cert()$client)
+#'
 #' # Inspect the document
 #' automerge::am_keys(doc)
 #' }
 #'
 #' @export
-amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, verbose = FALSE) {
+amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, tls = NULL, verbose = FALSE) {
 
   # Create a local document and sync state
   doc <- am_create()
@@ -53,7 +61,11 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, verbose = F
   if (verbose) message("[CLIENT] Requesting document: ", doc_id)
 
  # Connect to WebSocket using nanonext stream
-  s <- nanonext::stream(dial = url, textframes = FALSE)
+  s <- nanonext::stream(
+    dial = url,
+    tls = if (!is.null(tls)) tls_config(client = tls),
+    textframes = FALSE
+  )
   on.exit(close(s), add = TRUE)
 
   if (verbose) message("[CLIENT] Connected, sending join message")
@@ -233,6 +245,10 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, verbose = F
 #' @param doc_id Document ID (base58check encoded string).
 #' @param timeout Timeout in milliseconds. Default 5000.
 #' @param n Maximum bytes to receive per message. Default 8388608L (8MB).
+#' @param tls (optional) for secure wss:// connections to servers with
+#'   self-signed or custom CA certificates, supply either: (i) a character
+#'   path to a file containing the PEM-encoded TLS certificate, or (ii) a
+#'   certificate from [nanonext::write_cert()].
 #' @param max_depth Maximum depth to recurse into nested structures. Default 2.
 #'
 #' @return Invisibly returns the fetched automerge document.
@@ -244,11 +260,11 @@ amsync_fetch <- function(url, doc_id, timeout = 5000L, n = 8388608L, verbose = F
 #' }
 #'
 #' @export
-amsync_inspect <- function(url, doc_id, timeout = 5000L, n = 8388608L, max_depth = 2) {
+amsync_inspect <- function(url, doc_id, timeout = 5000L, n = 8388608L, tls = NULL, max_depth = 2) {
   cat("Fetching document:", doc_id, "\n")
   cat("From server:", url, "\n\n")
 
-  doc <- amsync_fetch(url, doc_id, timeout = timeout, n = n, verbose = TRUE)
+  doc <- amsync_fetch(url, doc_id, timeout = timeout, n = n, tls = tls, verbose = TRUE)
 
   cat("\n=== Document Structure ===\n")
   print_doc_structure(doc, max_depth = max_depth)

@@ -13,8 +13,11 @@
 #' @param storage_id Optional storage ID for this server. If NULL (default),
 #'   generates a new persistent identity. Set to NA for an ephemeral server
 #'   (no persistence identity).
-#' @param tls Optional TLS configuration for wss:// connections.
-#'   Created with [amsync_tls()] or [nanonext::tls_config()].
+#' @param tls (optional) for secure wss:// connections, supply either: (i) a
+#'   character path to a file containing the PEM-encoded TLS certificate and
+#'   associated private key, or (ii) a length-2 character vector of
+#'   [nanonext::write_cert()] comprising the certificate followed by the
+#'   private key.
 #'
 #' @return An amsync_server object.
 #'
@@ -28,14 +31,12 @@
 #' server <- amsync_server(port = 8080, data_dir = "my_docs")
 #' serve(server)
 #'
-#' # Secure wss:// server with self-signed certificate
-#' tls <- amsync_tls(self_signed = TRUE, hostname = "localhost")
-#' server <- amsync_server(port = 3030, tls = tls)
+#' # Secure wss:// server with auto-generated certificate
+#' server <- amsync_server(port = 3030, tls = nanonext::write_cert()$server)
 #' serve(server)
 #'
-#' # Secure wss:// server with real certificate
-#' tls <- amsync_tls(cert_file = "/etc/ssl/private/server.pem")
-#' server <- amsync_server(port = 443, tls = tls)
+#' # Secure wss:// server with certificate file
+#' server <- amsync_server(port = 443, tls = "/etc/ssl/private/server.pem")
 #' serve(server)
 #' }
 #'
@@ -55,7 +56,7 @@ amsync_server <- function(
   server$host <- host
   server$data_dir <- data_dir
   server$auto_create_docs <- auto_create_docs
-  server$tls <- tls
+  server$tls <- if (!is.null(tls)) tls_config(server = tls)
 
   # Construct URL for nanonext http_server
   scheme <- if (is.null(tls)) "http" else "https"
@@ -293,50 +294,4 @@ print.amsync_server <- function(x, ...) {
   cat("  Documents:", length(ls(x$documents)), "\n")
   cat("  Connections:", length(ls(x$connections)), "\n")
   invisible(x)
-}
-
-#' Create TLS configuration for secure WebSocket server
-#'
-#' Creates a TLS configuration for wss:// connections.
-#'
-#' @param cert_file Path to PEM file containing certificate and private key,
-#'   or a list with `$server` component from [nanonext::write_cert()].
-#' @param self_signed If TRUE and cert_file is NULL, generates a self-signed
-#'   certificate for the specified hostname.
-#' @param hostname Hostname for self-signed certificate (default "127.0.0.1").
-#'
-#' @return A TLS configuration object for use with [amsync_server()], or NULL
-#'   if neither cert_file nor self_signed is specified.
-#'
-#' @examples
-#' \dontrun{
-#' # Using self-signed certificate
-#' tls <- amsync_tls(self_signed = TRUE, hostname = "localhost")
-#' server <- amsync_server(port = 3030, tls = tls)
-#'
-#' # Using existing certificate
-#' tls <- amsync_tls(cert_file = "/path/to/cert.pem")
-#' server <- amsync_server(port = 3030, tls = tls)
-#' }
-#'
-#' @export
-amsync_tls <- function(
-  cert_file = NULL,
-  self_signed = FALSE,
-  hostname = "127.0.0.1"
-) {
-  if (!is.null(cert_file)) {
-    if (is.list(cert_file) && !is.null(cert_file$server)) {
-      # write_cert() output
-      tls_config(server = cert_file$server)
-    } else {
-      # File path
-      tls_config(server = cert_file)
-    }
-  } else if (self_signed) {
-    cert <- write_cert(cn = hostname)
-    tls_config(server = cert$server)
-  } else {
-    NULL
-  }
 }

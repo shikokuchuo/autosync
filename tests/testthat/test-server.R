@@ -76,19 +76,12 @@ test_that("generate_document_id creates valid IDs", {
   expect_length(bytes, 16L)
 })
 
-test_that("amsync_tls returns NULL when no TLS requested", {
-  tls <- amsync_tls()
-  expect_null(tls)
-})
-
-test_that("amsync_tls creates self-signed certificate", {
-  tls <- amsync_tls(self_signed = TRUE, hostname = "127.0.0.1")
-  expect_false(is.null(tls))
-})
-
 test_that("amsync_server with TLS creates https URL", {
-  tls <- amsync_tls(self_signed = TRUE, hostname = "127.0.0.1")
-  server <- amsync_server(port = 0, tls = tls, data_dir = tempdir())
+  server <- amsync_server(
+    port = 0,
+    tls = nanonext::write_cert()$server,
+    data_dir = tempdir()
+  )
   on.exit(stop_server(server))
 
   expect_true(grepl("^https://", server$url))

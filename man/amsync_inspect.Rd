@@ -4,7 +4,14 @@
 \alias{amsync_inspect}
 \title{Inspect a document from a sync server}
 \usage{
-amsync_inspect(url, doc_id, timeout = 5000L, n = 8388608L, max_depth = 2)
+amsync_inspect(
+  url,
+  doc_id,
+  timeout = 5000L,
+  n = 8388608L,
+  tls = NULL,
+  max_depth = 2
+)
 }
 \arguments{
 \item{url}{WebSocket URL of the sync server.}
@@ -14,6 +21,11 @@ amsync_inspect(url, doc_id, timeout = 5000L, n = 8388608L, max_depth = 2)
 \item{timeout}{Timeout in milliseconds. Default 5000.}
 
 \item{n}{Maximum bytes to receive per message. Default 8388608L (8MB).}
+
+\item{tls}{(optional) for secure wss:// connections to servers with
+self-signed or custom CA certificates, supply either: (i) a character
+path to a file containing the PEM-encoded TLS certificate, or (ii) a
+certificate from \code{\link[nanonext:write_cert]{nanonext::write_cert()}}.}
 
 \item{max_depth}{Maximum depth to recurse into nested structures. Default 2.}
 }

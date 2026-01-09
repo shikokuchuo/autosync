@@ -27,8 +27,11 @@ clients request unknown document IDs. Default TRUE.}
 generates a new persistent identity. Set to NA for an ephemeral server
 (no persistence identity).}
 
-\item{tls}{Optional TLS configuration for wss:// connections.
-Created with \code{\link[=amsync_tls]{amsync_tls()}} or \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
+\item{tls}{(optional) for secure wss:// connections, supply either: (i) a
+character path to a file containing the PEM-encoded TLS certificate and
+associated private key, or (ii) a length-2 character vector of
+\code{\link[nanonext:write_cert]{nanonext::write_cert()}} comprising the certificate followed by the
+private key.}
 }
 \value{
 An amsync_server object.
@@ -47,14 +50,12 @@ serve(server)
 server <- amsync_server(port = 8080, data_dir = "my_docs")
 serve(server)
 
-# Secure wss:// server with self-signed certificate
-tls <- amsync_tls(self_signed = TRUE, hostname = "localhost")
-server <- amsync_server(port = 3030, tls = tls)
+# Secure wss:// server with auto-generated certificate
+server <- amsync_server(port = 3030, tls = nanonext::write_cert()$server)
 serve(server)
 
-# Secure wss:// server with real certificate
-tls <- amsync_tls(cert_file = "/etc/ssl/private/server.pem")
-server <- amsync_server(port = 443, tls = tls)
+# Secure wss:// server with certificate file
+server <- amsync_server(port = 443, tls = "/etc/ssl/private/server.pem")
 serve(server)
 }
 

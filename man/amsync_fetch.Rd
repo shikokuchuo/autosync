@@ -4,7 +4,14 @@
 \alias{amsync_fetch}
 \title{Fetch a document from a sync server}
 \usage{
-amsync_fetch(url, doc_id, timeout = 5000L, n = 8388608L, verbose = FALSE)
+amsync_fetch(
+  url,
+  doc_id,
+  timeout = 5000L,
+  n = 8388608L,
+  tls = NULL,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{url}{WebSocket URL of the sync server (e.g., "ws://localhost:3030/"
@@ -15,6 +22,11 @@ or "wss://sync.automerge.org/"). Note: trailing slash may be required.}
 \item{timeout}{Timeout in milliseconds for each receive operation. Default 5000.}
 
 \item{n}{Maximum bytes to receive per message. Default 8388608L (8MB).}
+
+\item{tls}{(optional) for secure wss:// connections to servers with
+self-signed or custom CA certificates, supply either: (i) a character
+path to a file containing the PEM-encoded TLS certificate, or (ii) a
+certificate from \code{\link[nanonext:write_cert]{nanonext::write_cert()}}.}
 
 \item{verbose}{Logical, print debug messages. Default FALSE.}
 }
@@ -46,6 +58,10 @@ doc <- amsync_fetch("wss://sync.automerge.org", "4F63WJPDzbHkkfKa66h1Qrr1sC5U")
 
 # Fetch from local server with debug output
 doc <- amsync_fetch("ws://localhost:3030", "myDocId", verbose = TRUE)
+
+# Fetch from server with self-signed certificate
+doc <- amsync_fetch("wss://localhost:3030", "myDocId",
+                    tls = nanonext::write_cert()$client)
 
 # Inspect the document
 automerge::am_keys(doc)
