@@ -106,7 +106,7 @@ serve <- function(server) {
   server$running <- TRUE
   load_all_documents(server)
 
-  onWSOpen <- function(ws) {
+  on_open <- function(ws) {
     ws_id <- as.character(ws$id)
     server$connections[[ws_id]] <- list(
       ws = ws,
@@ -116,14 +116,14 @@ serve <- function(server) {
     )
   }
 
-  onWSMessage <- function(ws, data) {
+  on_message <- function(ws, data) {
     ws_id <- as.character(ws$id)
     conn <- server$connections[[ws_id]]
     client_id <- if (!is.null(conn$client_id)) conn$client_id else ws_id
     handle_message(server, client_id, ws_id, data)
   }
 
-  onWSClose <- function(ws) {
+  on_close <- function(ws) {
     ws_id <- as.character(ws$id)
     conn <- server$connections[[ws_id]]
     if (!is.null(conn)) {
@@ -142,9 +142,9 @@ serve <- function(server) {
     url = server$url,
     handlers = list(),
     ws_path = "/",
-    onWSOpen = onWSOpen,
-    onWSMessage = onWSMessage,
-    onWSClose = onWSClose,
+    on_open = on_open,
+    on_message = on_message,
+    on_close = on_close,
     tls = server$tls,
     textframes = FALSE
   )
