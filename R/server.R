@@ -19,25 +19,28 @@
 #'   [nanonext::write_cert()] comprising the certificate followed by the
 #'   private key.
 #'
-#' @return An amsync_server object.
+#' @return An amsync_server object inheriting from 'nanoServer', with
+#'   `$start()` and `$stop()` methods.
+#'
+#' @details
+#' The returned server inherits from nanonext's nanoServer class and provides
+#' `$start()` and `$stop()` methods for non-blocking operation.
 #'
 #' @examples
 #' \dontrun{
-#' # Basic ws:// server on default port
+#' # Create and start a server
 #' server <- amsync_server()
-#' serve(server)
+#' server$start()
 #'
-#' # Create server on custom port with specific data directory
-#' server <- amsync_server(port = 8080, data_dir = "my_docs")
-#' serve(server)
+#' # Server is now running in the background
+#' # ...do other work...
 #'
-#' # Secure wss:// server with auto-generated certificate
-#' server <- amsync_server(port = 3030, tls = nanonext::write_cert()$server)
-#' serve(server)
+#' # Stop when done
+#' server$stop()
 #'
-#' # Secure wss:// server with certificate file
-#' server <- amsync_server(port = 443, tls = "/etc/ssl/private/server.pem")
-#' serve(server)
+#' # Custom port with TLS
+#' server <- amsync_server(port = 8080, tls = nanonext::write_cert()$server)
+#' server$start()
 #' }
 #'
 #' @export
@@ -49,66 +52,44 @@ amsync_server <- function(
   storage_id = NULL,
   tls = NULL
 ) {
-  server <- new.env(hash = TRUE, parent = emptyenv())
-  server$port <- as.integer(port)
-  server$host <- host
-  server$data_dir <- data_dir
-  server$auto_create_docs <- auto_create_docs
-  server$tls <- if (!is.null(tls)) tls_config(server = tls)
+  port <- as.integer(port)
+  tls_cfg <- if (!is.null(tls)) tls_config(server = tls)
 
   scheme <- if (is.null(tls)) "http" else "https"
-  server$url <- sprintf("%s://%s:%d", scheme, host, port)
+  url <- sprintf("%s://%s:%d", scheme, host, port)
 
-  server$peer_id <- generate_peer_id()
-  server$storage_id <- if (is.null(storage_id)) {
-    generate_peer_id()
-  } else if (is.na(storage_id)) {
-    NULL # Ephemeral server
-  } else {
-    storage_id # User-provided
-  }
-
-  server$documents <- new.env(hash = TRUE, parent = emptyenv())
-  server$sync_states <- new.env(hash = TRUE, parent = emptyenv())
-  server$connections <- new.env(hash = TRUE, parent = emptyenv())
-  server$running <- FALSE
-  server$nano_server <- NULL
+  documents <- new.env(hash = TRUE, parent = emptyenv())
+  sync_states <- new.env(hash = TRUE, parent = emptyenv())
+  connections <- new.env(hash = TRUE, parent = emptyenv())
 
   if (!dir.exists(data_dir)) {
     dir.create(data_dir, recursive = TRUE)
   }
 
-  class(server) <- "amsync_server"
-  server
-}
+  # Create state environment for handlers to access via closure
 
-#' Start the sync server (blocking)
-#'
-#' Starts the WebSocket server and enters the event loop. This function
-#' blocks until the server is stopped via [stop_server()].
-#'
-#' @param server An amsync_server object.
-#'
-#' @return Invisibly returns the server object.
-#'
-#' @examples
-#' \dontrun{
-#' server <- amsync_server()
-#' serve(server)  # Blocks until stopped
-#' }
-#'
-#' @export
-serve <- function(server) {
-  if (!inherits(server, "amsync_server")) {
-    stop("'server' must be an amsync_server object")
+  state <- new.env(hash = TRUE, parent = emptyenv())
+  state$port <- port
+  state$host <- host
+  state$data_dir <- data_dir
+  state$auto_create_docs <- auto_create_docs
+  state$peer_id <- generate_peer_id()
+  state$storage_id <- if (is.null(storage_id)) {
+    generate_peer_id()
+  } else if (is.na(storage_id)) {
+    NULL
+  } else {
+    storage_id
   }
+  state$documents <- documents
+  state$sync_states <- sync_states
+  state$connections <- connections
 
-  server$running <- TRUE
-  load_all_documents(server)
+  load_all_documents(state)
 
   on_open <- function(ws) {
     ws_id <- as.character(ws$id)
-    server$connections[[ws_id]] <- list(
+    state$connections[[ws_id]] <- list(
       ws = ws,
       client_id = NULL,
       metadata = NULL,
@@ -118,85 +99,41 @@ serve <- function(server) {
 
   on_message <- function(ws, data) {
     ws_id <- as.character(ws$id)
-    conn <- server$connections[[ws_id]]
+    conn <- state$connections[[ws_id]]
     client_id <- if (!is.null(conn$client_id)) conn$client_id else ws_id
-    handle_message(server, client_id, ws_id, data)
+    handle_message(state, client_id, ws_id, data)
   }
 
   on_close <- function(ws) {
     ws_id <- as.character(ws$id)
-    conn <- server$connections[[ws_id]]
+    conn <- state$connections[[ws_id]]
     if (!is.null(conn)) {
       client_id <- conn$client_id
-      handle_disconnect(server, client_id)
-      rm(list = ws_id, envir = server$connections)
-      if (
-        !is.null(client_id) && exists(client_id, envir = server$connections)
-      ) {
-        rm(list = client_id, envir = server$connections)
+      handle_disconnect(state, client_id)
+      rm(list = ws_id, envir = state$connections)
+      if (!is.null(client_id) && exists(client_id, envir = state$connections)) {
+        rm(list = client_id, envir = state$connections)
       }
     }
   }
 
-  server$nano_server <- nanonext::http_server(
-    url = server$url,
-    handlers = list(),
-    ws_path = "/",
-    on_open = on_open,
+  ws_handler <- nanonext::handler_ws(
+    path = "/",
     on_message = on_message,
+    on_open = on_open,
     on_close = on_close,
-    tls = server$tls,
     textframes = FALSE
   )
-  server$nano_server$start()
 
-  ws_scheme <- if (is.null(server$tls)) "ws" else "wss"
-  cat(
-    "Autosync server running on ",
-    ws_scheme,
-    "://",
-    server$host,
-    ":",
-    server$port,
-    "\n",
-    sep = ""
-  )
-  cat("Press Ctrl+C to stop\n")
-
-  tryCatch(
-    {
-      while (server$running) {
-        later::run_now(timeoutSecs = Inf)
-      }
-    },
-    interrupt = function(e) {
-      message("\nShutting down...")
-    }
+  server <- nanonext::http_server(
+    url = url,
+    handlers = list(ws_handler),
+    tls = tls_cfg
   )
 
-  stop_server(server)
-  invisible(server)
-}
-
-#' Stop the sync server
-#'
-#' Stops a running sync server and cleans up resources.
-#'
-#' @param server An amsync_server object.
-#'
-#' @return Invisibly returns the server object.
-#'
-#' @export
-stop_server <- function(server) {
-  if (!inherits(server, "amsync_server")) {
-    stop("'server' must be an amsync_server object")
-  }
-  server$running <- FALSE
-  if (!is.null(server$nano_server)) {
-    server$nano_server$close()
-    server$nano_server <- NULL
-  }
-  invisible(server)
+  attr(server, "sync") <- state
+  class(server) <- c("amsync_server", class(server))
+  server
 }
 
 #' Get a document from the server
@@ -213,7 +150,7 @@ get_document <- function(server, doc_id) {
   if (!inherits(server, "amsync_server")) {
     stop("'server' must be an amsync_server object")
   }
-  server$documents[[doc_id]]
+  attr(server, "sync")$documents[[doc_id]]
 }
 
 #' List all document IDs
@@ -229,7 +166,7 @@ list_documents <- function(server) {
   if (!inherits(server, "amsync_server")) {
     stop("'server' must be an amsync_server object")
   }
-  ls(server$documents)
+  ls(attr(server, "sync")$documents)
 }
 
 #' Create a new document on the server
@@ -247,13 +184,15 @@ create_document <- function(server, doc_id = NULL) {
     stop("'server' must be an amsync_server object")
   }
 
+  state <- attr(server, "sync")
+
   if (is.null(doc_id)) {
     doc_id <- generate_document_id()
   }
 
   doc <- am_create()
-  server$documents[[doc_id]] <- doc
-  save_document(server, doc_id, doc)
+  state$documents[[doc_id]] <- doc
+  save_document(state, doc_id, doc)
 
   doc_id
 }
@@ -267,12 +206,12 @@ create_document <- function(server, doc_id = NULL) {
 #'
 #' @export
 print.amsync_server <- function(x, ...) {
+  state <- attr(x, "sync")
   cat("Automerge Sync Server\n")
-  cat("  Host:", x$host, "\n")
-  cat("  Port:", x$port, "\n")
-  cat("  Data dir:", x$data_dir, "\n")
-  cat("  Running:", x$running, "\n")
-  cat("  Documents:", length(ls(x$documents)), "\n")
-  cat("  Connections:", length(ls(x$connections)), "\n")
-  invisible(x)
+  cat("  Host:", state$host, "\n")
+  cat("  Port:", state$port, "\n")
+  cat("  Data dir:", state$data_dir, "\n")
+  cat("  Documents:", length(state$documents), "\n")
+  cat("  Connections:", length(state$connections), "\n")
+  NextMethod()
 }

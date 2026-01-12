@@ -14,9 +14,8 @@ clients in collaborative applications.
 \section{Main Functions}{
 
 \describe{
-\item{\code{\link[=amsync_server]{amsync_server()}}}{Create a new sync server}
-\item{\code{\link[=serve]{serve()}}}{Start the server (blocking)}
-\item{\code{\link[=stop_server]{stop_server()}}}{Stop a running server}
+\item{\code{\link[=amsync_server]{amsync_server()}}}{Create a new sync server with \verb{$start()} and
+\verb{$stop()} methods}
 }
 }
 
@@ -47,7 +46,10 @@ Messages are CBOR-encoded and include:
 \preformatted{
 # Create and start a server
 server <- amsync_server(port = 3030)
-serve(server)  # Blocks until stopped
+server$start()
+
+# Stop when done
+server$stop()
 }
 }
 

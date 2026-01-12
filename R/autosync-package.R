@@ -7,9 +7,8 @@
 #'
 #' @section Main Functions:
 #' \describe{
-#'   \item{[amsync_server()]}{Create a new sync server}
-#'   \item{[serve()]}{Start the server (blocking)}
-#'   \item{[stop_server()]}{Stop a running server}
+#'   \item{[amsync_server()]}{Create a new sync server with `$start()` and
+#'     `$stop()` methods}
 #' }
 #'
 #' @section Document Management:
@@ -34,7 +33,10 @@
 #' \preformatted{
 #' # Create and start a server
 #' server <- amsync_server(port = 3030)
-#' serve(server)  # Blocks until stopped
+#' server$start()
+#'
+#' # Stop when done
+#' server$stop()
 #' }
 #'
 #' @docType package
@@ -42,7 +44,6 @@
 #' @aliases autosync
 #'
 #' @importFrom automerge am_create am_get am_keys am_length am_load am_save am_sync_decode am_sync_encode am_sync_state_new
-#' @importFrom later run_now
 #' @importFrom nanonext http_server random recv send stream tls_config write_cert
 #' @importFrom secretbase base64enc base64dec base58enc base58dec cborenc cbordec
 "_PACKAGE"

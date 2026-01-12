@@ -1,24 +1,25 @@
 test_that("amsync_server creates valid server object", {
   server <- amsync_server(port = 0, data_dir = tempdir())
-  on.exit(stop_server(server))
+  on.exit(server$stop())
 
+  state <- attr(server, "sync")
   expect_s3_class(server, "amsync_server")
-  expect_false(server$running)
-  expect_type(server$peer_id, "character")
-  expect_type(server$storage_id, "character")
+  expect_type(state$peer_id, "character")
+  expect_type(state$storage_id, "character")
 })
 
 test_that("amsync_server with ephemeral storage_id", {
   server <- amsync_server(port = 0, storage_id = NA, data_dir = tempdir())
-  on.exit(stop_server(server))
+  on.exit(server$stop())
 
-  expect_null(server$storage_id)
+  state <- attr(server, "sync")
+  expect_null(state$storage_id)
 })
 
 test_that("create_document generates valid ID", {
   server <- amsync_server(port = 0, data_dir = tempdir())
   on.exit({
-    stop_server(server)
+    server$stop()
     unlink(file.path(tempdir(), "*.automerge"))
   })
 
@@ -31,7 +32,7 @@ test_that("create_document generates valid ID", {
 test_that("get_document retrieves created document", {
   server <- amsync_server(port = 0, data_dir = tempdir())
   on.exit({
-    stop_server(server)
+    server$stop()
     unlink(file.path(tempdir(), "*.automerge"))
   })
 
@@ -43,7 +44,7 @@ test_that("get_document retrieves created document", {
 test_that("list_documents returns all documents", {
   server <- amsync_server(port = 0, data_dir = tempdir())
   on.exit({
-    stop_server(server)
+    server$stop()
     unlink(file.path(tempdir(), "*.automerge"))
   })
 
@@ -60,7 +61,7 @@ test_that("list_documents returns all documents", {
 
 test_that("print.amsync_server works", {
   server <- amsync_server(port = 3030, data_dir = tempdir())
-  on.exit(stop_server(server))
+  on.exit(server$stop())
 
   output <- capture.output(print(server))
   expect_true(any(grepl("Automerge Sync Server", output)))
@@ -78,18 +79,18 @@ test_that("generate_document_id creates valid IDs", {
 
 test_that("amsync_server with TLS creates https URL", {
   server <- amsync_server(
-    port = 0,
+    port = 3031,
     tls = nanonext::write_cert()$server,
     data_dir = tempdir()
   )
-  on.exit(stop_server(server))
+  on.exit(server$stop())
 
   expect_true(grepl("^https://", server$url))
 })
 
 test_that("amsync_server without TLS creates http URL", {
   server <- amsync_server(port = 0, data_dir = tempdir())
-  on.exit(stop_server(server))
+  on.exit(server$stop())
 
   expect_true(grepl("^http://", server$url))
 })

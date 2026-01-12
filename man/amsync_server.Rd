@@ -34,29 +34,32 @@ associated private key, or (ii) a length-2 character vector of
 private key.}
 }
 \value{
-An amsync_server object.
+An amsync_server object inheriting from 'nanoServer', with
+\verb{$start()} and \verb{$stop()} methods.
 }
 \description{
 Creates a WebSocket server that implements the automerge-repo sync protocol,
 compatible with JavaScript, Rust, and other Automerge clients.
 }
+\details{
+The returned server inherits from nanonext's nanoServer class and provides
+\verb{$start()} and \verb{$stop()} methods for non-blocking operation.
+}
 \examples{
 \dontrun{
-# Basic ws:// server on default port
+# Create and start a server
 server <- amsync_server()
-serve(server)
+server$start()
 
-# Create server on custom port with specific data directory
-server <- amsync_server(port = 8080, data_dir = "my_docs")
-serve(server)
+# Server is now running in the background
+# ...do other work...
 
-# Secure wss:// server with auto-generated certificate
-server <- amsync_server(port = 3030, tls = nanonext::write_cert()$server)
-serve(server)
+# Stop when done
+server$stop()
 
-# Secure wss:// server with certificate file
-server <- amsync_server(port = 443, tls = "/etc/ssl/private/server.pem")
-serve(server)
+# Custom port with TLS
+server <- amsync_server(port = 8080, tls = nanonext::write_cert()$server)
+server$start()
 }
 
 }
