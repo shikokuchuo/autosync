@@ -26,7 +26,7 @@ Imports:
 Suggests:
     testthat (>= 3.0.0)
 Remotes:
-    automerge=shikokuchuo/automerge-r,
+    automerge=posit-dev/automerge-r,
     r-lib/nanonext@stream
 Config/Needs/website: tidyverse/tidytemplate
 Config/testthat/edition: 3
