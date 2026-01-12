@@ -89,27 +89,31 @@ private key.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An amsync_server object.</p>
+    <p>An amsync_server object inheriting from 'nanoServer', with
+<code>$start()</code> and <code>$stop()</code> methods.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>The returned server inherits from nanonext's nanoServer class and provides
+<code>$start()</code> and <code>$stop()</code> methods for non-blocking operation.</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="co"># Basic ws:// server on default port</span></span></span>
+<span class="r-in"><span><span class="co"># Create and start a server</span></span></span>
 <span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="serve.html">serve</a></span><span class="op">(</span><span class="va">server</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Create server on custom port with specific data directory</span></span></span>
-<span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span>port <span class="op">=</span> <span class="fl">8080</span>, data_dir <span class="op">=</span> <span class="st">"my_docs"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="serve.html">serve</a></span><span class="op">(</span><span class="va">server</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Server is now running in the background</span></span></span>
+<span class="r-in"><span><span class="co"># ...do other work...</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Secure wss:// server with auto-generated certificate</span></span></span>
-<span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span>port <span class="op">=</span> <span class="fl">3030</span>, tls <span class="op">=</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/write_cert.html" class="external-link">write_cert</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">server</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="serve.html">serve</a></span><span class="op">(</span><span class="va">server</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Stop when done</span></span></span>
+<span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="kw">stop</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Secure wss:// server with certificate file</span></span></span>
-<span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span>port <span class="op">=</span> <span class="fl">443</span>, tls <span class="op">=</span> <span class="st">"/etc/ssl/private/server.pem"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="serve.html">serve</a></span><span class="op">(</span><span class="va">server</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Custom port with TLS</span></span></span>
+<span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span>port <span class="op">=</span> <span class="fl">8080</span>, tls <span class="op">=</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/write_cert.html" class="external-link">write_cert</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">server</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

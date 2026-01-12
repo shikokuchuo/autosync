@@ -9,15 +9,7 @@ Automerge clients in collaborative applications.
 
 - [`amsync_server()`](http://shikokuchuo.net/autosync/reference/amsync_server.md):
 
-  Create a new sync server
-
-- [`serve()`](http://shikokuchuo.net/autosync/reference/serve.md):
-
-  Start the server (blocking)
-
-- [`stop_server()`](http://shikokuchuo.net/autosync/reference/stop_server.md):
-
-  Stop a running server
+  Create a new sync server with `$start()` and `$stop()` methods
 
 ## Document Management
 
@@ -62,7 +54,10 @@ Messages are CBOR-encoded and include:
 
     # Create and start a server
     server <- amsync_server(port = 3030)
-    serve(server)  # Blocks until stopped
+    server$start()
+
+    # Stop when done
+    server$stop()
 
 ## See also
 

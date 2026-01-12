@@ -79,7 +79,7 @@
 <span></span>
 <span><span class="co"># Start a sync server</span></span>
 <span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_server.html">amsync_server</a></span><span class="op">(</span>port <span class="op">=</span> <span class="fl">3030</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/serve.html">serve</a></span><span class="op">(</span><span class="va">server</span><span class="op">)</span>  <span class="co"># Blocks until Ctrl+C</span></span></code></pre></div>
+<span><span class="fu">serve</span><span class="op">(</span><span class="va">server</span><span class="op">)</span>  <span class="co"># Blocks until Ctrl+C</span></span></code></pre></div>
 <p>Connect from JavaScript:</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="im">import</span> { Repo } <span class="im">from</span> <span class="st">"@automerge/automerge-repo"</span></span>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="im">import</span> { BrowserWebSocketClientAdapter } <span class="im">from</span> <span class="st">"@automerge/automerge-repo-network-websocket"</span></span>
@@ -97,7 +97,7 @@
 <span><span class="va">doc</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_fetch.html">amsync_fetch</a></span><span class="op">(</span><span class="st">"wss://sync.automerge.org"</span>, <span class="st">"your-document-id"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Inspect document structure</span></span>
-<span><span class="fu">automerge</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/automerge/man/am_keys.html" class="external-link">am_keys</a></span><span class="op">(</span><span class="va">doc</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">automerge</span><span class="fu">::</span><span class="fu"><a href="https://posit-dev.github.io/automerge-r/reference/am_keys.html" class="external-link">am_keys</a></span><span class="op">(</span><span class="va">doc</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="links">Links<a class="anchor" aria-label="anchor" href="#links"></a>

@@ -79,8 +79,4 @@ Documentation: <https://shikokuchuo.net/autosync/>
   : List all document IDs
 - [`print(`*`<amsync_server>`*`)`](http://shikokuchuo.net/autosync/reference/print.amsync_server.md)
   : Print method for amsync_server
-- [`serve()`](http://shikokuchuo.net/autosync/reference/serve.md) :
-  Start the sync server (blocking)
-- [`stop_server()`](http://shikokuchuo.net/autosync/reference/stop_server.md)
-  : Stop the sync server
 

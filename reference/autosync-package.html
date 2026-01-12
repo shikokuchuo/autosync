@@ -52,13 +52,8 @@ clients in collaborative applications.</p>
 
 
 <dl><dt><code><a href="amsync_server.html">amsync_server()</a></code></dt>
-<dd><p>Create a new sync server</p></dd>
-
-<dt><code><a href="serve.html">serve()</a></code></dt>
-<dd><p>Start the server (blocking)</p></dd>
-
-<dt><code><a href="stop_server.html">stop_server()</a></code></dt>
-<dd><p>Stop a running server</p></dd>
+<dd><p>Create a new sync server with <code>$start()</code> and
+<code>$stop()</code> methods</p></dd>
 
 
 </dl></div>
@@ -106,7 +101,10 @@ Messages are CBOR-encoded and include:</p><dl><dt>join/peer</dt>
 <div class="sourceCode"><pre><code><span></span>
 <span><span class="co"># Create and start a server</span></span>
 <span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/amsync_server.html">amsync_server</a></span><span class="op">(</span>port <span class="op">=</span> <span class="fl">3030</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/serve.html">serve</a></span><span class="op">(</span><span class="va">server</span><span class="op">)</span>  <span class="co"># Blocks until stopped</span></span></code></pre></div>
+<span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Stop when done</span></span>
+<span><span class="va">server</span><span class="op">$</span><span class="kw">stop</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 
     </div>
     <div class="section level2">

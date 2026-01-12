@@ -51,26 +51,30 @@ amsync_server(
 
 ## Value
 
-An amsync_server object.
+An amsync_server object inheriting from 'nanoServer', with `$start()`
+and `$stop()` methods.
+
+## Details
+
+The returned server inherits from nanonext's nanoServer class and
+provides `$start()` and `$stop()` methods for non-blocking operation.
 
 ## Examples
 
 ``` r
 if (FALSE) { # \dontrun{
-# Basic ws:// server on default port
+# Create and start a server
 server <- amsync_server()
-serve(server)
+server$start()
 
-# Create server on custom port with specific data directory
-server <- amsync_server(port = 8080, data_dir = "my_docs")
-serve(server)
+# Server is now running in the background
+# ...do other work...
 
-# Secure wss:// server with auto-generated certificate
-server <- amsync_server(port = 3030, tls = nanonext::write_cert()$server)
-serve(server)
+# Stop when done
+server$stop()
 
-# Secure wss:// server with certificate file
-server <- amsync_server(port = 443, tls = "/etc/ssl/private/server.pem")
-serve(server)
+# Custom port with TLS
+server <- amsync_server(port = 8080, tls = nanonext::write_cert()$server)
+server$start()
 } # }
 ```
