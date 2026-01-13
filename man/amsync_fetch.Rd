@@ -15,9 +15,8 @@ or "wss://sync.automerge.org/"). Note: trailing slash may be required.}
 \item{timeout}{Timeout in milliseconds for each receive operation. Default 5000.}
 
 \item{tls}{(optional) for secure wss:// connections to servers with
-self-signed or custom CA certificates, supply either: (i) a character
-path to a file containing the PEM-encoded TLS certificate, or (ii) a
-certificate from \code{\link[nanonext:write_cert]{nanonext::write_cert()}}.}
+self-signed or custom CA certificates, a TLS configuration object
+created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
 
 \item{verbose}{Logical, print debug messages. Default FALSE.}
 }
@@ -43,7 +42,7 @@ Sync is considered complete when no new messages arrive within the timeout
 after at least one sync round.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # Fetch from public sync server
 doc <- amsync_fetch("wss://sync.automerge.org", "4F63WJPDzbHkkfKa66h1Qrr1sC5U")
 
@@ -51,11 +50,11 @@ doc <- amsync_fetch("wss://sync.automerge.org", "4F63WJPDzbHkkfKa66h1Qrr1sC5U")
 doc <- amsync_fetch("ws://localhost:3030", "myDocId", verbose = TRUE)
 
 # Fetch from server with self-signed certificate
-doc <- amsync_fetch("wss://localhost:3030", "myDocId",
-                    tls = nanonext::write_cert()$client)
+cert <- nanonext::write_cert()
+tls <- nanonext::tls_config(client = cert$client)
+doc <- amsync_fetch("wss://localhost:3030", "myDocId", tls = tls)
 
 # Inspect the document
 automerge::am_keys(doc)
-}
-
+\dontshow{\}) # examplesIf}
 }

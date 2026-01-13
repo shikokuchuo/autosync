@@ -13,11 +13,8 @@
 #' @param storage_id Optional storage ID for this server. If NULL (default),
 #'   generates a new persistent identity. Set to NA for an ephemeral server
 #'   (no persistence identity).
-#' @param tls (optional) for secure wss:// connections, supply either: (i) a
-#'   character path to a file containing the PEM-encoded TLS certificate and
-#'   associated private key, or (ii) a length-2 character vector of
-#'   [nanonext::write_cert()] comprising the certificate followed by the
-#'   private key.
+#' @param tls (optional) for secure wss:// connections, a TLS configuration
+#'   object created by [nanonext::tls_config()].
 #'
 #' @return An amsync_server object inheriting from 'nanoServer', with
 #'   `$start()` and `$stop()` methods.
@@ -39,7 +36,8 @@
 #'
 #' # Custom port with TLS
 #' cert <- nanonext::write_cert()
-#' server <- amsync_server(port = 8080, tls = cert$server)
+#' tls <- nanonext::tls_config(server = cert$server)
+#' server <- amsync_server(port = 8080, tls = tls)
 #' server$start()
 #' server$stop()
 #'
@@ -53,9 +51,7 @@ amsync_server <- function(
   tls = NULL
 ) {
   port <- as.integer(port)
-  tls_cfg <- if (!is.null(tls)) tls_config(server = tls)
-
-  scheme <- if (is.null(tls)) "http" else "https"
+  scheme <- if (is.null(tls)) "ws" else "wss"
   url <- sprintf("%s://%s:%d", scheme, host, port)
 
   documents <- new.env(hash = TRUE, parent = emptyenv())
@@ -128,7 +124,7 @@ amsync_server <- function(
   server <- nanonext::http_server(
     url = url,
     handlers = list(ws_handler),
-    tls = tls_cfg
+    tls = tls
   )
 
   attr(server, "sync") <- state

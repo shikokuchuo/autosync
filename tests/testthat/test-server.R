@@ -77,20 +77,20 @@ test_that("generate_document_id creates valid IDs", {
   expect_length(bytes, 16L)
 })
 
-test_that("amsync_server with TLS creates https URL", {
+test_that("amsync_server with TLS creates wss URL", {
   server <- amsync_server(
     port = 3031,
-    tls = nanonext::write_cert()$server,
+    tls = nanonext::tls_config(server = nanonext::write_cert()$server),
     data_dir = tempdir()
   )
   on.exit(server$stop())
 
-  expect_true(grepl("^https://", server$url))
+  expect_true(grepl("^wss://", server$url))
 })
 
-test_that("amsync_server without TLS creates http URL", {
+test_that("amsync_server without TLS creates ws URL", {
   server <- amsync_server(port = 0, data_dir = tempdir())
   on.exit(server$stop())
 
-  expect_true(grepl("^http://", server$url))
+  expect_true(grepl("^ws://", server$url))
 })

@@ -27,11 +27,8 @@ clients request unknown document IDs. Default TRUE.}
 generates a new persistent identity. Set to NA for an ephemeral server
 (no persistence identity).}
 
-\item{tls}{(optional) for secure wss:// connections, supply either: (i) a
-character path to a file containing the PEM-encoded TLS certificate and
-associated private key, or (ii) a length-2 character vector of
-\code{\link[nanonext:write_cert]{nanonext::write_cert()}} comprising the certificate followed by the
-private key.}
+\item{tls}{(optional) for secure wss:// connections, a TLS configuration
+object created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
 }
 \value{
 An amsync_server object inheriting from 'nanoServer', with
@@ -59,7 +56,8 @@ server$stop()
 
 # Custom port with TLS
 cert <- nanonext::write_cert()
-server <- amsync_server(port = 8080, tls = cert$server)
+tls <- nanonext::tls_config(server = cert$server)
+server <- amsync_server(port = 8080, tls = tls)
 server$start()
 server$stop()
 \dontshow{\}) # examplesIf}

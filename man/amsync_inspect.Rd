@@ -14,9 +14,8 @@ amsync_inspect(url, doc_id, timeout = 5000L, tls = NULL, max_depth = 2)
 \item{timeout}{Timeout in milliseconds. Default 5000.}
 
 \item{tls}{(optional) for secure wss:// connections to servers with
-self-signed or custom CA certificates, supply either: (i) a character
-path to a file containing the PEM-encoded TLS certificate, or (ii) a
-certificate from \code{\link[nanonext:write_cert]{nanonext::write_cert()}}.}
+self-signed or custom CA certificates, a TLS configuration object
+created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
 
 \item{max_depth}{Maximum depth to recurse into nested structures. Default 2.}
 }
