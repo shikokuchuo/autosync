@@ -25,10 +25,8 @@ amsync_inspect(url, doc_id, timeout = 5000L, tls = NULL, max_depth = 2)
 - tls:
 
   (optional) for secure wss:// connections to servers with self-signed
-  or custom CA certificates, supply either: (i) a character path to a
-  file containing the PEM-encoded TLS certificate, or (ii) a certificate
-  from
-  [`nanonext::write_cert()`](https://nanonext.r-lib.org/reference/write_cert.html).
+  or custom CA certificates, a TLS configuration object created by
+  [`nanonext::tls_config()`](https://nanonext.r-lib.org/reference/tls_config.html).
 
 - max_depth:
 

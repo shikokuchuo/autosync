@@ -80,11 +80,8 @@ generates a new persistent identity. Set to NA for an ephemeral server
 
 
 <dt id="arg-tls">tls<a class="anchor" aria-label="anchor" href="#arg-tls"></a></dt>
-<dd><p>(optional) for secure wss:// connections, supply either: (i) a
-character path to a file containing the PEM-encoded TLS certificate and
-associated private key, or (ii) a length-2 character vector of
-<code><a href="https://nanonext.r-lib.org/reference/write_cert.html" class="external-link">nanonext::write_cert()</a></code> comprising the certificate followed by the
-private key.</p></dd>
+<dd><p>(optional) for secure wss:// connections, a TLS configuration
+object created by <code><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">nanonext::tls_config()</a></code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -113,7 +110,8 @@ private key.</p></dd>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Custom port with TLS</span></span></span>
 <span class="r-in"><span><span class="va">cert</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/write_cert.html" class="external-link">write_cert</a></span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span>port <span class="op">=</span> <span class="fl">8080</span>, tls <span class="op">=</span> <span class="va">cert</span><span class="op">$</span><span class="va">server</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">tls</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">tls_config</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">cert</span><span class="op">$</span><span class="va">server</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span>port <span class="op">=</span> <span class="fl">8080</span>, tls <span class="op">=</span> <span class="va">tls</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="kw">stop</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>

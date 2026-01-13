@@ -43,11 +43,9 @@ amsync_server(
 
 - tls:
 
-  (optional) for secure wss:// connections, supply either: (i) a
-  character path to a file containing the PEM-encoded TLS certificate
-  and associated private key, or (ii) a length-2 character vector of
-  [`nanonext::write_cert()`](https://nanonext.r-lib.org/reference/write_cert.html)
-  comprising the certificate followed by the private key.
+  (optional) for secure wss:// connections, a TLS configuration object
+  created by
+  [`nanonext::tls_config()`](https://nanonext.r-lib.org/reference/tls_config.html).
 
 ## Value
 
@@ -75,7 +73,8 @@ server$stop()
 
 # Custom port with TLS
 cert <- nanonext::write_cert()
-server <- amsync_server(port = 8080, tls = cert$server)
+tls <- nanonext::tls_config(server = cert$server)
+server <- amsync_server(port = 8080, tls = tls)
 server$start()
 server$stop()
 }

@@ -28,10 +28,8 @@ amsync_fetch(url, doc_id, timeout = 5000L, tls = NULL, verbose = FALSE)
 - tls:
 
   (optional) for secure wss:// connections to servers with self-signed
-  or custom CA certificates, supply either: (i) a character path to a
-  file containing the PEM-encoded TLS certificate, or (ii) a certificate
-  from
-  [`nanonext::write_cert()`](https://nanonext.r-lib.org/reference/write_cert.html).
+  or custom CA certificates, a TLS configuration object created by
+  [`nanonext::tls_config()`](https://nanonext.r-lib.org/reference/tls_config.html).
 
 - verbose:
 
@@ -61,7 +59,7 @@ timeout after at least one sync round.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
+if (FALSE) { # interactive()
 # Fetch from public sync server
 doc <- amsync_fetch("wss://sync.automerge.org", "4F63WJPDzbHkkfKa66h1Qrr1sC5U")
 
@@ -69,10 +67,11 @@ doc <- amsync_fetch("wss://sync.automerge.org", "4F63WJPDzbHkkfKa66h1Qrr1sC5U")
 doc <- amsync_fetch("ws://localhost:3030", "myDocId", verbose = TRUE)
 
 # Fetch from server with self-signed certificate
-doc <- amsync_fetch("wss://localhost:3030", "myDocId",
-                    tls = nanonext::write_cert()$client)
+cert <- nanonext::write_cert()
+tls <- nanonext::tls_config(client = cert$client)
+doc <- amsync_fetch("wss://localhost:3030", "myDocId", tls = tls)
 
 # Inspect the document
 automerge::am_keys(doc)
-} # }
+}
 ```
