@@ -341,11 +341,12 @@ amsync_inspect <- function(
 #' @noRd
 print_doc_structure <- function(
   doc,
+  obj = AM_ROOT,
   prefix = "",
   max_depth = 2,
   current_depth = 0
 ) {
-  keys <- tryCatch(am_keys(doc), error = function(e) character(0))
+  keys <- tryCatch(am_keys(doc, obj), error = function(e) character(0))
 
   if (length(keys) == 0L) {
     cat(prefix, "(empty)\n", sep = "")
@@ -353,7 +354,7 @@ print_doc_structure <- function(
   }
 
   for (key in keys) {
-    val <- tryCatch(am_get(doc, key), error = function(e) NULL)
+    val <- tryCatch(am_get(doc, obj, key), error = function(e) NULL)
 
     if (is.null(val)) {
       cat(prefix, key, ": NULL\n", sep = "")
@@ -365,11 +366,11 @@ print_doc_structure <- function(
     } else if (is.logical(val) && length(val) == 1L) {
       cat(prefix, key, ": ", if (val) "true" else "false", "\n", sep = "")
     } else if (inherits(val, "am_list")) {
-      len <- tryCatch(am_length(val), error = function(e) NA)
+      len <- tryCatch(am_length(doc, val), error = function(e) NA)
       cat(prefix, key, ": [list, length ", len, "]\n", sep = "")
       if (current_depth < max_depth && !is.na(len) && len > 0L) {
         for (i in seq_len(min(len, 5L))) {
-          item <- tryCatch(am_get(val, i), error = function(e) NULL)
+          item <- tryCatch(am_get(doc, val, i), error = function(e) NULL)
           cat(prefix, "  [", i, "]: ", sep = "")
           if (is.character(item)) {
             cat(
@@ -383,6 +384,7 @@ print_doc_structure <- function(
           } else if (inherits(item, "am_obj_id")) {
             cat("{object}\n")
             print_doc_structure(
+              doc,
               item,
               paste0(prefix, "    "),
               max_depth,
@@ -400,6 +402,7 @@ print_doc_structure <- function(
       cat(prefix, key, ": {object}\n", sep = "")
       if (current_depth < max_depth) {
         print_doc_structure(
+          doc,
           val,
           paste0(prefix, "  "),
           max_depth,
