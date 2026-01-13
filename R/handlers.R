@@ -47,7 +47,12 @@ handle_join <- function(server, temp_id, msg) {
   # Validate protocol version
   # Note: CBOR arrays are decoded as R lists, so use unlist() for safe comparison
   if (!"1" %in% unlist(msg$supportedProtocolVersions)) {
-    send_error(server, temp_id, msg$senderId, "Unsupported protocol version")
+    send_error(
+      server,
+      msg$senderId,
+      "Unsupported protocol version",
+      temp_id = temp_id
+    )
     return(invisible())
   }
 
@@ -100,7 +105,7 @@ handle_sync <- function(server, client_id, msg, is_request) {
     error = function(e) NULL
   )
   if (is.null(doc_bytes)) {
-    send_error_to_client(server, client_id, "Invalid document ID format")
+    send_error(server, client_id, "Invalid document ID format")
     return(invisible())
   }
 
@@ -128,7 +133,7 @@ handle_sync <- function(server, client_id, msg, is_request) {
     server$sync_states[[state_key]] <- sync_state
   }
 
-  if (!is.null(msg$data) && length(msg$data) > 0L) {
+  if (length(msg$data)) {
     tryCatch(
       am_sync_decode(doc, sync_state, msg$data),
       error = function(e) {
@@ -235,44 +240,29 @@ send_to_peer <- function(server, peer_id, msg) {
   invisible()
 }
 
-#' Send error message to peer (pre-handshake)
+#' Send error message to peer
 #'
 #' @param server An amsync_server object.
-#' @param temp_id Temporary connection ID.
-#' @param target_id Target peer ID from message.
+#' @param peer_id Target peer ID.
 #' @param message Error message string.
+#' @param temp_id Optional temporary connection ID for pre-handshake errors.
 #'
 #' @noRd
-send_error <- function(server, temp_id, target_id, message) {
+send_error <- function(server, peer_id, message, temp_id = NULL) {
   response <- list(
     type = "error",
     senderId = server$peer_id,
-    targetId = target_id,
+    targetId = peer_id,
     message = message
   )
-  conn <- server$connections[[temp_id]]
-  if (!is.null(conn) && !is.null(conn$ws)) {
-    raw_msg <- cborenc(response)
-    conn$ws$send(raw_msg)
+  if (!is.null(temp_id)) {
+    conn <- server$connections[[temp_id]]
+    if (!is.null(conn) && !is.null(conn$ws)) {
+      conn$ws$send(cborenc(response))
+    }
+  } else {
+    send_to_peer(server, peer_id, response)
   }
-  invisible()
-}
-
-#' Send error message to client (post-handshake)
-#'
-#' @param server An amsync_server object.
-#' @param client_id Client's peer ID.
-#' @param message Error message string.
-#'
-#' @noRd
-send_error_to_client <- function(server, client_id, message) {
-  response <- list(
-    type = "error",
-    senderId = server$peer_id,
-    targetId = client_id,
-    message = message
-  )
-  send_to_peer(server, client_id, response)
   invisible()
 }
 

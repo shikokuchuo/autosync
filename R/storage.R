@@ -12,23 +12,6 @@ save_document <- function(server, doc_id, doc) {
   writeBin(am_save(doc), path)
 }
 
-#' Load a document from disk
-#'
-#' @param server An amsync_server object.
-#' @param doc_id Document ID string.
-#'
-#' @return Automerge document object, or NULL if not found.
-#'
-#' @noRd
-load_document <- function(server, doc_id) {
-  path <- file.path(server$data_dir, paste0(doc_id, ".automerge"))
-  if (file.exists(path)) {
-    am_load(readBin(path, "raw", file.info(path)$size))
-  } else {
-    NULL
-  }
-}
-
 #' Load all documents from disk
 #'
 #' Loads all .automerge files from the server's data directory

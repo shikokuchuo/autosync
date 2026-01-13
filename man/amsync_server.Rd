@@ -46,7 +46,7 @@ The returned server inherits from nanonext's nanoServer class and provides
 \verb{$start()} and \verb{$stop()} methods for non-blocking operation.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # Create and start a server
 server <- amsync_server()
 server$start()
@@ -58,8 +58,9 @@ server$start()
 server$stop()
 
 # Custom port with TLS
-server <- amsync_server(port = 8080, tls = nanonext::write_cert()$server)
+cert <- nanonext::write_cert()
+server <- amsync_server(port = 8080, tls = cert$server)
 server$start()
-}
-
+server$stop()
+\dontshow{\}) # examplesIf}
 }

@@ -26,8 +26,7 @@
 #' The returned server inherits from nanonext's nanoServer class and provides
 #' `$start()` and `$stop()` methods for non-blocking operation.
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' # Create and start a server
 #' server <- amsync_server()
 #' server$start()
@@ -39,9 +38,10 @@
 #' server$stop()
 #'
 #' # Custom port with TLS
-#' server <- amsync_server(port = 8080, tls = nanonext::write_cert()$server)
+#' cert <- nanonext::write_cert()
+#' server <- amsync_server(port = 8080, tls = cert$server)
 #' server$start()
-#' }
+#' server$stop()
 #'
 #' @export
 amsync_server <- function(
@@ -147,9 +147,6 @@ amsync_server <- function(
 #'
 #' @export
 get_document <- function(server, doc_id) {
-  if (!inherits(server, "amsync_server")) {
-    stop("'server' must be an amsync_server object")
-  }
   attr(server, "sync")$documents[[doc_id]]
 }
 
@@ -163,9 +160,6 @@ get_document <- function(server, doc_id) {
 #'
 #' @export
 list_documents <- function(server) {
-  if (!inherits(server, "amsync_server")) {
-    stop("'server' must be an amsync_server object")
-  }
   ls(attr(server, "sync")$documents)
 }
 
@@ -180,10 +174,6 @@ list_documents <- function(server) {
 #'
 #' @export
 create_document <- function(server, doc_id = NULL) {
-  if (!inherits(server, "amsync_server")) {
-    stop("'server' must be an amsync_server object")
-  }
-
   state <- attr(server, "sync")
 
   if (is.null(doc_id)) {

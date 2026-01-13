@@ -1,5 +1,13 @@
 # Automerge sync client for fetching documents from remote servers
 
+# Helper to format raw bytes as hex preview
+format_hex <- function(bytes, max_len = 20L) {
+  paste(
+    sprintf("%02x", as.integer(bytes[1:min(max_len, length(bytes))])),
+    collapse = " "
+  )
+}
+
 #' Fetch a document from a sync server
 #'
 #' Connects to an automerge-repo sync server and retrieves a document by ID.
@@ -91,10 +99,7 @@ amsync_fetch <- function(
       "[CLIENT] Sending join (",
       length(join_bytes),
       " bytes): ",
-      paste(
-        sprintf("%02x", as.integer(join_bytes[1:min(20, length(join_bytes))])),
-        collapse = " "
-      )
+      format_hex(join_bytes)
     )
   }
   send(s, join_bytes, mode = "raw", block = TRUE)
@@ -113,10 +118,7 @@ amsync_fetch <- function(
       "[CLIENT] Received ",
       length(peer_raw),
       " bytes: ",
-      paste(
-        sprintf("%02x", as.integer(peer_raw[1:min(20, length(peer_raw))])),
-        collapse = " "
-      )
+      format_hex(peer_raw)
     )
   }
 
@@ -182,10 +184,7 @@ amsync_fetch <- function(
         "[CLIENT] Received ",
         length(result),
         " bytes: ",
-        paste(
-          sprintf("%02x", as.integer(result[1:min(20, length(result))])),
-          collapse = " "
-        )
+        format_hex(result)
       )
     }
 
@@ -220,18 +219,9 @@ amsync_fetch <- function(
         )
       }
 
-      if (!is.null(msg$data) && length(msg$data) > 0L) {
+      if (length(msg$data)) {
         if (verbose) {
-          message(
-            "[CLIENT] Sync data hex: ",
-            paste(
-              sprintf(
-                "%02x",
-                as.integer(msg$data[1:min(30, length(msg$data))])
-              ),
-              collapse = " "
-            )
-          )
+          message("[CLIENT] Sync data hex: ", format_hex(msg$data, 30L))
         }
         tryCatch(
           {
