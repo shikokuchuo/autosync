@@ -24,7 +24,7 @@
 
     <a class="navbar-brand me-2" href="index.html">autosync</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -98,6 +98,33 @@
 <span></span>
 <span><span class="co"># Inspect document structure</span></span>
 <span><span class="fu">automerge</span><span class="fu">::</span><span class="fu"><a href="https://posit-dev.github.io/automerge-r/reference/am_keys.html" class="external-link">am_keys</a></span><span class="op">(</span><span class="va">doc</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="shiny-collaborative-editor">Shiny Collaborative Editor<a class="anchor" aria-label="anchor" href="#shiny-collaborative-editor"></a>
+</h2>
+<p>A real-time collaborative text editor widget for Shiny applications:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://shiny.posit.co/" class="external-link">shiny</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/posit-dev/automerge-r" class="external-link">automerge</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/shikokuchuo/autosync" class="external-link">autosync</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_server.html">amsync_server</a></span><span class="op">(</span>port <span class="op">=</span> <span class="fl">3030</span>, host <span class="op">=</span> <span class="st">"127.0.0.1"</span><span class="op">)</span></span>
+<span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">doc_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_document.html">create_document</a></span><span class="op">(</span><span class="va">server</span><span class="op">)</span></span>
+<span><span class="va">doc</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_document.html">get_document</a></span><span class="op">(</span><span class="va">server</span>, <span class="va">doc_id</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://posit-dev.github.io/automerge-r/reference/am_put.html" class="external-link">am_put</a></span><span class="op">(</span><span class="va">doc</span>, <span class="va">AM_ROOT</span>, <span class="st">"text"</span>, <span class="fu"><a href="https://posit-dev.github.io/automerge-r/reference/am_text.html" class="external-link">am_text</a></span><span class="op">(</span><span class="st">""</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://posit-dev.github.io/automerge-r/reference/am_commit.html" class="external-link">am_commit</a></span><span class="op">(</span><span class="va">doc</span>, <span class="st">"init"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span><span class="fu"><a href="reference/autosync_editor-shiny.html">autosync_editor_output</a></span><span class="op">(</span><span class="st">"editor"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">shiny_server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">output</span><span class="op">$</span><span class="va">editor</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/autosync_editor-shiny.html">render_autosync_editor</a></span><span class="op">(</span><span class="fu"><a href="reference/autosync_editor.html">autosync_editor</a></span><span class="op">(</span><span class="va">server</span><span class="op">$</span><span class="va">url</span>, <span class="va">doc_id</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/onStop.html" class="external-link">onStop</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="va">server</span><span class="op">$</span><span class="kw">stop</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/shinyApp.html" class="external-link">shinyApp</a></span><span class="op">(</span><span class="va">ui</span>, <span class="va">shiny_server</span><span class="op">)</span></span></code></pre></div>
+<p>Open in multiple browser windows to see real-time collaboration.</p>
 </div>
 <div class="section level2">
 <h2 id="links">Links<a class="anchor" aria-label="anchor" href="#links"></a>

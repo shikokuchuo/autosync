@@ -15,12 +15,12 @@ Source:
 [`DESCRIPTION`](https://github.com/shikokuchuo/autosync/blob/main/DESCRIPTION)
 
 Gao C (2026). *autosync: Automerge Sync Server for R*. R package version
-0.0.1, <https://github.com/shikokuchuo/autosync>.
+0.0.1.9000, <https://github.com/shikokuchuo/autosync>.
 
     @Manual{,
       title = {autosync: Automerge Sync Server for R},
       author = {Charlie Gao},
       year = {2026},
-      note = {R package version 0.0.1},
+      note = {R package version 0.0.1.9000},
       url = {https://github.com/shikokuchuo/autosync},
     }
