@@ -105,7 +105,11 @@ amsync_fetch <- function(
   if (verbose) {
     message("[CLIENT] Waiting for peer response...")
   }
-  peer_raw <- recv(s, mode = "raw", block = timeout)
+  aio <- recv_aio(s, mode = "raw", timeout = timeout)
+  while (unresolved(aio)) {
+    run_now(1L)
+  }
+  peer_raw <- aio$data
 
   if (inherits(peer_raw, "errorValue")) {
     stop("Failed to receive peer response: ", peer_raw)
@@ -166,8 +170,11 @@ amsync_fetch <- function(
   idle_timeout <- 2000L # Wait 2 seconds for additional messages after sync
 
   repeat {
-    # Receive with timeout
-    result <- recv(s, mode = "raw", block = idle_timeout)
+    aio <- recv_aio(s, mode = "raw", timeout = idle_timeout)
+    while (unresolved(aio)) {
+      run_now(1L)
+    }
+    result <- aio$data
 
     if (inherits(result, "errorValue")) {
       # Timeout or error - no more messages
