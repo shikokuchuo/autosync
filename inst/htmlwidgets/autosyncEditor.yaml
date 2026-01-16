@@ -1,0 +1,5 @@
+dependencies:
+  - name: autosyncEditor
+    version: 1.0.0
+    src: htmlwidgets
+    script: autosyncEditor.js

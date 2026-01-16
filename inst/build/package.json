@@ -1,0 +1,16 @@
+{
+  "name": "autosync-editor-build",
+  "private": true,
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@automerge/automerge-repo": "^2.0.0",
+    "@automerge/automerge-repo-network-websocket": "^2.0.0",
+    "@automerge/automerge-codemirror": "^0.2.0",
+    "codemirror": "^6.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

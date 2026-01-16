@@ -1,7 +1,7 @@
 Type: Package
 Package: autosync
 Title: Automerge Sync Server for R
-Version: 0.0.1
+Version: 0.0.1.9000
 Authors@R: c(
     person("Charlie", "Gao", , "charlie.gao@posit.co", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-0750-061X")),
@@ -20,10 +20,12 @@ Depends:
     R (>= 4.4)
 Imports:
     automerge (>= 0.1.0),
+    htmlwidgets,
     later,
     nanonext (>= 1.7.2.9000),
     secretbase (>= 1.1.0)
 Suggests:
+    shiny,
     testthat (>= 3.0.0)
 Remotes:
     automerge=posit-dev/automerge-r,
