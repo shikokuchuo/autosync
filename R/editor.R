@@ -41,6 +41,7 @@
 #' @export
 autosync_editor <- function(server_url, doc_id, timeout = 10000,
                             width = "100%", height = "400px") {
+  rlang::check_installed("htmlwidgets")
   htmlwidgets::createWidget(
     name = "autosyncEditor",
     x = list(serverUrl = server_url, docId = doc_id, timeout = timeout),
@@ -69,6 +70,7 @@ autosync_editor <- function(server_url, doc_id, timeout = 10000,
 #'
 #' @export
 autosync_editor_output <- function(outputId, width = "100%", height = "400px") {
+  rlang::check_installed("htmlwidgets")
   htmlwidgets::shinyWidgetOutput(outputId, "autosyncEditor", width, height,
                                   package = "autosync")
 }
@@ -76,6 +78,7 @@ autosync_editor_output <- function(outputId, width = "100%", height = "400px") {
 #' @rdname autosync_editor-shiny
 #' @export
 render_autosync_editor <- function(expr, env = parent.frame(), quoted = FALSE) {
+  rlang::check_installed("htmlwidgets")
   if (!quoted) expr <- substitute(expr)
   htmlwidgets::shinyRenderWidget(expr, autosync_editor_output, env, quoted = TRUE)
 }

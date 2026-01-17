@@ -20,12 +20,12 @@ Depends:
     R (>= 4.4)
 Imports:
     automerge (>= 0.1.0),
-    htmlwidgets,
     later,
     nanonext (>= 1.7.2.9000),
+    rlang,
     secretbase (>= 1.1.0)
 Suggests:
-    shiny,
+    htmlwidgets,
     testthat (>= 3.0.0)
 Remotes:
     automerge=posit-dev/automerge-r,
