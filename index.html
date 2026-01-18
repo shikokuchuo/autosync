@@ -54,14 +54,15 @@
 <!-- badges: start -->
 
 <!-- badges: end -->
-<p>R sync server for <a href="https://automerge.org/" class="external-link">Automerge</a> CRDT documents. Implements the automerge-repo WebSocket protocol, enabling R to serve as a synchronization hub for Automerge clients (in R, JavaScript, Rust, etc.).</p>
+<p>R sync server for <a href="https://automerge.org/" class="external-link">Automerge</a> CRDT documents. Implements the <code>automerge-repo</code> WebSocket protocol, enabling R to serve as a synchronization hub for Automerge clients in R, JavaScript, Rust, and other languages.</p>
 <div class="section level3">
 <h3 id="features">Features<a class="anchor" aria-label="anchor" href="#features"></a>
 </h3>
 <ul>
-<li>Full automerge-repo protocol compatibility (interoperates with sync.automerge.org)</li>
+<li>Full <code>automerge-repo</code> protocol compatibility (interoperates with sync.automerge.org)</li>
 <li>Secure connections via TLS (<a href="wss://" class="uri">wss://</a>)</li>
 <li>Persistent document storage</li>
+<li>Ephemeral message broadcasting</li>
 <li>Client functions for fetching documents from remote servers</li>
 </ul>
 </div>
@@ -74,30 +75,67 @@
 <div class="section level2">
 <h2 id="server">Server<a class="anchor" aria-label="anchor" href="#server"></a>
 </h2>
+<p>Create a WebSocket sync server:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/shikokuchuo/autosync" class="external-link">autosync</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Start a sync server</span></span>
 <span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_server.html">amsync_server</a></span><span class="op">(</span>port <span class="op">=</span> <span class="fl">3030</span><span class="op">)</span></span>
-<span><span class="fu">serve</span><span class="op">(</span><span class="va">server</span><span class="op">)</span>  <span class="co"># Blocks until Ctrl+C</span></span></code></pre></div>
-<p>Connect from JavaScript:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="im">import</span> { Repo } <span class="im">from</span> <span class="st">"@automerge/automerge-repo"</span></span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="im">import</span> { BrowserWebSocketClientAdapter } <span class="im">from</span> <span class="st">"@automerge/automerge-repo-network-websocket"</span></span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="kw">const</span> repo <span class="op">=</span> <span class="kw">new</span> <span class="fu">Repo</span>({</span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>  <span class="dt">network</span><span class="op">:</span> [<span class="kw">new</span> <span class="fu">BrowserWebSocketClientAdapter</span>(<span class="st">"ws://localhost:3030"</span>)]</span>
-<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>})</span></code></pre></div>
+<span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Server runs non-blocking in the background</span></span>
+<span></span>
+<span><span class="va">server</span><span class="op">$</span><span class="kw">stop</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>With TLS for secure connections:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">cert</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/write_cert.html" class="external-link">write_cert</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">tls</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">tls_config</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">cert</span><span class="op">$</span><span class="va">server</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_server.html">amsync_server</a></span><span class="op">(</span>port <span class="op">=</span> <span class="fl">8080</span>, tls <span class="op">=</span> <span class="va">tls</span><span class="op">)</span></span>
+<span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="document-management">Document management<a class="anchor" aria-label="anchor" href="#document-management"></a>
+</h3>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Create a new document</span></span>
+<span><span class="va">doc_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_document.html">create_document</a></span><span class="op">(</span><span class="va">server</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># List all documents</span></span>
+<span><span class="fu"><a href="reference/list_documents.html">list_documents</a></span><span class="op">(</span><span class="va">server</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Get a document</span></span>
+<span><span class="va">doc</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_document.html">get_document</a></span><span class="op">(</span><span class="va">server</span>, <span class="va">doc_id</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="connecting-from-javascript">Connecting from JavaScript<a class="anchor" aria-label="anchor" href="#connecting-from-javascript"></a>
+</h3>
+<div class="sourceCode" id="cb5"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="im">import</span> { Repo } <span class="im">from</span> <span class="st">"@automerge/automerge-repo"</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="im">import</span> { BrowserWebSocketClientAdapter } <span class="im">from</span> <span class="st">"@automerge/automerge-repo-network-websocket"</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="kw">const</span> repo <span class="op">=</span> <span class="kw">new</span> <span class="fu">Repo</span>({</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>  <span class="dt">network</span><span class="op">:</span> [<span class="kw">new</span> <span class="fu">BrowserWebSocketClientAdapter</span>(<span class="st">"ws://localhost:3030"</span>)]</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>})</span></code></pre></div>
+</div>
 </div>
 <div class="section level2">
 <h2 id="client">Client<a class="anchor" aria-label="anchor" href="#client"></a>
 </h2>
 <p>Fetch documents from any automerge-repo sync server:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Fetch from public sync server</span></span>
 <span><span class="va">doc</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_fetch.html">amsync_fetch</a></span><span class="op">(</span><span class="st">"wss://sync.automerge.org"</span>, <span class="st">"your-document-id"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Inspect document structure</span></span>
 <span><span class="fu">automerge</span><span class="fu">::</span><span class="fu"><a href="https://posit-dev.github.io/automerge-r/reference/am_keys.html" class="external-link">am_keys</a></span><span class="op">(</span><span class="va">doc</span><span class="op">)</span></span></code></pre></div>
+<p>Debug sync issues with the inspect helper:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/amsync_inspect.html">amsync_inspect</a></span><span class="op">(</span><span class="st">"wss://sync.automerge.org"</span>, <span class="st">"your-document-id"</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="utilities">Utilities<a class="anchor" aria-label="anchor" href="#utilities"></a>
+</h2>
+<p>Generate document IDs compatible with automerge-repo:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">doc_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/generate_document_id.html">generate_document_id</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="shiny-collaborative-editor">Shiny Collaborative Editor<a class="anchor" aria-label="anchor" href="#shiny-collaborative-editor"></a>
@@ -107,7 +145,10 @@
 <div class="section level2">
 <h2 id="links">Links<a class="anchor" aria-label="anchor" href="#links"></a>
 </h2>
-<p>Documentation: <a href="https://shikokuchuo.net/autosync/" class="external-link uri">https://shikokuchuo.net/autosync/</a></p>
+<ul>
+<li>
+<a href="posit-dev.github.io/automerge-r/">automerge</a> - R bindings for Automerge CRDT</li>
+</ul>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">

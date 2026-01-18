@@ -19,5 +19,3 @@
   : Get a document from the server
 - [`list_documents()`](http://shikokuchuo.net/autosync/reference/list_documents.md)
   : List all document IDs
-- [`print(`*`<amsync_server>`*`)`](http://shikokuchuo.net/autosync/reference/print.amsync_server.md)
-  : Print method for amsync_server
