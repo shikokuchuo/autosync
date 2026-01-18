@@ -12,6 +12,7 @@ create_test_state <- function(data_dir = tempfile(), auto_create_docs = TRUE) {
   state$documents <- new.env(hash = TRUE, parent = emptyenv())
   state$sync_states <- new.env(hash = TRUE, parent = emptyenv())
   state$connections <- new.env(hash = TRUE, parent = emptyenv())
+  state$doc_peers <- new.env(hash = TRUE, parent = emptyenv())
   state
 }
 
@@ -76,7 +77,7 @@ test_that("handle_join rejects unsupported protocol version", {
     type = "join",
     senderId = "badVersionClient",
     peerMetadata = list(isEphemeral = TRUE),
-    supportedProtocolVersions = list("999")  # Unsupported
+    supportedProtocolVersions = list("999") # Unsupported
   )
 
   autosync:::handle_join(state, temp_id, join_msg)
@@ -135,7 +136,7 @@ test_that("handle_sync validates document ID format", {
     type = "request",
     senderId = client_id,
     targetId = state$peer_id,
-    documentId = "!!!invalid!!!",  # Invalid base58check
+    documentId = "!!!invalid!!!", # Invalid base58check
     data = raw(0)
   )
 
@@ -212,7 +213,7 @@ test_that("handle_sync auto-creates document when enabled", {
   expect_equal(response$documentId, doc_id)
 })
 
-test_that("handle_sync creates sync state for client/document pair", {
+test_that("handle_sync creates sync state and doc_peers entry", {
   state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))
 
@@ -243,6 +244,9 @@ test_that("handle_sync creates sync state for client/document pair", {
   # Sync state should be created
   state_key <- paste(client_id, doc_id, sep = ":")
   expect_true(exists(state_key, envir = state$sync_states))
+
+  # Client should be added to doc_peers
+  expect_true(client_id %in% state$doc_peers[[doc_id]])
 })
 
 test_that("handle_sync ignores messages with wrong targetId", {
@@ -261,7 +265,7 @@ test_that("handle_sync ignores messages with wrong targetId", {
   sync_msg <- list(
     type = "request",
     senderId = client_id,
-    targetId = "someOtherPeer",  # Not the server's peer_id
+    targetId = "someOtherPeer", # Not the server's peer_id
     documentId = generate_document_id(),
     data = raw(0)
   )
@@ -319,18 +323,21 @@ test_that("handle_message handles unknown message types", {
   )
 })
 
-test_that("handle_disconnect cleans up sync states", {
+test_that("handle_disconnect cleans up sync states and doc_peers", {
   state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))
 
   client_id <- "disconnectClient"
   doc_id <- generate_document_id()
+  doc_id2 <- "anotherdoc"
 
   # Create sync states for this client
   state_key1 <- paste(client_id, doc_id, sep = ":")
-  state_key2 <- paste(client_id, "anotherdoc", sep = ":")
+  state_key2 <- paste(client_id, doc_id2, sep = ":")
   state$sync_states[[state_key1]] <- automerge::am_sync_state_new()
   state$sync_states[[state_key2]] <- automerge::am_sync_state_new()
+  state$doc_peers[[doc_id]] <- c(client_id, "otherClient")
+  state$doc_peers[[doc_id2]] <- client_id
 
   # Also create sync state for another client (should not be removed)
   other_key <- paste("otherClient", doc_id, sep = ":")
@@ -344,6 +351,10 @@ test_that("handle_disconnect cleans up sync states", {
 
   # Other client's sync state should remain
   expect_true(exists(other_key, envir = state$sync_states))
+
+  # Client should be removed from doc_peers
+  expect_equal(state$doc_peers[[doc_id]], "otherClient")
+  expect_false(exists(doc_id2, envir = state$doc_peers)) # empty list removed
 })
 
 test_that("handle_disconnect handles NULL client_id", {
@@ -433,7 +444,7 @@ test_that("handle_ephemeral ignores message if target not connected", {
   ephemeral_msg <- list(
     type = "ephemeral",
     senderId = "client1",
-    targetId = "nonexistentClient",  # Not connected
+    targetId = "nonexistentClient", # Not connected
     data = "hello"
   )
 
@@ -441,6 +452,123 @@ test_that("handle_ephemeral ignores message if target not connected", {
   expect_no_error(
     autosync:::handle_ephemeral(state, "client1", ephemeral_msg)
   )
+})
+
+test_that("handle_ephemeral broadcasts to all peers on document", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  # Set up three clients
+  ws1 <- create_mock_ws()
+  ws2 <- create_mock_ws()
+  ws3 <- create_mock_ws()
+
+  state$connections[["client1"]] <- list(
+    ws = ws1,
+    client_id = "client1",
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  state$connections[["client2"]] <- list(
+    ws = ws2,
+    client_id = "client2",
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  state$connections[["client3"]] <- list(
+    ws = ws3,
+    client_id = "client3",
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  # Create a document and sync states for clients 1 and 2 (but not 3)
+  doc_id <- "testDoc123"
+  state$documents[[doc_id]] <- automerge::am_create()
+  state$sync_states[["client1:testDoc123"]] <- automerge::am_sync_state_new()
+  state$sync_states[["client2:testDoc123"]] <- automerge::am_sync_state_new()
+  state$doc_peers[[doc_id]] <- c("client1", "client2")
+  # client3 has no sync state for this document
+
+  # Broadcast ephemeral message from client1 (has documentId, no targetId)
+  ephemeral_msg <- list(
+    type = "ephemeral",
+    senderId = "client1",
+    documentId = doc_id,
+    data = list(presence = "cursor at line 5")
+  )
+
+  autosync:::handle_ephemeral(state, "client1", ephemeral_msg)
+
+  # client1 (sender) should NOT receive the message
+  expect_length(ws1$sent_messages, 0)
+
+  # client2 (has sync state) should receive the message
+  expect_length(ws2$sent_messages, 1)
+  forwarded <- secretbase::cbordec(ws2$sent_messages[[1]])
+  expect_equal(forwarded$type, "ephemeral")
+  expect_equal(forwarded$senderId, "client1")
+  expect_equal(forwarded$documentId, doc_id)
+  expect_equal(forwarded$targetId, "client2")
+  expect_equal(forwarded$data$presence, "cursor at line 5")
+
+  # client3 (no sync state) should NOT receive the message
+  expect_length(ws3$sent_messages, 0)
+})
+
+test_that("handle_ephemeral prefers targetId over documentId broadcast", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  # Set up two clients with sync state
+  ws1 <- create_mock_ws()
+  ws2 <- create_mock_ws()
+  ws3 <- create_mock_ws()
+
+  state$connections[["client1"]] <- list(
+    ws = ws1,
+    client_id = "client1",
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  state$connections[["client2"]] <- list(
+    ws = ws2,
+    client_id = "client2",
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  state$connections[["client3"]] <- list(
+    ws = ws3,
+    client_id = "client3",
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  doc_id <- "testDoc456"
+  state$documents[[doc_id]] <- automerge::am_create()
+  state$sync_states[["client1:testDoc456"]] <- automerge::am_sync_state_new()
+  state$sync_states[["client2:testDoc456"]] <- automerge::am_sync_state_new()
+  state$sync_states[["client3:testDoc456"]] <- automerge::am_sync_state_new()
+  state$doc_peers[[doc_id]] <- c("client1", "client2", "client3")
+
+  # Message with BOTH targetId and documentId - should use point-to-point
+  ephemeral_msg <- list(
+    type = "ephemeral",
+    senderId = "client1",
+    targetId = "client2",
+    documentId = doc_id,
+    data = "direct message"
+  )
+
+  autosync:::handle_ephemeral(state, "client1", ephemeral_msg)
+
+  # Only client2 should receive (point-to-point, not broadcast)
+  expect_length(ws2$sent_messages, 1)
+  expect_length(ws3$sent_messages, 0)
 })
 
 test_that("send_to_peer sends encoded message", {
@@ -579,8 +707,17 @@ test_that("broadcast_sync sends to other peers with sync state", {
   )
 
   # Create sync states for receivers (not sender)
-  state$sync_states[[paste("receiver1", doc_id, sep = ":")]] <- automerge::am_sync_state_new()
-  state$sync_states[[paste("receiver2", doc_id, sep = ":")]] <- automerge::am_sync_state_new()
+  state$sync_states[[paste(
+    "receiver1",
+    doc_id,
+    sep = ":"
+  )]] <- automerge::am_sync_state_new()
+  state$sync_states[[paste(
+    "receiver2",
+    doc_id,
+    sep = ":"
+  )]] <- automerge::am_sync_state_new()
+  state$doc_peers[[doc_id]] <- c("receiver1", "receiver2")
 
   autosync:::broadcast_sync(state, "sender", doc_id, doc)
 
@@ -618,7 +755,7 @@ test_that("broadcast_sync skips pre-handshake connections", {
 
 test_that("handle_join with ephemeral server sets isEphemeral=TRUE in response", {
   state <- create_test_state()
-  state$storage_id <- NULL  # Ephemeral server
+  state$storage_id <- NULL # Ephemeral server
   on.exit(unlink(state$data_dir, recursive = TRUE))
 
   ws <- create_mock_ws()

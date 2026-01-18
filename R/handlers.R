@@ -131,6 +131,7 @@ handle_sync <- function(server, client_id, msg, is_request) {
   if (is.null(sync_state)) {
     sync_state <- am_sync_state_new()
     server$sync_states[[state_key]] <- sync_state
+    add_doc_peer(server, doc_id, client_id)
   }
 
   if (length(msg$data)) {
@@ -178,7 +179,9 @@ handle_leave <- function(server, client_id, msg) {
 
 #' Handle ephemeral message
 #'
-#' Forwards ephemeral messages to the target peer without persistence.
+#' Forwards ephemeral messages without persistence. Supports both:
+#' - Point-to-point: message with targetId forwards to specific peer
+#' - Broadcast: message with documentId relays to all peers on that document
 #'
 #' @param server An amsync_server object.
 #' @param client_id Client's peer ID.
@@ -187,9 +190,90 @@ handle_leave <- function(server, client_id, msg) {
 #' @noRd
 handle_ephemeral <- function(server, client_id, msg) {
   target_id <- msg$targetId
+  doc_id <- msg$documentId
+
   if (!is.null(target_id) && exists(target_id, envir = server$connections)) {
     send_to_peer(server, target_id, msg)
+  } else if (!is.null(doc_id)) {
+    broadcast_ephemeral(server, client_id, doc_id, msg)
   }
+  invisible()
+}
+
+#' Add a client to a document's peer list
+#'
+#' @param server An amsync_server object.
+#' @param doc_id Document ID.
+#' @param client_id Client's peer ID.
+#'
+#' @noRd
+add_doc_peer <- function(server, doc_id, client_id) {
+  peers <- server$doc_peers[[doc_id]]
+  if (is.null(peers)) {
+    server$doc_peers[[doc_id]] <- client_id
+  } else if (!client_id %in% peers) {
+    server$doc_peers[[doc_id]] <- c(peers, client_id)
+  }
+  invisible()
+}
+
+#' Remove a client from a document's peer list
+#'
+#' @param server An amsync_server object.
+#' @param doc_id Document ID.
+#' @param client_id Client's peer ID.
+#'
+#' @noRd
+remove_doc_peer <- function(server, doc_id, client_id) {
+  peers <- server$doc_peers[[doc_id]]
+  if (!is.null(peers)) {
+    peers <- peers[peers != client_id]
+    if (length(peers) == 0L) {
+      rm(list = doc_id, envir = server$doc_peers)
+    } else {
+      server$doc_peers[[doc_id]] <- peers
+    }
+  }
+  invisible()
+}
+
+#' Remove a client from all document peer lists
+#'
+#' @param server An amsync_server object.
+#' @param client_id Client's peer ID.
+#'
+#' @noRd
+remove_peer_from_all_docs <- function(server, client_id) {
+  for (doc_id in ls(server$doc_peers)) {
+    remove_doc_peer(server, doc_id, client_id)
+  }
+  invisible()
+}
+
+#' Broadcast ephemeral message to all peers on a document
+#'
+#' @param server An amsync_server object.
+#' @param sender_client_id ID of the client who sent the message.
+#' @param doc_id Document ID.
+#' @param msg The ephemeral message to broadcast.
+#'
+#' @noRd
+broadcast_ephemeral <- function(server, sender_client_id, doc_id, msg) {
+  peers <- server$doc_peers[[doc_id]]
+  if (is.null(peers)) {
+    return(invisible())
+  }
+
+  for (client_id in peers) {
+    if (client_id == sender_client_id) {
+      next
+    }
+
+    relay_msg <- msg
+    relay_msg$targetId <- client_id
+    send_to_peer(server, client_id, relay_msg)
+  }
+
   invisible()
 }
 
@@ -220,6 +304,7 @@ handle_disconnect <- function(server, client_id) {
   if (length(client_keys) > 0L) {
     rm(list = client_keys, envir = server$sync_states)
   }
+  remove_peer_from_all_docs(server, client_id)
 
   invisible()
 }
@@ -293,28 +378,18 @@ send_unavailable <- function(server, client_id, doc_id) {
 #'
 #' @noRd
 broadcast_sync <- function(server, sender_client_id, doc_id, doc) {
-  for (cid in ls(server$connections)) {
-    conn <- server$connections[[cid]]
+  peers <- server$doc_peers[[doc_id]]
+  if (is.null(peers)) {
+    return(invisible())
+  }
 
-    # Skip: sender, pre-handshake connections, and duplicate entries (temp_id)
-    if (is.null(conn$client_id)) {
+  for (client_id in peers) {
+    if (client_id == sender_client_id) {
       next
     }
-    if (conn$client_id == sender_client_id) {
-      next
-    }
-    if (cid != conn$client_id) {
-      next
-    } # Skip temp_id entries
 
-    client_id <- conn$client_id
-
-    # Check if this client has a sync state for this document
     state_key <- paste(client_id, doc_id, sep = ":")
     sync_state <- server$sync_states[[state_key]]
-    if (is.null(sync_state)) {
-      next
-    }
 
     reply_data <- am_sync_encode(doc, sync_state)
     if (!is.null(reply_data)) {
