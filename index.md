@@ -54,32 +54,9 @@ automerge::am_keys(doc)
 
 ## Shiny Collaborative Editor
 
-A real-time collaborative text editor widget for Shiny applications:
-
-``` r
-library(shiny)
-library(automerge)
-library(autosync)
-
-server <- amsync_server(port = 3030, host = "127.0.0.1")
-server$start()
-
-doc_id <- create_document(server)
-doc <- get_document(server, doc_id)
-am_put(doc, AM_ROOT, "text", am_text(""))
-am_commit(doc, "init")
-
-ui <- fluidPage(autosync_editor_output("editor"))
-
-shiny_server <- function(input, output, session) {
-  output$editor <- render_autosync_editor(autosync_editor(server$url, doc_id))
-}
-
-onStop(function() server$stop())
-shinyApp(ui, shiny_server)
-```
-
-Open in multiple browser windows to see real-time collaboration.
+For a real-time collaborative text editor widget, see the
+[autoedit](https://github.com/shikokuchuo/autoedit) package which
+provides a CodeMirror-based editor that connects to autosync servers.
 
 ## Links
 

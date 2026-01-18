@@ -11,11 +11,6 @@
 - [`autosync-package`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
   [`autosync`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
   : autosync: Automerge Sync Server for R
-- [`autosync_editor_output()`](http://shikokuchuo.net/autosync/reference/autosync_editor-shiny.md)
-  [`render_autosync_editor()`](http://shikokuchuo.net/autosync/reference/autosync_editor-shiny.md)
-  : Shiny bindings for autosync_editor
-- [`autosync_editor()`](http://shikokuchuo.net/autosync/reference/autosync_editor.md)
-  : Collaborative text editor widget
 - [`create_document()`](http://shikokuchuo.net/autosync/reference/create_document.md)
   : Create a new document on the server
 - [`generate_document_id()`](http://shikokuchuo.net/autosync/reference/generate_document_id.md)
