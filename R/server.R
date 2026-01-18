@@ -57,6 +57,7 @@ amsync_server <- function(
   documents <- new.env(hash = TRUE, parent = emptyenv())
   sync_states <- new.env(hash = TRUE, parent = emptyenv())
   connections <- new.env(hash = TRUE, parent = emptyenv())
+  doc_peers <- new.env(hash = TRUE, parent = emptyenv())
 
   if (!dir.exists(data_dir)) {
     dir.create(data_dir, recursive = TRUE)
@@ -80,6 +81,7 @@ amsync_server <- function(
   state$documents <- documents
   state$sync_states <- sync_states
   state$connections <- connections
+  state$doc_peers <- doc_peers
 
   load_all_documents(state)
 
