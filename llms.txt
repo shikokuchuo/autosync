@@ -103,8 +103,8 @@ provides a CodeMirror-based editor that connects to autosync servers.
 
 ## Links
 
-- [automerge](http://shikokuchuo.net/autosync/posit-dev.github.io/automerge-r/) -
-  R bindings for Automerge CRDT
+- [automerge](https://posit-dev.github.io/automerge-r/) - R bindings for
+  Automerge CRDT
 
 # Package index
 
