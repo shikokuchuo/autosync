@@ -22,10 +22,8 @@ Imports:
     automerge (>= 0.1.0),
     later,
     nanonext (>= 1.7.2.9000),
-    rlang,
     secretbase (>= 1.1.0)
 Suggests:
-    htmlwidgets,
     testthat (>= 3.0.0)
 Remotes:
     automerge=posit-dev/automerge-r,
