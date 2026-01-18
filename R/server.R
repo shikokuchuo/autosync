@@ -192,6 +192,7 @@ create_document <- function(server, doc_id = NULL) {
 #'
 #' @return Invisibly returns x.
 #'
+#' @keywords internal
 #' @export
 print.amsync_server <- function(x, ...) {
   state <- attr(x, "sync")

@@ -17,3 +17,4 @@ Invisibly returns x.
 \description{
 Print method for amsync_server
 }
+\keyword{internal}
