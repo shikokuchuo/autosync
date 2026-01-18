@@ -27,6 +27,15 @@ create_mock_ws <- function() {
   ws
 }
 
+# Helper to set up nested sync state (sync_states[[client_id]][[doc_id]])
+set_sync_state <- function(state, client_id, doc_id, sync_state = NULL) {
+  if (is.null(state$sync_states[[client_id]])) {
+    state$sync_states[[client_id]] <- new.env(hash = TRUE, parent = emptyenv())
+  }
+  state$sync_states[[client_id]][[doc_id]] <- sync_state %||%
+    automerge::am_sync_state_new()
+}
+
 test_that("handle_message dispatches to handle_join", {
   state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))
@@ -241,9 +250,9 @@ test_that("handle_sync creates sync state and doc_peers entry", {
 
   autosync:::handle_sync(state, client_id, sync_msg, is_request = TRUE)
 
-  # Sync state should be created
-  state_key <- paste(client_id, doc_id, sep = ":")
-  expect_true(exists(state_key, envir = state$sync_states))
+  # Sync state should be created (nested: sync_states[[client_id]][[doc_id]])
+  expect_true(exists(client_id, envir = state$sync_states))
+  expect_true(exists(doc_id, envir = state$sync_states[[client_id]]))
 
   # Client should be added to doc_peers
   expect_true(client_id %in% state$doc_peers[[doc_id]])
@@ -331,26 +340,23 @@ test_that("handle_disconnect cleans up sync states and doc_peers", {
   doc_id <- generate_document_id()
   doc_id2 <- "anotherdoc"
 
-  # Create sync states for this client
-  state_key1 <- paste(client_id, doc_id, sep = ":")
-  state_key2 <- paste(client_id, doc_id2, sep = ":")
-  state$sync_states[[state_key1]] <- automerge::am_sync_state_new()
-  state$sync_states[[state_key2]] <- automerge::am_sync_state_new()
+  # Create sync states for this client (nested structure)
+  set_sync_state(state, client_id, doc_id)
+  set_sync_state(state, client_id, doc_id2)
   state$doc_peers[[doc_id]] <- c(client_id, "otherClient")
   state$doc_peers[[doc_id2]] <- client_id
 
   # Also create sync state for another client (should not be removed)
-  other_key <- paste("otherClient", doc_id, sep = ":")
-  state$sync_states[[other_key]] <- automerge::am_sync_state_new()
+  set_sync_state(state, "otherClient", doc_id)
 
   autosync:::handle_disconnect(state, client_id)
 
-  # Client's sync states should be removed
-  expect_false(exists(state_key1, envir = state$sync_states))
-  expect_false(exists(state_key2, envir = state$sync_states))
+  # Client's entire sync state env should be removed
+  expect_false(exists(client_id, envir = state$sync_states))
 
   # Other client's sync state should remain
-  expect_true(exists(other_key, envir = state$sync_states))
+  expect_true(exists("otherClient", envir = state$sync_states))
+  expect_true(exists(doc_id, envir = state$sync_states[["otherClient"]]))
 
   # Client should be removed from doc_peers
   expect_equal(state$doc_peers[[doc_id]], "otherClient")
@@ -487,8 +493,8 @@ test_that("handle_ephemeral broadcasts to all peers on document", {
   # Create a document and sync states for clients 1 and 2 (but not 3)
   doc_id <- "testDoc123"
   state$documents[[doc_id]] <- automerge::am_create()
-  state$sync_states[["client1:testDoc123"]] <- automerge::am_sync_state_new()
-  state$sync_states[["client2:testDoc123"]] <- automerge::am_sync_state_new()
+  set_sync_state(state, "client1", doc_id)
+  set_sync_state(state, "client2", doc_id)
   state$doc_peers[[doc_id]] <- c("client1", "client2")
   # client3 has no sync state for this document
 
@@ -550,9 +556,9 @@ test_that("handle_ephemeral prefers targetId over documentId broadcast", {
 
   doc_id <- "testDoc456"
   state$documents[[doc_id]] <- automerge::am_create()
-  state$sync_states[["client1:testDoc456"]] <- automerge::am_sync_state_new()
-  state$sync_states[["client2:testDoc456"]] <- automerge::am_sync_state_new()
-  state$sync_states[["client3:testDoc456"]] <- automerge::am_sync_state_new()
+  set_sync_state(state, "client1", doc_id)
+  set_sync_state(state, "client2", doc_id)
+  set_sync_state(state, "client3", doc_id)
   state$doc_peers[[doc_id]] <- c("client1", "client2", "client3")
 
   # Message with BOTH targetId and documentId - should use point-to-point
@@ -707,16 +713,8 @@ test_that("broadcast_sync sends to other peers with sync state", {
   )
 
   # Create sync states for receivers (not sender)
-  state$sync_states[[paste(
-    "receiver1",
-    doc_id,
-    sep = ":"
-  )]] <- automerge::am_sync_state_new()
-  state$sync_states[[paste(
-    "receiver2",
-    doc_id,
-    sep = ":"
-  )]] <- automerge::am_sync_state_new()
+  set_sync_state(state, "receiver1", doc_id)
+  set_sync_state(state, "receiver2", doc_id)
   state$doc_peers[[doc_id]] <- c("receiver1", "receiver2")
 
   autosync:::broadcast_sync(state, "sender", doc_id, doc)

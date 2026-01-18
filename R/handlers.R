@@ -94,7 +94,7 @@ handle_join <- function(server, temp_id, msg) {
 handle_sync <- function(server, client_id, msg, is_request) {
   # Validate targetId matches this server
   if (!is.null(msg$targetId) && msg$targetId != server$peer_id) {
-    return(invisible()) # Message not intended for us
+    return(invisible())
   }
 
   doc_id <- msg$documentId
@@ -114,23 +114,25 @@ handle_sync <- function(server, client_id, msg, is_request) {
 
   if (is.null(doc)) {
     if (server$auto_create_docs) {
-      # New document - create it (if auto-creation enabled)
       doc <- am_create()
       server$documents[[doc_id]] <- doc
     } else {
-      # Unknown document, send unavailable
       send_unavailable(server, client_id, doc_id)
       return(invisible())
     }
   }
 
   # Get or create sync state for this client/document pair
-  # Key uses client_id (the client's senderId from join)
-  state_key <- paste(client_id, doc_id, sep = ":")
-  sync_state <- server$sync_states[[state_key]]
+  # Uses nested envs: sync_states[[client_id]][[doc_id]]
+  client_states <- server$sync_states[[client_id]]
+  if (is.null(client_states)) {
+    client_states <- new.env(hash = TRUE, parent = emptyenv())
+    server$sync_states[[client_id]] <- client_states
+  }
+  sync_state <- client_states[[doc_id]]
   if (is.null(sync_state)) {
     sync_state <- am_sync_state_new()
-    server$sync_states[[state_key]] <- sync_state
+    client_states[[doc_id]] <- sync_state
     add_doc_peer(server, doc_id, client_id)
   }
 
@@ -299,10 +301,8 @@ handle_disconnect <- function(server, client_id) {
   if (is.null(client_id)) {
     return(invisible())
   }
-  all_keys <- ls(server$sync_states)
-  client_keys <- all_keys[startsWith(all_keys, paste0(client_id, ":"))]
-  if (length(client_keys) > 0L) {
-    rm(list = client_keys, envir = server$sync_states)
+  if (exists(client_id, envir = server$sync_states)) {
+    rm(list = client_id, envir = server$sync_states)
   }
   remove_peer_from_all_docs(server, client_id)
 
@@ -388,8 +388,7 @@ broadcast_sync <- function(server, sender_client_id, doc_id, doc) {
       next
     }
 
-    state_key <- paste(client_id, doc_id, sep = ":")
-    sync_state <- server$sync_states[[state_key]]
+    sync_state <- server$sync_states[[client_id]][[doc_id]]
 
     reply_data <- am_sync_encode(doc, sync_state)
     if (!is.null(reply_data)) {
