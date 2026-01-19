@@ -8,6 +8,8 @@
 
 R sync server for [Automerge](https://automerge.org/) CRDT documents. Implements the `automerge-repo` WebSocket protocol, enabling R to serve as a synchronization hub for Automerge clients in R, JavaScript, Rust, and other languages.
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/shikokuchuo/autosync)
+
 ### Features
 
 - Full `automerge-repo` protocol compatibility (interoperates with sync.automerge.org)
