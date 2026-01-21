@@ -388,7 +388,7 @@ print_doc_structure <- function(
               "\n",
               sep = ""
             )
-          } else if (inherits(item, "am_obj_id")) {
+          } else if (inherits(item, "am_object")) {
             cat("{object}\n")
             print_doc_structure(
               doc,
@@ -405,7 +405,7 @@ print_doc_structure <- function(
           cat(prefix, "  ... and ", len - 5L, " more items\n", sep = "")
         }
       }
-    } else if (inherits(val, "am_obj_id")) {
+    } else if (inherits(val, "am_object")) {
       cat(prefix, key, ": {object}\n", sep = "")
       if (current_depth < max_depth) {
         print_doc_structure(
