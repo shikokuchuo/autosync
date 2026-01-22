@@ -3,7 +3,7 @@
 <!-- badges: start -->
 
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental) [![R-CMD-check](https://github.com/shikokuchuo/autosync/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/shikokuchuo/autosync/actions/workflows/R-CMD-check.yaml)
-
+[![Codecov test coverage](https://codecov.io/gh/shikokuchuo/autosync/graph/badge.svg)](https://app.codecov.io/gh/shikokuchuo/autosync)
 <!-- badges: end -->
 
 R sync server for [Automerge](https://automerge.org/) CRDT documents. Implements the `automerge-repo` WebSocket protocol, enabling R to serve as a synchronization hub for Automerge clients in R, JavaScript, Rust, and other languages.
@@ -82,13 +82,10 @@ Fetch documents from any automerge-repo sync server:
 doc <- amsync_fetch("wss://sync.automerge.org", "your-document-id")
 
 # Inspect document structure
-automerge::am_keys(doc)
-```
+str(doc)
 
-Debug sync issues with the inspect helper:
-
-``` r
-amsync_inspect("wss://sync.automerge.org", "your-document-id")
+# Or verbose fetch for debugging sync issues
+doc <- amsync_fetch("wss://sync.automerge.org", "your-document-id", verbose = TRUE)
 ```
 
 ## Utilities

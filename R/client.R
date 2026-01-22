@@ -292,67 +292,32 @@ amsync_fetch <- function(
 }
 
 
-#' Inspect a document from a sync server
+#' Display the structure of an Automerge document
 #'
-#' Fetches a document and prints its structure for debugging.
+#' S3 method for [utils::str()] that displays the structure of an Automerge
+#' document in a human-readable format.
 #'
-#' @param url WebSocket URL of the sync server.
-#' @param doc_id Document ID (base58check encoded string).
-#' @param timeout Timeout in milliseconds. Default 5000.
-#' @param tls (optional) for secure wss:// connections to servers with
-#'   self-signed or custom CA certificates, a TLS configuration object
-#'   created by [nanonext::tls_config()].
-#' @param max_depth Maximum depth to recurse into nested structures. Default 2.
+#' @param object An automerge document object.
+#' @param max.level Maximum depth to recurse into nested structures. Default 2.
+#' @param ... Additional arguments (ignored).
 #'
-#' @return Invisibly returns the fetched automerge document.
+#' @return Invisibly returns `NULL`.
 #'
 #' @examples
 #' \dontrun{
-#' # Inspect document structure from public server
-#' amsync_inspect("wss://sync.automerge.org/", "4F63WJPDzbHkkfKa66h1Qrr1sC5U")
+#' doc <- amsync_fetch("wss://sync.automerge.org/", "4F63WJPDzbHkkfKa66h1Qrr1sC5U")
+#' str(doc)
+#' str(doc, max.level = 4)
 #' }
 #'
 #' @export
-amsync_inspect <- function(
-  url,
-  doc_id,
-  timeout = 5000L,
-  tls = NULL,
-  max_depth = 2
-) {
-  cat("Fetching document:", doc_id, "\n")
-  cat("From server:", url, "\n\n")
-
-  doc <- amsync_fetch(
-    url,
-    doc_id,
-    timeout = timeout,
-    tls = tls,
-    verbose = TRUE
-  )
-
-  cat("\n=== Document Structure ===\n")
-  print_doc_structure(doc, max_depth = max_depth)
-
-  invisible(doc)
+str.am_doc <- function(object, max.level = 2, ...) {
+  str_am_doc_recurse(object, AM_ROOT, "", max.level, 0L)
 }
 
-
-#' Print document structure recursively
-#'
-#' @param doc Automerge document or sub-object
-#' @param prefix Indentation prefix
-#' @param max_depth Maximum recursion depth
-#' @param current_depth Current recursion depth
-#'
+#' Recursive helper for str.am_doc
 #' @noRd
-print_doc_structure <- function(
-  doc,
-  obj = AM_ROOT,
-  prefix = "",
-  max_depth = 2,
-  current_depth = 0
-) {
+str_am_doc_recurse <- function(doc, obj, prefix, max.level, depth) {
   keys <- tryCatch(am_keys(doc, obj), error = function(e) character(0))
 
   if (length(keys) == 0L) {
@@ -375,7 +340,7 @@ print_doc_structure <- function(
     } else if (inherits(val, "am_list")) {
       len <- tryCatch(am_length(doc, val), error = function(e) NA)
       cat(prefix, key, ": [list, length ", len, "]\n", sep = "")
-      if (current_depth < max_depth && !is.na(len) && len > 0L) {
+      if (depth < max.level && !is.na(len) && len > 0L) {
         for (i in seq_len(min(len, 5L))) {
           item <- tryCatch(am_get(doc, val, i), error = function(e) NULL)
           cat(prefix, "  [", i, "]: ", sep = "")
@@ -390,13 +355,7 @@ print_doc_structure <- function(
             )
           } else if (inherits(item, "am_object")) {
             cat("{object}\n")
-            print_doc_structure(
-              doc,
-              item,
-              paste0(prefix, "    "),
-              max_depth,
-              current_depth + 1
-            )
+            str_am_doc_recurse(doc, item, paste0(prefix, "    "), max.level, depth + 1L)
           } else {
             cat(class(item)[1], "\n")
           }
@@ -407,14 +366,8 @@ print_doc_structure <- function(
       }
     } else if (inherits(val, "am_object")) {
       cat(prefix, key, ": {object}\n", sep = "")
-      if (current_depth < max_depth) {
-        print_doc_structure(
-          doc,
-          val,
-          paste0(prefix, "  "),
-          max_depth,
-          current_depth + 1
-        )
+      if (depth < max.level) {
+        str_am_doc_recurse(doc, val, paste0(prefix, "  "), max.level, depth + 1L)
       }
     } else {
       cat(prefix, key, ": <", class(val)[1], ">\n", sep = "")
