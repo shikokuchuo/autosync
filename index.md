@@ -81,13 +81,10 @@ Fetch documents from any automerge-repo sync server:
 doc <- amsync_fetch("wss://sync.automerge.org", "your-document-id")
 
 # Inspect document structure
-automerge::am_keys(doc)
-```
+str(doc)
 
-Debug sync issues with the inspect helper:
-
-``` r
-amsync_inspect("wss://sync.automerge.org", "your-document-id")
+# Or verbose fetch for debugging sync issues
+doc <- amsync_fetch("wss://sync.automerge.org", "your-document-id", verbose = TRUE)
 ```
 
 ## Utilities

@@ -81,13 +81,10 @@ Fetch documents from any automerge-repo sync server:
 doc <- amsync_fetch("wss://sync.automerge.org", "your-document-id")
 
 # Inspect document structure
-automerge::am_keys(doc)
-```
+str(doc)
 
-Debug sync issues with the inspect helper:
-
-``` r
-amsync_inspect("wss://sync.automerge.org", "your-document-id")
+# Or verbose fetch for debugging sync issues
+doc <- amsync_fetch("wss://sync.automerge.org", "your-document-id", verbose = TRUE)
 ```
 
 ## Utilities
@@ -115,8 +112,6 @@ provides a CodeMirror-based editor that connects to autosync servers.
 
 - [`amsync_fetch()`](http://shikokuchuo.net/autosync/reference/amsync_fetch.md)
   : Fetch a document from a sync server
-- [`amsync_inspect()`](http://shikokuchuo.net/autosync/reference/amsync_inspect.md)
-  : Inspect a document from a sync server
 - [`amsync_server()`](http://shikokuchuo.net/autosync/reference/amsync_server.md)
   : Create an Automerge sync server
 - [`autosync-package`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
@@ -130,4 +125,6 @@ provides a CodeMirror-based editor that connects to autosync servers.
   : Get a document from the server
 - [`list_documents()`](http://shikokuchuo.net/autosync/reference/list_documents.md)
   : List all document IDs
+- [`str(`*`<am_doc>`*`)`](http://shikokuchuo.net/autosync/reference/str.am_doc.md)
+  : Display the structure of an Automerge document
 

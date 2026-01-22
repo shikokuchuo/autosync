@@ -4,8 +4,6 @@
 
 - [`amsync_fetch()`](http://shikokuchuo.net/autosync/reference/amsync_fetch.md)
   : Fetch a document from a sync server
-- [`amsync_inspect()`](http://shikokuchuo.net/autosync/reference/amsync_inspect.md)
-  : Inspect a document from a sync server
 - [`amsync_server()`](http://shikokuchuo.net/autosync/reference/amsync_server.md)
   : Create an Automerge sync server
 - [`autosync-package`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
@@ -19,3 +17,5 @@
   : Get a document from the server
 - [`list_documents()`](http://shikokuchuo.net/autosync/reference/list_documents.md)
   : List all document IDs
+- [`str(`*`<am_doc>`*`)`](http://shikokuchuo.net/autosync/reference/str.am_doc.md)
+  : Display the structure of an Automerge document

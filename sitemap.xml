@@ -6,7 +6,6 @@
 <url><loc>http://shikokuchuo.net/autosync/index.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/news/index.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/amsync_fetch.html</loc></url>
-<url><loc>http://shikokuchuo.net/autosync/reference/amsync_inspect.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/amsync_server.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/autosync-package.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/create_document.html</loc></url>
@@ -15,5 +14,6 @@
 <url><loc>http://shikokuchuo.net/autosync/reference/index.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/list_documents.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/print.amsync_server.html</loc></url>
+<url><loc>http://shikokuchuo.net/autosync/reference/str.am_doc.html</loc></url>
 </urlset>
 
