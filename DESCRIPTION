@@ -24,6 +24,7 @@ Imports:
     nanonext (>= 1.7.2.9000),
     secretbase (>= 1.1.0)
 Suggests:
+    gargle (>= 1.5.0),
     testthat (>= 3.0.0)
 Remotes:
     automerge=posit-dev/automerge-r,

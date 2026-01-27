@@ -21,6 +21,8 @@ format_hex <- function(bytes, max_len = 20L) {
 #' @param tls (optional) for secure wss:// connections to servers with
 #'   self-signed or custom CA certificates, a TLS configuration object
 #'   created by [nanonext::tls_config()].
+#' @param access_token (optional) OAuth2 access token for authenticated servers.
+#'   Use [amsync_auth()] to obtain a token interactively.
 #' @param verbose Logical, print debug messages. Default FALSE.
 #'
 #' @return An automerge document object containing the fetched data.
@@ -48,6 +50,14 @@ format_hex <- function(bytes, max_len = 20L) {
 #' tls <- nanonext::tls_config(client = cert$client)
 #' doc <- amsync_fetch("wss://localhost:3030", "myDocId", tls = tls)
 #'
+#' # Fetch from authenticated server
+#' token <- amsync_auth()
+#' doc <- amsync_fetch(
+#'   "wss://secure.example.com",
+#'   "myDocId",
+#'   access_token = token
+#' )
+#'
 #' # Inspect the document
 #' automerge::am_keys(doc)
 #'
@@ -57,6 +67,7 @@ amsync_fetch <- function(
   doc_id,
   timeout = 5000L,
   tls = NULL,
+  access_token = NULL,
   verbose = FALSE
 ) {
   doc <- am_create()
@@ -85,10 +96,16 @@ amsync_fetch <- function(
     message("[CLIENT] Connected, sending join message")
   }
 
+  # Build peerMetadata with optional token
+  peer_metadata <- list(isEphemeral = TRUE)
+  if (!is.null(access_token)) {
+    peer_metadata$access_token <- access_token
+  }
+
   join <- list(
     type = "join",
     senderId = peer_id,
-    peerMetadata = list(isEphemeral = TRUE),
+    peerMetadata = peer_metadata,
     supportedProtocolVersions = list("1")
   )
   join_bytes <- cborenc(join)
@@ -355,7 +372,13 @@ str_am_doc_recurse <- function(doc, obj, prefix, max.level, depth) {
             )
           } else if (inherits(item, "am_object")) {
             cat("{object}\n")
-            str_am_doc_recurse(doc, item, paste0(prefix, "    "), max.level, depth + 1L)
+            str_am_doc_recurse(
+              doc,
+              item,
+              paste0(prefix, "    "),
+              max.level,
+              depth + 1L
+            )
           } else {
             cat(class(item)[1], "\n")
           }
@@ -367,7 +390,13 @@ str_am_doc_recurse <- function(doc, obj, prefix, max.level, depth) {
     } else if (inherits(val, "am_object")) {
       cat(prefix, key, ": {object}\n", sep = "")
       if (depth < max.level) {
-        str_am_doc_recurse(doc, val, paste0(prefix, "  "), max.level, depth + 1L)
+        str_am_doc_recurse(
+          doc,
+          val,
+          paste0(prefix, "  "),
+          max.level,
+          depth + 1L
+        )
       }
     } else {
       cat(prefix, key, ": <", class(val)[1], ">\n", sep = "")

@@ -10,7 +10,8 @@ amsync_server(
   data_dir = ".amrg",
   auto_create_docs = TRUE,
   storage_id = NULL,
-  tls = NULL
+  tls = NULL,
+  auth = NULL
 )
 }
 \arguments{
@@ -29,6 +30,11 @@ generates a new persistent identity. Set to NA for an ephemeral server
 
 \item{tls}{(optional) for secure wss:// connections, a TLS configuration
 object created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
+
+\item{auth}{Optional authentication configuration created by \code{\link[=auth_config]{auth_config()}}.
+When provided, clients must include a valid OAuth2 access token
+in their join message's peerMetadata. Requires the gargle package.
+Note: TLS is required when authentication is enabled to protect tokens.}
 }
 \value{
 An amsync_server object inheriting from 'nanoServer', with
@@ -60,5 +66,14 @@ tls <- nanonext::tls_config(server = cert$server)
 server <- amsync_server(port = 8080, tls = tls)
 server$start()
 server$close()
+
+# Server with Google OAuth authentication (requires TLS)
+cert <- nanonext::write_cert()
+tls <- nanonext::tls_config(server = cert$server)
+server <- amsync_server(
+  port = 3030,
+  tls = tls,
+  auth = auth_config(allowed_domains = c("mycompany.com"))
+)
 \dontshow{\}) # examplesIf}
 }

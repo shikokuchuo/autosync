@@ -2,8 +2,10 @@
 
 S3method(print,amsync_server)
 S3method(str,am_doc)
+export(amsync_auth)
 export(amsync_fetch)
 export(amsync_server)
+export(auth_config)
 export(create_document)
 export(generate_document_id)
 export(get_document)
