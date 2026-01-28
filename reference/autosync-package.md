@@ -9,7 +9,7 @@ Automerge clients in collaborative applications.
 
 - [`amsync_server()`](http://shikokuchuo.net/autosync/reference/amsync_server.md):
 
-  Create a new sync server with `$start()` and `$stop()` methods
+  Create a new sync server with `$start()` and `$close()` methods
 
 ## Document Management
 
@@ -57,7 +57,7 @@ Messages are CBOR-encoded and include:
     server$start()
 
     # Stop when done
-    server$stop()
+    server$close()
 
 ## See also
 

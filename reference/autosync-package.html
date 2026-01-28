@@ -53,7 +53,7 @@ clients in collaborative applications.</p>
 
 <dl><dt><code><a href="amsync_server.html">amsync_server()</a></code></dt>
 <dd><p>Create a new sync server with <code>$start()</code> and
-<code>$stop()</code> methods</p></dd>
+<code>$close()</code> methods</p></dd>
 
 
 </dl></div>
@@ -104,7 +104,7 @@ Messages are CBOR-encoded and include:</p><dl><dt>join/peer</dt>
 <span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Stop when done</span></span>
-<span><span class="va">server</span><span class="op">$</span><span class="kw">stop</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">server</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 
     </div>
     <div class="section level2">

@@ -35,7 +35,7 @@ server$start()
 
 # Server runs non-blocking in the background
 
-server$stop()
+server$close()
 ```
 
 With TLS for secure connections:

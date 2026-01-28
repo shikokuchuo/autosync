@@ -87,12 +87,12 @@ object created by <code><a href="https://nanonext.r-lib.org/reference/tls_config
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An amsync_server object inheriting from 'nanoServer', with
-<code>$start()</code> and <code>$stop()</code> methods.</p>
+<code>$start()</code> and <code>$close()</code> methods.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The returned server inherits from nanonext's nanoServer class and provides
-<code>$start()</code> and <code>$stop()</code> methods for non-blocking operation.</p>
+<code>$start()</code> and <code>$close()</code> methods for non-blocking operation.</p>
     </div>
 
     <div class="section level2">
@@ -106,14 +106,14 @@ object created by <code><a href="https://nanonext.r-lib.org/reference/tls_config
 <span class="r-in"><span><span class="co"># ...do other work...</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Stop when done</span></span></span>
-<span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="kw">stop</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Custom port with TLS</span></span></span>
 <span class="r-in"><span><span class="va">cert</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/write_cert.html" class="external-link">write_cert</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">tls</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">tls_config</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">cert</span><span class="op">$</span><span class="va">server</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span>port <span class="op">=</span> <span class="fl">8080</span>, tls <span class="op">=</span> <span class="va">tls</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="kw">stop</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
 </code></pre></div>
     </div>
