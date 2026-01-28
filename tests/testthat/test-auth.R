@@ -115,7 +115,7 @@ test_that("server allows auth with TLS configured", {
     tls = tls,
     auth = auth_config(allowed_emails = "test@example.com")
   )
-  on.exit(server$stop())
+  on.exit(server$close())
 
   expect_s3_class(server, "amsync_server")
   state <- attr(server, "sync")
@@ -136,7 +136,7 @@ test_that("server rejects unauthenticated client when auth enabled", {
     tls = tls,
     auth = auth_config(allowed_emails = "allowed@test.com")
   )
-  on.exit(server$stop())
+  on.exit(server$close())
   server$start()
 
   # Client without token should be rejected
@@ -167,7 +167,7 @@ test_that("server closes connection on auth timeout", {
       auth_timeout = 1 # 1 second timeout for testing
     )
   )
-  on.exit(server$stop())
+  on.exit(server$close())
   server$start()
 
   # Connect but don't send join message

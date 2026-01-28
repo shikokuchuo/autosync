@@ -22,16 +22,13 @@ validate_token <- function(
   custom_validator = NULL,
   token_timeout = 5
 ) {
-  # Call Google's tokeninfo endpoint using nanonext
-
-  url <- paste0(
-    "https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=",
-    utils::URLencode(access_token, reserved = TRUE)
+  url <- sprintf(
+    "https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=%s",
+    access_token
   )
 
   resp <- nanonext::ncurl(url, timeout = token_timeout * 1000L)
 
-  # Handle request error (network issues, timeout, etc.)
   if (nanonext::is_error_value(resp$data)) {
     return(list(
       valid = FALSE,
@@ -40,23 +37,17 @@ validate_token <- function(
     ))
   }
 
-  # Parse JSON response
-  token_info <- tryCatch(
-    parse_json(resp$data),
-    error = function(e) list()
-  )
+  token_info <- jsondec(resp$data)
 
   status <- resp$status
 
   if (status != 200L) {
-    # Extract the actual error message from Google's response
     err_msg <- token_info$error_description %||%
       token_info$error %||%
-      paste("Token validation failed (HTTP", status, ")")
+      sprintf("Token validation failed (HTTP %d)", status)
     return(list(valid = FALSE, email = NULL, error = err_msg))
   }
 
-  # Check token expiry
   if (
     !is.null(token_info$expires_in) && as.integer(token_info$expires_in) <= 0L
   ) {
@@ -65,7 +56,6 @@ validate_token <- function(
 
   email <- token_info$email
 
-  # Validate against allowlists
   if (!is.null(allowed_emails)) {
     if (!email %in% allowed_emails) {
       return(list(
@@ -83,7 +73,6 @@ validate_token <- function(
     }
   }
 
-  # Custom validator
   if (!is.null(custom_validator)) {
     if (!isTRUE(custom_validator(token_info))) {
       return(list(
@@ -137,7 +126,6 @@ auth_config <- function(
   auth_timeout = 10,
   token_timeout = 5
 ) {
-  # Validate timeout parameters
   if (
     !is.numeric(auth_timeout) || length(auth_timeout) != 1L || auth_timeout <= 0
   ) {
@@ -185,7 +173,6 @@ authenticate_client <- function(auth_config, peer_metadata) {
 
   token <- peer_metadata$access_token
 
-  # Input validation for access_token
   if (!is.character(token) || length(token) != 1L) {
     return(list(
       valid = FALSE,
@@ -264,7 +251,6 @@ amsync_auth <- function(
     stop("Failed to obtain OAuth2 token")
   }
 
-  # Return just the access token string
   token$credentials$access_token
 }
 
@@ -277,7 +263,6 @@ amsync_auth <- function(
 #'
 #' @keywords internal
 check_auth_timeout <- function(server, temp_id) {
-  # If still in pending_auth, client never authenticated - close connection
   if (exists(temp_id, envir = server$pending_auth, inherits = FALSE)) {
     rm(list = temp_id, envir = server$pending_auth)
     send_error(server, NULL, "Authentication timeout", temp_id = temp_id)
