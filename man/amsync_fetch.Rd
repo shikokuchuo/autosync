@@ -4,7 +4,14 @@
 \alias{amsync_fetch}
 \title{Fetch a document from a sync server}
 \usage{
-amsync_fetch(url, doc_id, timeout = 5000L, tls = NULL, verbose = FALSE)
+amsync_fetch(
+  url,
+  doc_id,
+  timeout = 5000L,
+  tls = NULL,
+  access_token = NULL,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{url}{WebSocket URL of the sync server (e.g., "ws://localhost:3030/"
@@ -17,6 +24,9 @@ or "wss://sync.automerge.org/"). Note: trailing slash may be required.}
 \item{tls}{(optional) for secure wss:// connections to servers with
 self-signed or custom CA certificates, a TLS configuration object
 created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
+
+\item{access_token}{(optional) OAuth2 access token for authenticated servers.
+Use \code{\link[=amsync_auth]{amsync_auth()}} to obtain a token interactively.}
 
 \item{verbose}{Logical, print debug messages. Default FALSE.}
 }
@@ -53,6 +63,14 @@ doc <- amsync_fetch("ws://localhost:3030", "myDocId", verbose = TRUE)
 cert <- nanonext::write_cert()
 tls <- nanonext::tls_config(client = cert$client)
 doc <- amsync_fetch("wss://localhost:3030", "myDocId", tls = tls)
+
+# Fetch from authenticated server
+token <- amsync_auth()
+doc <- amsync_fetch(
+  "wss://secure.example.com",
+  "myDocId",
+  access_token = token
+)
 
 # Inspect the document
 automerge::am_keys(doc)

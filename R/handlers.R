@@ -56,6 +56,25 @@ handle_join <- function(server, temp_id, msg) {
     return(invisible())
   }
 
+  # Authentication check
+  if (!is.null(server$auth)) {
+    # Clear pending auth tracker - client sent join message in time
+    if (exists(temp_id, envir = server$pending_auth, inherits = FALSE)) {
+      rm(list = temp_id, envir = server$pending_auth)
+    }
+
+    auth_result <- authenticate_client(server$auth, msg$peerMetadata)
+
+    if (!auth_result$valid) {
+      send_error(server, msg$senderId, auth_result$error, temp_id = temp_id)
+      close_connection(server, temp_id)
+      return(invisible())
+    }
+
+    # Store authenticated email for logging/access control
+    server$connections[[temp_id]]$authenticated_email <- auth_result$email
+  }
+
   # Get the client's senderId - this becomes their canonical identifier
   client_id <- msg$senderId
 
