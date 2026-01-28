@@ -17,11 +17,11 @@
 #'   object created by [nanonext::tls_config()].
 #'
 #' @return An amsync_server object inheriting from 'nanoServer', with
-#'   `$start()` and `$stop()` methods.
+#'   `$start()` and `$close()` methods.
 #'
 #' @details
 #' The returned server inherits from nanonext's nanoServer class and provides
-#' `$start()` and `$stop()` methods for non-blocking operation.
+#' `$start()` and `$close()` methods for non-blocking operation.
 #'
 #' @examplesIf interactive()
 #' # Create and start a server
@@ -32,14 +32,14 @@
 #' # ...do other work...
 #'
 #' # Stop when done
-#' server$stop()
+#' server$close()
 #'
 #' # Custom port with TLS
 #' cert <- nanonext::write_cert()
 #' tls <- nanonext::tls_config(server = cert$server)
 #' server <- amsync_server(port = 8080, tls = tls)
 #' server$start()
-#' server$stop()
+#' server$close()
 #'
 #' @export
 amsync_server <- function(

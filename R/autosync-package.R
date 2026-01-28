@@ -8,7 +8,7 @@
 #' @section Main Functions:
 #' \describe{
 #'   \item{[amsync_server()]}{Create a new sync server with `$start()` and
-#'     `$stop()` methods}
+#'     `$close()` methods}
 #' }
 #'
 #' @section Document Management:
@@ -36,7 +36,7 @@
 #' server$start()
 #'
 #' # Stop when done
-#' server$stop()
+#' server$close()
 #' }
 #'
 #' @docType package

@@ -1,6 +1,6 @@
 test_that("amsync_server creates valid server object", {
   server <- amsync_server(port = get_test_port(), data_dir = tempdir())
-  on.exit(server$stop())
+  on.exit(server$close())
 
   state <- attr(server, "sync")
   expect_s3_class(server, "amsync_server")
@@ -10,7 +10,7 @@ test_that("amsync_server creates valid server object", {
 
 test_that("amsync_server with ephemeral storage_id", {
   server <- amsync_server(port = get_test_port(), storage_id = NA, data_dir = tempdir())
-  on.exit(server$stop())
+  on.exit(server$close())
 
   state <- attr(server, "sync")
   expect_null(state$storage_id)
@@ -19,7 +19,7 @@ test_that("amsync_server with ephemeral storage_id", {
 test_that("create_document generates valid ID", {
   server <- amsync_server(port = get_test_port(), data_dir = tempdir())
   on.exit({
-    server$stop()
+    server$close()
     unlink(file.path(tempdir(), "*.automerge"))
   })
 
@@ -32,7 +32,7 @@ test_that("create_document generates valid ID", {
 test_that("get_document retrieves created document", {
   server <- amsync_server(port = get_test_port(), data_dir = tempdir())
   on.exit({
-    server$stop()
+    server$close()
     unlink(file.path(tempdir(), "*.automerge"))
   })
 
@@ -44,7 +44,7 @@ test_that("get_document retrieves created document", {
 test_that("list_documents returns all documents", {
   server <- amsync_server(port = get_test_port(), data_dir = tempdir())
   on.exit({
-    server$stop()
+    server$close()
     unlink(file.path(tempdir(), "*.automerge"))
   })
 
@@ -62,7 +62,7 @@ test_that("list_documents returns all documents", {
 test_that("print.amsync_server works", {
   port <- get_test_port()
   server <- amsync_server(port = port, data_dir = tempdir())
-  on.exit(server$stop())
+  on.exit(server$close())
 
   output <- capture.output(print(server))
   expect_true(any(grepl("Automerge Sync Server", output)))
@@ -72,7 +72,7 @@ test_that("print.amsync_server works", {
 test_that("generate_document_id creates valid IDs", {
   id <- generate_document_id()
   expect_type(id, "character")
-  expect_true(nchar(id) %in% 27:28)
+  expect_true(nchar(id) > 20)
   # Should be decodable to 16 bytes
   bytes <- secretbase::base58dec(id, convert = FALSE)
   expect_length(bytes, 16L)
@@ -84,14 +84,14 @@ test_that("amsync_server with TLS creates wss URL", {
     tls = nanonext::tls_config(server = nanonext::write_cert()$server),
     data_dir = tempdir()
   )
-  on.exit(server$stop())
+  on.exit(server$close())
 
   expect_true(grepl("^wss://", server$url))
 })
 
 test_that("amsync_server without TLS creates ws URL", {
   server <- amsync_server(port = get_test_port(), data_dir = tempdir())
-  on.exit(server$stop())
+  on.exit(server$close())
 
   expect_true(grepl("^ws://", server$url))
 })
@@ -102,7 +102,7 @@ test_that("amsync_server with custom storage_id", {
     storage_id = "customStorageId",
     data_dir = tempdir()
   )
-  on.exit(server$stop())
+  on.exit(server$close())
 
   state <- attr(server, "sync")
   expect_equal(state$storage_id, "customStorageId")

@@ -13,11 +13,11 @@ test_that("document persistence survives server restart", {
   automerge::am_put(doc, automerge::AM_ROOT, "persistent", "data")
   autosync:::save_document(attr(server1, "sync"), doc_id, doc)
 
-  server1$stop()
+  server1$close()
 
   # Create new server with same data_dir
   server2 <- amsync_server(port = get_test_port(), data_dir = data_dir)
-  on.exit(server2$stop(), add = TRUE)
+  on.exit(server2$close(), add = TRUE)
 
   # Document should be loaded
   expect_true(doc_id %in% list_documents(server2))
@@ -33,7 +33,7 @@ test_that("server creates data directory if it doesn't exist", {
   expect_false(dir.exists(data_dir))
 
   server <- amsync_server(port = get_test_port(), data_dir = data_dir)
-  on.exit(server$stop(), add = TRUE)
+  on.exit(server$close(), add = TRUE)
 
   expect_true(dir.exists(data_dir))
 })
@@ -44,7 +44,7 @@ test_that("multiple documents can be managed simultaneously", {
   on.exit(unlink(data_dir, recursive = TRUE))
 
   server <- amsync_server(port = get_test_port(), data_dir = data_dir)
-  on.exit(server$stop(), add = TRUE)
+  on.exit(server$close(), add = TRUE)
 
   # Create multiple documents
   doc_ids <- sapply(1:5, function(i) {
@@ -67,7 +67,7 @@ test_that("get_document returns NULL for non-existent document", {
   on.exit(unlink(data_dir, recursive = TRUE))
 
   server <- amsync_server(port = get_test_port(), data_dir = data_dir)
-  on.exit(server$stop())
+  on.exit(server$close())
 
   result <- get_document(server, "nonexistent123")
   expect_null(result)
@@ -79,7 +79,7 @@ test_that("create_document with explicit ID", {
   on.exit(unlink(data_dir, recursive = TRUE))
 
   server <- amsync_server(port = get_test_port(), data_dir = data_dir)
-  on.exit(server$stop())
+  on.exit(server$close())
 
   explicit_id <- generate_document_id()
   returned_id <- create_document(server, doc_id = explicit_id)
@@ -95,7 +95,7 @@ test_that("server URL format is correct", {
 
   port <- get_test_port()
   server <- amsync_server(port = port, host = "127.0.0.1", data_dir = data_dir)
-  on.exit(server$stop())
+  on.exit(server$close())
 
   expect_equal(server$url, paste0("ws://127.0.0.1:", port))
 })
@@ -106,7 +106,7 @@ test_that("server state is accessible via attribute", {
   on.exit(unlink(data_dir, recursive = TRUE))
 
   server <- amsync_server(port = get_test_port(), data_dir = data_dir)
-  on.exit(server$stop())
+  on.exit(server$close())
 
   state <- attr(server, "sync")
 

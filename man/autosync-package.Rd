@@ -15,7 +15,7 @@ clients in collaborative applications.
 
 \describe{
 \item{\code{\link[=amsync_server]{amsync_server()}}}{Create a new sync server with \verb{$start()} and
-\verb{$stop()} methods}
+\verb{$close()} methods}
 }
 }
 
@@ -49,7 +49,7 @@ server <- amsync_server(port = 3030)
 server$start()
 
 # Stop when done
-server$stop()
+server$close()
 }
 }
 

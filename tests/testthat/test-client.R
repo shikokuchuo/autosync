@@ -227,7 +227,7 @@ test_that("amsync_fetch retrieves document from server", {
   port <- get_test_port()
   server <- amsync_server(port = port, data_dir = data_dir)
   server$start()
-  on.exit(server$stop(), add = TRUE)
+  on.exit(server$close(), add = TRUE)
 
   # Create and populate a document
 
@@ -253,7 +253,7 @@ test_that("amsync_fetch works in verbose mode", {
   port <- get_test_port()
   server <- amsync_server(port = port, data_dir = data_dir)
   server$start()
-  on.exit(server$stop(), add = TRUE)
+  on.exit(server$close(), add = TRUE)
 
   # Create and populate a document
   doc_id <- create_document(server)
@@ -285,7 +285,7 @@ test_that("amsync_fetch verbose mode shows sync details", {
   port <- get_test_port()
   server <- amsync_server(port = port, data_dir = data_dir)
   server$start()
-  on.exit(server$stop(), add = TRUE)
+  on.exit(server$close(), add = TRUE)
 
   doc_id <- create_document(server)
   doc <- get_document(server, doc_id)
@@ -310,7 +310,7 @@ test_that("amsync_fetch non-verbose mode produces no output", {
   port <- get_test_port()
   server <- amsync_server(port = port, data_dir = data_dir)
   server$start()
-  on.exit(server$stop(), add = TRUE)
+  on.exit(server$close(), add = TRUE)
 
   doc_id <- create_document(server)
 
@@ -332,7 +332,7 @@ test_that("amsync_fetch handles document with multiple values", {
   port <- get_test_port()
   server <- amsync_server(port = port, data_dir = data_dir)
   server$start()
-  on.exit(server$stop(), add = TRUE)
+  on.exit(server$close(), add = TRUE)
 
   # Create document with multiple values
   doc_id <- create_document(server)
@@ -359,7 +359,7 @@ test_that("amsync_fetch returns empty document for new document ID", {
   server <- amsync_server(port = port, data_dir = data_dir)
   server$start()
 
-  on.exit(server$stop(), add = TRUE)
+  on.exit(server$close(), add = TRUE)
 
   url <- paste0("ws://127.0.0.1:", port)
   # Request a new document ID (server creates empty doc)

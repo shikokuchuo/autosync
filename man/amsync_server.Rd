@@ -32,7 +32,7 @@ object created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
 }
 \value{
 An amsync_server object inheriting from 'nanoServer', with
-\verb{$start()} and \verb{$stop()} methods.
+\verb{$start()} and \verb{$close()} methods.
 }
 \description{
 Creates a WebSocket server that implements the automerge-repo sync protocol,
@@ -40,7 +40,7 @@ compatible with JavaScript, Rust, and other Automerge clients.
 }
 \details{
 The returned server inherits from nanonext's nanoServer class and provides
-\verb{$start()} and \verb{$stop()} methods for non-blocking operation.
+\verb{$start()} and \verb{$close()} methods for non-blocking operation.
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
@@ -52,13 +52,13 @@ server$start()
 # ...do other work...
 
 # Stop when done
-server$stop()
+server$close()
 
 # Custom port with TLS
 cert <- nanonext::write_cert()
 tls <- nanonext::tls_config(server = cert$server)
 server <- amsync_server(port = 8080, tls = tls)
 server$start()
-server$stop()
+server$close()
 \dontshow{\}) # examplesIf}
 }
