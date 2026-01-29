@@ -29,3 +29,26 @@ generate_peer_id <- function() base64enc(random(16L, convert = FALSE))
 #'
 #' @noRd
 `%||%` <- function(x, y) if (is.null(x)) y else x
+
+#' Close a WebSocket connection
+#'
+#' Closes a WebSocket connection and cleans up pending auth state.
+#'
+#' @param server Server state environment.
+#' @param id Connection ID (temp_id or client_id).
+#'
+#' @keywords internal
+close_connection <- function(server, id) {
+  # Clean up pending_auth if exists
+  if (exists(id, envir = server$pending_auth, inherits = FALSE)) {
+    rm(list = id, envir = server$pending_auth)
+  }
+
+  conn <- server$connections[[id]]
+  if (!is.null(conn) && !is.null(conn$ws)) {
+    tryCatch(
+      close(conn$ws),
+      error = function(e) NULL
+    )
+  }
+}

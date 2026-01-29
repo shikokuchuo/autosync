@@ -15,6 +15,10 @@
 #'   (no persistence identity).
 #' @param tls (optional) for secure wss:// connections, a TLS configuration
 #'   object created by [nanonext::tls_config()].
+#' @param auth Optional authentication configuration created by [auth_config()].
+#'   When provided, clients must include a valid OAuth2 access token
+#'   in their join message's peerMetadata. Requires the gargle package.
+#'   Note: TLS is required when authentication is enabled to protect tokens.
 #'
 #' @return An amsync_server object inheriting from 'nanoServer', with
 #'   `$start()` and `$close()` methods.
@@ -41,6 +45,15 @@
 #' server$start()
 #' server$close()
 #'
+#' # Server with Google OAuth authentication (requires TLS)
+#' cert <- nanonext::write_cert()
+#' tls <- nanonext::tls_config(server = cert$server)
+#' server <- amsync_server(
+#'   port = 3030,
+#'   tls = tls,
+#'   auth = auth_config(allowed_domains = c("mycompany.com"))
+#' )
+#'
 #' @export
 amsync_server <- function(
   port = 3030L,
@@ -48,9 +61,19 @@ amsync_server <- function(
   data_dir = ".amrg",
   auto_create_docs = TRUE,
   storage_id = NULL,
-  tls = NULL
+  tls = NULL,
+  auth = NULL
 ) {
   port <- as.integer(port)
+
+  # Enforce TLS when authentication is enabled
+  if (!is.null(auth) && is.null(tls)) {
+    stop(
+      "Authentication requires TLS. Provide a 'tls' configuration.\n",
+      "Transmitting OAuth tokens over unencrypted connections is a security risk."
+    )
+  }
+
   scheme <- if (is.null(tls)) "ws" else "wss"
   url <- sprintf("%s://%s:%d", scheme, host, port)
 
@@ -82,6 +105,8 @@ amsync_server <- function(
   state$sync_states <- sync_states
   state$connections <- connections
   state$doc_peers <- doc_peers
+  state$auth <- auth
+  state$pending_auth <- new.env(hash = TRUE, parent = emptyenv())
 
   load_all_documents(state)
 
@@ -93,6 +118,22 @@ amsync_server <- function(
       metadata = NULL,
       connected_at = Sys.time()
     )
+
+    # If auth is enabled, track connection time and schedule timeout
+    if (!is.null(state$auth)) {
+      state$pending_auth[[ws_id]] <- list(
+        connected_at = Sys.time(),
+        timeout_scheduled = TRUE
+      )
+
+      # Schedule auth timeout check using later
+      later::later(
+        function() {
+          check_auth_timeout(state, ws_id)
+        },
+        delay = state$auth$auth_timeout
+      )
+    }
   }
 
   on_message <- function(ws, data) {
