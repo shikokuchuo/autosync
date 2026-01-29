@@ -5,9 +5,14 @@
 <url><loc>http://shikokuchuo.net/autosync/authors.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/index.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/news/index.html</loc></url>
+<url><loc>http://shikokuchuo.net/autosync/reference/amsync_auth.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/amsync_fetch.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/amsync_server.html</loc></url>
+<url><loc>http://shikokuchuo.net/autosync/reference/auth_config.html</loc></url>
+<url><loc>http://shikokuchuo.net/autosync/reference/authenticate_client.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/autosync-package.html</loc></url>
+<url><loc>http://shikokuchuo.net/autosync/reference/check_auth_timeout.html</loc></url>
+<url><loc>http://shikokuchuo.net/autosync/reference/close_connection.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/create_document.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/generate_document_id.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/get_document.html</loc></url>
@@ -15,5 +20,6 @@
 <url><loc>http://shikokuchuo.net/autosync/reference/list_documents.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/print.amsync_server.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/str.am_doc.html</loc></url>
+<url><loc>http://shikokuchuo.net/autosync/reference/validate_token.html</loc></url>
 </urlset>
 

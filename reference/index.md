@@ -2,10 +2,14 @@
 
 ## All functions
 
+- [`amsync_auth()`](http://shikokuchuo.net/autosync/reference/amsync_auth.md)
+  : Get an access token for autosync authentication
 - [`amsync_fetch()`](http://shikokuchuo.net/autosync/reference/amsync_fetch.md)
   : Fetch a document from a sync server
 - [`amsync_server()`](http://shikokuchuo.net/autosync/reference/amsync_server.md)
   : Create an Automerge sync server
+- [`auth_config()`](http://shikokuchuo.net/autosync/reference/auth_config.md)
+  : Create an authentication configuration
 - [`autosync-package`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
   [`autosync`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
   : autosync: Automerge Sync Server for R

@@ -48,6 +48,35 @@ server <- amsync_server(port = 8080, tls = tls)
 server$start()
 ```
 
+### Authentication
+
+Enable Google OAuth2 authentication to restrict access:
+
+``` r
+cert <- nanonext::write_cert()
+tls <- nanonext::tls_config(server = cert$server)
+
+server <- amsync_server(
+  port = 3030,
+  tls = tls,  # TLS required when auth is enabled
+  auth = auth_config(allowed_domains = "posit.co")
+)
+server$start()
+```
+
+Clients must provide an access token:
+
+``` r
+token <- amsync_auth()  # Interactive OAuth flow
+tlsclient <- nanonext::tls_config(client = cert$client)
+doc <- amsync_fetch(
+  "wss://127.0.0.1:3030",
+  "doc-id",
+  access_token = token,
+  tls = tlsclient
+)
+```
+
 ### Document management
 
 ``` r
@@ -110,10 +139,14 @@ provides a CodeMirror-based editor that connects to autosync servers.
 
 ## All functions
 
+- [`amsync_auth()`](http://shikokuchuo.net/autosync/reference/amsync_auth.md)
+  : Get an access token for autosync authentication
 - [`amsync_fetch()`](http://shikokuchuo.net/autosync/reference/amsync_fetch.md)
   : Fetch a document from a sync server
 - [`amsync_server()`](http://shikokuchuo.net/autosync/reference/amsync_server.md)
   : Create an Automerge sync server
+- [`auth_config()`](http://shikokuchuo.net/autosync/reference/auth_config.md)
+  : Create an authentication configuration
 - [`autosync-package`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
   [`autosync`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
   : autosync: Automerge Sync Server for R

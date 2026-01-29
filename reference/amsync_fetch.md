@@ -7,7 +7,14 @@ remote servers like sync.automerge.org.
 ## Usage
 
 ``` r
-amsync_fetch(url, doc_id, timeout = 5000L, tls = NULL, verbose = FALSE)
+amsync_fetch(
+  url,
+  doc_id,
+  timeout = 5000L,
+  tls = NULL,
+  access_token = NULL,
+  verbose = FALSE
+)
 ```
 
 ## Arguments
@@ -30,6 +37,12 @@ amsync_fetch(url, doc_id, timeout = 5000L, tls = NULL, verbose = FALSE)
   (optional) for secure wss:// connections to servers with self-signed
   or custom CA certificates, a TLS configuration object created by
   [`nanonext::tls_config()`](https://nanonext.r-lib.org/reference/tls_config.html).
+
+- access_token:
+
+  (optional) OAuth2 access token for authenticated servers. Use
+  [`amsync_auth()`](http://shikokuchuo.net/autosync/reference/amsync_auth.md)
+  to obtain a token interactively.
 
 - verbose:
 
@@ -70,6 +83,14 @@ doc <- amsync_fetch("ws://localhost:3030", "myDocId", verbose = TRUE)
 cert <- nanonext::write_cert()
 tls <- nanonext::tls_config(client = cert$client)
 doc <- amsync_fetch("wss://localhost:3030", "myDocId", tls = tls)
+
+# Fetch from authenticated server
+token <- amsync_auth()
+doc <- amsync_fetch(
+  "wss://secure.example.com",
+  "myDocId",
+  access_token = token
+)
 
 # Inspect the document
 automerge::am_keys(doc)

@@ -48,6 +48,35 @@ server <- amsync_server(port = 8080, tls = tls)
 server$start()
 ```
 
+### Authentication
+
+Enable Google OAuth2 authentication to restrict access:
+
+``` r
+cert <- nanonext::write_cert()
+tls <- nanonext::tls_config(server = cert$server)
+
+server <- amsync_server(
+  port = 3030,
+  tls = tls,  # TLS required when auth is enabled
+  auth = auth_config(allowed_domains = "posit.co")
+)
+server$start()
+```
+
+Clients must provide an access token:
+
+``` r
+token <- amsync_auth()  # Interactive OAuth flow
+tlsclient <- nanonext::tls_config(client = cert$client)
+doc <- amsync_fetch(
+  "wss://127.0.0.1:3030",
+  "doc-id",
+  access_token = token,
+  tls = tlsclient
+)
+```
+
 ### Document management
 
 ``` r

@@ -12,7 +12,8 @@ amsync_server(
   data_dir = ".amrg",
   auto_create_docs = TRUE,
   storage_id = NULL,
-  tls = NULL
+  tls = NULL,
+  auth = NULL
 )
 ```
 
@@ -47,6 +48,14 @@ amsync_server(
   created by
   [`nanonext::tls_config()`](https://nanonext.r-lib.org/reference/tls_config.html).
 
+- auth:
+
+  Optional authentication configuration created by
+  [`auth_config()`](http://shikokuchuo.net/autosync/reference/auth_config.md).
+  When provided, clients must include a valid OAuth2 access token in
+  their join message's peerMetadata. Requires the gargle package. Note:
+  TLS is required when authentication is enabled to protect tokens.
+
 ## Value
 
 An amsync_server object inheriting from 'nanoServer', with `$start()`
@@ -77,5 +86,14 @@ tls <- nanonext::tls_config(server = cert$server)
 server <- amsync_server(port = 8080, tls = tls)
 server$start()
 server$close()
+
+# Server with Google OAuth authentication (requires TLS)
+cert <- nanonext::write_cert()
+tls <- nanonext::tls_config(server = cert$server)
+server <- amsync_server(
+  port = 3030,
+  tls = tls,
+  auth = auth_config(allowed_domains = c("mycompany.com"))
+)
 }
 ```

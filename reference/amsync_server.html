@@ -48,7 +48,8 @@ compatible with JavaScript, Rust, and other Automerge clients.</p>
 <span>  data_dir <span class="op">=</span> <span class="st">".amrg"</span>,</span>
 <span>  auto_create_docs <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  storage_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  tls <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  tls <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  auth <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -83,6 +84,13 @@ generates a new persistent identity. Set to NA for an ephemeral server
 <dd><p>(optional) for secure wss:// connections, a TLS configuration
 object created by <code><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">nanonext::tls_config()</a></code>.</p></dd>
 
+
+<dt id="arg-auth">auth<a class="anchor" aria-label="anchor" href="#arg-auth"></a></dt>
+<dd><p>Optional authentication configuration created by <code><a href="auth_config.html">auth_config()</a></code>.
+When provided, clients must include a valid OAuth2 access token
+in their join message's peerMetadata. Requires the gargle package.
+Note: TLS is required when authentication is enabled to protect tokens.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -114,6 +122,15 @@ object created by <code><a href="https://nanonext.r-lib.org/reference/tls_config
 <span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span>port <span class="op">=</span> <span class="fl">8080</span>, tls <span class="op">=</span> <span class="va">tls</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Server with Google OAuth authentication (requires TLS)</span></span></span>
+<span class="r-in"><span><span class="va">cert</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/write_cert.html" class="external-link">write_cert</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">tls</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">tls_config</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">cert</span><span class="op">$</span><span class="va">server</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  port <span class="op">=</span> <span class="fl">3030</span>,</span></span>
+<span class="r-in"><span>  tls <span class="op">=</span> <span class="va">tls</span>,</span></span>
+<span class="r-in"><span>  auth <span class="op">=</span> <span class="fu"><a href="auth_config.html">auth_config</a></span><span class="op">(</span>allowed_domains <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mycompany.com"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
 </code></pre></div>
     </div>
