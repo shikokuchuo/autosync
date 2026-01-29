@@ -265,7 +265,12 @@ amsync_auth <- function(
 check_auth_timeout <- function(server, temp_id) {
   if (exists(temp_id, envir = server$pending_auth, inherits = FALSE)) {
     rm(list = temp_id, envir = server$pending_auth)
-    send_error(server, NULL, "Authentication timeout", temp_id = temp_id)
-    close_connection(server, temp_id)
+    tryCatch(
+      {
+        send_error(server, NULL, "Authentication timeout", temp_id = temp_id)
+        close_connection(server, temp_id)
+      },
+      error = function(e) NULL # Connection may already be closed
+    )
   }
 }
