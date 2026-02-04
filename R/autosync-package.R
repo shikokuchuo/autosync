@@ -47,4 +47,5 @@
 #' @importFrom later run_now
 #' @importFrom nanonext http_server random recv recv_aio send stream tls_config unresolved write_cert
 #' @importFrom secretbase base64enc base64dec base58enc base58dec cborenc cbordec jsondec
+#' @importFrom utils str
 "_PACKAGE"
