@@ -21,5 +21,3 @@
   : Get a document from the server
 - [`list_documents()`](http://shikokuchuo.net/autosync/reference/list_documents.md)
   : List all document IDs
-- [`str(`*`<am_doc>`*`)`](http://shikokuchuo.net/autosync/reference/str.am_doc.md)
-  : Display the structure of an Automerge document
