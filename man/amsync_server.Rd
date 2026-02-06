@@ -6,8 +6,8 @@
 \usage{
 amsync_server(
   port = 3030L,
-  host = "0.0.0.0",
-  data_dir = ".amrg",
+  host = "127.0.0.1",
+  data_dir = ".automerge",
   auto_create_docs = TRUE,
   storage_id = NULL,
   tls = NULL,
@@ -17,9 +17,9 @@ amsync_server(
 \arguments{
 \item{port}{Port to listen on. Default 3030.}
 
-\item{host}{Host address to bind to. Default "0.0.0.0" (all interfaces).}
+\item{host}{Host address to bind to. Default "127.0.0.1" (localhost).}
 
-\item{data_dir}{Directory for persistent document storage. Default ".amrg".}
+\item{data_dir}{Directory for persistent document storage. Default ".automerge".}
 
 \item{auto_create_docs}{Logical, whether to auto-create documents when
 clients request unknown document IDs. Default TRUE.}

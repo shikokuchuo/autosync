@@ -14,5 +14,5 @@
 ^pkgdown$
 ^doc$
 ^Meta$
-^\.amrg$
+^\.automerge$
 ^codecov\.yml$

@@ -4,7 +4,7 @@
 .httr-oauth
 .DS_Store
 .quarto
-.amrg
+.automerge
 .claude
 docs
 inst/build/node_modules

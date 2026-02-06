@@ -6,8 +6,8 @@
 #' compatible with JavaScript, Rust, and other Automerge clients.
 #'
 #' @param port Port to listen on. Default 3030.
-#' @param host Host address to bind to. Default "0.0.0.0" (all interfaces).
-#' @param data_dir Directory for persistent document storage. Default ".amrg".
+#' @param host Host address to bind to. Default "127.0.0.1" (localhost).
+#' @param data_dir Directory for persistent document storage. Default ".automerge".
 #' @param auto_create_docs Logical, whether to auto-create documents when
 #'   clients request unknown document IDs. Default TRUE.
 #' @param storage_id Optional storage ID for this server. If NULL (default),
@@ -57,8 +57,8 @@
 #' @export
 amsync_server <- function(
   port = 3030L,
-  host = "0.0.0.0",
-  data_dir = ".amrg",
+  host = "127.0.0.1",
+  data_dir = ".automerge",
   auto_create_docs = TRUE,
   storage_id = NULL,
   tls = NULL,
