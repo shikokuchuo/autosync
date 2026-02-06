@@ -44,8 +44,8 @@ compatible with JavaScript, Rust, and other Automerge clients.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">amsync_server</span><span class="op">(</span></span>
 <span>  port <span class="op">=</span> <span class="fl">3030L</span>,</span>
-<span>  host <span class="op">=</span> <span class="st">"0.0.0.0"</span>,</span>
-<span>  data_dir <span class="op">=</span> <span class="st">".amrg"</span>,</span>
+<span>  host <span class="op">=</span> <span class="st">"127.0.0.1"</span>,</span>
+<span>  data_dir <span class="op">=</span> <span class="st">".automerge"</span>,</span>
 <span>  auto_create_docs <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  storage_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  tls <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -62,11 +62,11 @@ compatible with JavaScript, Rust, and other Automerge clients.</p>
 
 
 <dt id="arg-host">host<a class="anchor" aria-label="anchor" href="#arg-host"></a></dt>
-<dd><p>Host address to bind to. Default "0.0.0.0" (all interfaces).</p></dd>
+<dd><p>Host address to bind to. Default "127.0.0.1" (localhost).</p></dd>
 
 
 <dt id="arg-data-dir">data_dir<a class="anchor" aria-label="anchor" href="#arg-data-dir"></a></dt>
-<dd><p>Directory for persistent document storage. Default ".amrg".</p></dd>
+<dd><p>Directory for persistent document storage. Default ".automerge".</p></dd>
 
 
 <dt id="arg-auto-create-docs">auto_create_docs<a class="anchor" aria-label="anchor" href="#arg-auto-create-docs"></a></dt>

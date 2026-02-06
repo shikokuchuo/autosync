@@ -8,8 +8,8 @@ protocol, compatible with JavaScript, Rust, and other Automerge clients.
 ``` r
 amsync_server(
   port = 3030L,
-  host = "0.0.0.0",
-  data_dir = ".amrg",
+  host = "127.0.0.1",
+  data_dir = ".automerge",
   auto_create_docs = TRUE,
   storage_id = NULL,
   tls = NULL,
@@ -25,11 +25,11 @@ amsync_server(
 
 - host:
 
-  Host address to bind to. Default "0.0.0.0" (all interfaces).
+  Host address to bind to. Default "127.0.0.1" (localhost).
 
 - data_dir:
 
-  Directory for persistent document storage. Default ".amrg".
+  Directory for persistent document storage. Default ".automerge".
 
 - auto_create_docs:
 
