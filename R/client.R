@@ -71,7 +71,7 @@ amsync_fetch <- function(
   verbose = FALSE
 ) {
   doc <- am_create()
-  sync_state <- am_sync_state_new()
+  sync_state <- am_sync_state()
 
   peer_id <- generate_peer_id()
 

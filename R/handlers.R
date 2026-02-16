@@ -150,7 +150,7 @@ handle_sync <- function(server, client_id, msg, is_request) {
   }
   sync_state <- client_states[[doc_id]]
   if (is.null(sync_state)) {
-    sync_state <- am_sync_state_new()
+    sync_state <- am_sync_state()
     client_states[[doc_id]] <- sync_state
     add_doc_peer(server, doc_id, client_id)
   }

@@ -19,15 +19,13 @@ BugReports: https://github.com/shikokuchuo/autosync/issues
 Depends:
     R (>= 4.4)
 Imports:
-    automerge (>= 0.2.1),
+    automerge (>= 0.3.0),
     later,
-    nanonext (>= 1.7.2.9000),
+    nanonext (>= 1.8.0),
     secretbase (>= 1.2.0)
 Suggests:
     gargle (>= 1.5.0),
     testthat (>= 3.0.0)
-Remotes:
-    r-lib/nanonext
 Config/Needs/website: tidyverse/tidytemplate
 Config/testthat/edition: 3
 Encoding: UTF-8
