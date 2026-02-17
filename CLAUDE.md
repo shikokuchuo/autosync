@@ -82,7 +82,7 @@ Document IDs are Base58Check-encoded 16-byte random values. Peer IDs are Base64-
 
 ## Testing
 
-Tests use incrementing ports starting at 4000 via `get_test_port()` helper to avoid conflicts. Test files cover server, client, handlers, storage, and integration scenarios.
+Tests use port 0 (OS-assigned) by default, retrieving the actual URL via `server$url`. Test files cover server, client, handlers, storage, and integration scenarios.
 
 - **Handler tests** use mock WebSocket objects (`create_mock_ws()` and `create_test_state()` in test-handlers.R) to test message handling without network I/O
 - **Auth tests** use `local_mocked_bindings()` to mock Google token validation and snapshot tests for error messages

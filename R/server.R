@@ -5,7 +5,8 @@
 #' Creates a WebSocket server that implements the automerge-repo sync protocol,
 #' compatible with JavaScript, Rust, and other Automerge clients.
 #'
-#' @param port Port to listen on. Default 3030.
+#' @param port Port to listen on. Default 0 (binds to a random available port).
+#'   The actual URL is retrieved via `server$url`.
 #' @param host Host address to bind to. Default "127.0.0.1" (localhost).
 #' @param data_dir Directory for persistent document storage. Default ".automerge".
 #' @param auto_create_docs Logical, whether to auto-create documents when
@@ -38,25 +39,25 @@
 #' # Stop when done
 #' server$close()
 #'
-#' # Custom port with TLS
+#' # With TLS for secure connections
 #' cert <- nanonext::write_cert()
 #' tls <- nanonext::tls_config(server = cert$server)
-#' server <- amsync_server(port = 8080, tls = tls)
+#' server <- amsync_server(tls = tls)
 #' server$start()
+#' server$url
 #' server$close()
 #'
 #' # Server with Google OAuth authentication (requires TLS)
 #' cert <- nanonext::write_cert()
 #' tls <- nanonext::tls_config(server = cert$server)
 #' server <- amsync_server(
-#'   port = 3030,
 #'   tls = tls,
 #'   auth = auth_config(allowed_domains = c("mycompany.com"))
 #' )
 #'
 #' @export
 amsync_server <- function(
-  port = 3030L,
+  port = 0L,
   host = "127.0.0.1",
   data_dir = ".automerge",
   auto_create_docs = TRUE,
@@ -89,7 +90,6 @@ amsync_server <- function(
   # Create state environment for handlers to access via closure
 
   state <- new.env(hash = TRUE, parent = emptyenv())
-  state$port <- port
   state$host <- host
   state$data_dir <- data_dir
   state$auto_create_docs <- auto_create_docs
@@ -238,8 +238,7 @@ create_document <- function(server, doc_id = NULL) {
 print.amsync_server <- function(x, ...) {
   state <- attr(x, "sync")
   cat("Automerge Sync Server\n")
-  cat("  Host:", state$host, "\n")
-  cat("  Port:", state$port, "\n")
+  cat("  URL:", x$url, "\n")
   cat("  Data dir:", state$data_dir, "\n")
   cat("  Documents:", length(state$documents), "\n")
   cat("  Connections:", length(state$connections), "\n")
