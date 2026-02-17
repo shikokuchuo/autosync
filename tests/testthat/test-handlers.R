@@ -33,7 +33,7 @@ set_sync_state <- function(state, client_id, doc_id, sync_state = NULL) {
     state$sync_states[[client_id]] <- new.env(hash = TRUE, parent = emptyenv())
   }
   state$sync_states[[client_id]][[doc_id]] <- sync_state %||%
-    automerge::am_sync_state_new()
+    automerge::am_sync_state()
 }
 
 test_that("handle_message dispatches to handle_join", {
