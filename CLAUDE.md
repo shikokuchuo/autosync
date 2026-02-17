@@ -44,14 +44,24 @@ Install with: `pak::pak("shikokuchuo/autosync")`
 - `doc_peers` - Document-to-peer mapping for broadcasting
 
 **Handlers (R/handlers.R)**: Message routing via `handle_message()` which dispatches to type-specific handlers:
-- `handle_join` - Protocol handshake, validates version "1"
+- `handle_join` - Protocol handshake, validates version "1", authentication
 - `handle_sync` - Document synchronization using Automerge sync protocol
 - `handle_ephemeral` - Transient message forwarding (point-to-point or broadcast)
 - `broadcast_sync` - Propagates changes to all peers subscribed to a document
 
+**Auth (R/auth.R)**: Optional OAuth2 authentication via `auth_config()`. Validates Google OAuth2 tokens, supports email/domain allowlists and custom validators. TLS is mandatory when auth is enabled. Uses `later::later()` for auth timeout enforcement.
+
 **Client (R/client.R)**: `amsync_fetch()` implements the client-side protocol for fetching documents from any automerge-repo server.
 
 **Storage (R/storage.R)**: Persistence layer using `.automerge` files in a configurable data directory.
+
+### Key Patterns
+
+**Dual connection indexing**: Pre-handshake connections are keyed by temp WebSocket ID (`ws$id` as character); post-handshake, the same connection object is also indexed by the client's `senderId` from the join message. Both must be cleaned up on disconnect.
+
+**Storage ID semantics**: `NULL` = auto-generate persistent ID, `NA` = ephemeral server (no storage ID in peer response), string = explicit storage ID.
+
+**Environment-based state**: All server state uses environments (pass-by-reference), not lists. This is intentional for mutability.
 
 ### Protocol Details
 
@@ -73,3 +83,8 @@ Document IDs are Base58Check-encoded 16-byte random values. Peer IDs are Base64-
 ## Testing
 
 Tests use incrementing ports starting at 4000 via `get_test_port()` helper to avoid conflicts. Test files cover server, client, handlers, storage, and integration scenarios.
+
+- **Handler tests** use mock WebSocket objects (`create_mock_ws()` and `create_test_state()` in test-handlers.R) to test message handling without network I/O
+- **Auth tests** use `local_mocked_bindings()` to mock Google token validation and snapshot tests for error messages
+- **Integration tests** use `skip_on_cran()` for network-dependent scenarios
+- **Cleanup**: Tests use `on.exit()` consistently and `tempfile()` for isolated storage directories
