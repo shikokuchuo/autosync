@@ -26,43 +26,33 @@ test_that("auth_config accepts custom timeout values", {
   expect_equal(cfg$token_timeout, 10)
 })
 
-test_that("authenticate_client rejects missing peerMetadata", {
+test_that("authenticate_client returns generic error for invalid credentials", {
   cfg <- auth_config()
+
+  # Missing peerMetadata
   result <- authenticate_client(cfg, NULL)
-
   expect_false(result$valid)
-  expect_snapshot(result$error)
-})
+  expect_equal(result$error, "Authentication failed")
 
-test_that("authenticate_client rejects missing access_token", {
-  cfg <- auth_config()
+  # Missing access_token
   result <- authenticate_client(cfg, list(isEphemeral = TRUE))
-
   expect_false(result$valid)
-  expect_snapshot(result$error)
-})
-
-test_that("authenticate_client rejects invalid token format", {
-  cfg <- auth_config()
+  expect_equal(result$error, "Authentication failed")
 
   # Non-character token
   result <- authenticate_client(cfg, list(access_token = 12345))
   expect_false(result$valid)
-  expect_snapshot(result$error)
+  expect_equal(result$error, "Authentication failed")
 
   # Multiple tokens
   result <- authenticate_client(cfg, list(access_token = c("a", "b")))
   expect_false(result$valid)
-  expect_snapshot(result$error)
-})
-
-test_that("authenticate_client rejects token with invalid length", {
-  cfg <- auth_config()
+  expect_equal(result$error, "Authentication failed")
 
   # Too short
   result <- authenticate_client(cfg, list(access_token = "short"))
   expect_false(result$valid)
-  expect_snapshot(result$error)
+  expect_equal(result$error, "Authentication failed")
 
   # Too long (over 4096 chars)
   result <- authenticate_client(
@@ -70,11 +60,7 @@ test_that("authenticate_client rejects token with invalid length", {
     list(access_token = paste(rep("a", 5000), collapse = ""))
   )
   expect_false(result$valid)
-  expect_snapshot(result$error)
-})
-
-test_that("authenticate_client rejects token with invalid characters", {
-  cfg <- auth_config()
+  expect_equal(result$error, "Authentication failed")
 
   # Contains spaces
   result <- authenticate_client(
@@ -82,7 +68,7 @@ test_that("authenticate_client rejects token with invalid characters", {
     list(access_token = paste(rep("a", 50), collapse = " "))
   )
   expect_false(result$valid)
-  expect_snapshot(result$error)
+  expect_equal(result$error, "Authentication failed")
 
   # Contains special chars
   result <- authenticate_client(
@@ -90,7 +76,12 @@ test_that("authenticate_client rejects token with invalid characters", {
     list(access_token = paste0(strrep("a", 25), "$%^&", strrep("b", 25)))
   )
   expect_false(result$valid)
-  expect_snapshot(result$error)
+  expect_equal(result$error, "Authentication failed")
+
+  # Empty string token
+  result <- authenticate_client(cfg, list(access_token = ""))
+  expect_false(result$valid)
+  expect_equal(result$error, "Authentication failed")
 })
 
 test_that("server requires TLS when auth is enabled", {
@@ -241,7 +232,7 @@ test_that("authenticate_client rejects token one below minimum length", {
   cfg <- auth_config()
   result <- authenticate_client(cfg, list(access_token = strrep("a", 19)))
   expect_false(result$valid)
-  expect_equal(result$error, "Invalid access_token length")
+  expect_equal(result$error, "Authentication failed")
 })
 
 test_that("authenticate_client accepts token at maximum length boundary", {
@@ -257,15 +248,9 @@ test_that("authenticate_client rejects token one above maximum length", {
   cfg <- auth_config()
   result <- authenticate_client(cfg, list(access_token = strrep("a", 4097)))
   expect_false(result$valid)
-  expect_equal(result$error, "Invalid access_token length")
+  expect_equal(result$error, "Authentication failed")
 })
 
-test_that("authenticate_client rejects empty string token", {
-  cfg <- auth_config()
-  result <- authenticate_client(cfg, list(access_token = ""))
-  expect_false(result$valid)
-  expect_equal(result$error, "Invalid access_token length")
-})
 
 test_that("authenticate_client accepts all valid special characters", {
   cfg <- auth_config()
@@ -625,7 +610,7 @@ test_that("handle_join with auth rejects missing token", {
   expect_length(ws$sent_messages, 1)
   response <- secretbase::cbordec(ws$sent_messages[[1]])
   expect_equal(response$type, "error")
-  expect_match(response$message, "Missing access_token")
+  expect_match(response$message, "Authentication failed")
   expect_false(exists(temp_id, envir = state$pending_auth))
 })
 
