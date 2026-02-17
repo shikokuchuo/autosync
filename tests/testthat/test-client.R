@@ -150,6 +150,90 @@ test_that("amsync_fetch handles document with multiple values", {
   expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "flag"), TRUE)
 })
 
+test_that("amsync_fetch includes access_token in peer metadata", {
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  port <- get_test_port()
+  server <- amsync_server(port = port, data_dir = data_dir)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  doc_id <- create_document(server)
+  doc <- get_document(server, doc_id)
+  automerge::am_put(doc, automerge::AM_ROOT, "key", "value")
+
+  url <- paste0("ws://127.0.0.1:", port)
+  fetched <- amsync_fetch(url, doc_id, access_token = "test_token_12345")
+
+  expect_true(inherits(fetched, "am_doc"))
+  expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "key"), "value")
+})
+
+test_that("amsync_fetch errors when peer response fails", {
+  local_mocked_bindings(
+    stream = function(...) rawConnection(raw(0)),
+    send = function(...) invisible(NULL),
+    recv_aio = function(...) list(data = structure(5L, class = "errorValue")),
+    unresolved = function(...) FALSE,
+    run_now = function(...) invisible(NULL)
+  )
+
+  expect_error(
+    amsync_fetch("ws://fake:1234", "fake_doc_id"),
+    "Failed to receive peer response"
+  )
+})
+
+test_that("amsync_fetch errors on unexpected message type", {
+  local_mocked_bindings(
+    stream = function(...) rawConnection(raw(0)),
+    send = function(...) invisible(NULL),
+    recv_aio = function(...) {
+      fake_msg <- secretbase::cborenc(
+        list(type = "sync", senderId = "server123")
+      )
+      list(data = fake_msg)
+    },
+    unresolved = function(...) FALSE,
+    run_now = function(...) invisible(NULL)
+  )
+
+  expect_error(
+    amsync_fetch("ws://fake:1234", "fake_doc_id"),
+    "Expected peer message, got: sync"
+  )
+})
+
+test_that("amsync_fetch warns when no sync messages received", {
+  recv_count <- 0L
+  local_mocked_bindings(
+    stream = function(...) rawConnection(raw(0)),
+    send = function(...) invisible(NULL),
+    recv_aio = function(...) {
+      recv_count <<- recv_count + 1L
+      if (recv_count == 1L) {
+        fake_peer <- secretbase::cborenc(list(
+          type = "peer",
+          senderId = "server123",
+          selectedProtocolVersion = "1"
+        ))
+        list(data = fake_peer)
+      } else {
+        list(data = structure(5L, class = "errorValue"))
+      }
+    },
+    unresolved = function(...) FALSE,
+    run_now = function(...) invisible(NULL)
+  )
+
+  expect_warning(
+    amsync_fetch("ws://fake:1234", "fake_doc_id"),
+    "No sync messages received"
+  )
+})
+
 test_that("amsync_fetch returns empty document for new document ID", {
   data_dir <- tempfile()
   dir.create(data_dir)
