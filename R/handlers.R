@@ -45,8 +45,10 @@ handle_message <- function(server, client_id, temp_id, raw_msg) {
 #' @noRd
 handle_join <- function(server, temp_id, msg) {
   # Validate protocol version
-  # Note: CBOR arrays are decoded as R lists, so use unlist() for safe comparison
-  if (!"1" %in% unlist(msg$supportedProtocolVersions)) {
+  if (
+    !is.null(msg$supportedProtocolVersions) &&
+      as.integer(msg$supportedProtocolVersions) != 1L
+  ) {
     send_error(
       server,
       msg$senderId,
@@ -54,6 +56,26 @@ handle_join <- function(server, temp_id, msg) {
       temp_id = temp_id
     )
     return(invisible())
+  }
+
+  # Close previous connection from same client (reconnection)
+  client_id <- msg$senderId
+  if (exists(client_id, envir = server$connections, inherits = FALSE)) {
+    old_conn <- server$connections[[client_id]]
+    if (
+      !is.null(old_conn$ws) &&
+        !identical(old_conn$ws, server$connections[[temp_id]]$ws)
+    ) {
+      old_temp_id <- as.character(old_conn$ws$id)
+      handle_disconnect(server, client_id)
+      if (exists(old_temp_id, envir = server$connections, inherits = FALSE)) {
+        rm(list = old_temp_id, envir = server$connections)
+      }
+      if (exists(client_id, envir = server$connections, inherits = FALSE)) {
+        rm(list = client_id, envir = server$connections)
+      }
+      old_conn$ws$close()
+    }
   }
 
   # Authentication check
@@ -74,9 +96,6 @@ handle_join <- function(server, temp_id, msg) {
     # Store authenticated email for logging/access control
     server$connections[[temp_id]]$authenticated_email <- auth_result$email
   }
-
-  # Get the client's senderId - this becomes their canonical identifier
-  client_id <- msg$senderId
 
   # Update connection: store client_id and metadata
   # Must update the original entry (R lists are copied, not referenced)

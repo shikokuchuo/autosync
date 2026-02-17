@@ -46,9 +46,6 @@ close_connection <- function(server, id) {
 
   conn <- server$connections[[id]]
   if (!is.null(conn) && !is.null(conn$ws)) {
-    tryCatch(
-      close(conn$ws),
-      error = function(e) NULL
-    )
+    conn$ws$close()
   }
 }

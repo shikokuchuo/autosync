@@ -538,6 +538,7 @@ test_that("check_auth_timeout cleans up pending connection", {
   ws <- new.env(hash = TRUE)
   ws$sent_messages <- list()
   ws$send <- function(data) ws$sent_messages <- c(ws$sent_messages, list(data))
+  ws$close <- function() NULL
 
   state$connections[[temp_id]] <- list(
     ws = ws,
@@ -581,6 +582,7 @@ test_that("handle_join with auth rejects missing token", {
   ws <- new.env(hash = TRUE)
   ws$sent_messages <- list()
   ws$send <- function(data) ws$sent_messages <- c(ws$sent_messages, list(data))
+  ws$close <- function() NULL
 
   temp_id <- "temp-ws-789"
   state$connections[[temp_id]] <- list(

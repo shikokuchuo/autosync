@@ -808,3 +808,139 @@ test_that("handle_join with persistent server includes storageId", {
   expect_false(response$peerMetadata$isEphemeral)
   expect_equal(response$peerMetadata$storageId, "myStorageId123")
 })
+
+test_that("handle_join accepts missing supportedProtocolVersions", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  join_msg <- list(
+    type = "join",
+    senderId = "noVersionClient",
+    peerMetadata = list(isEphemeral = TRUE)
+    # supportedProtocolVersions intentionally omitted
+  )
+
+  autosync:::handle_join(state, temp_id, join_msg)
+
+  expect_length(ws$sent_messages, 1)
+  response <- secretbase::cbordec(ws$sent_messages[[1]])
+  expect_equal(response$type, "peer")
+  expect_equal(response$targetId, "noVersionClient")
+  expect_equal(response$selectedProtocolVersion, "1")
+})
+
+test_that("handle_join closes previous socket on duplicate senderId", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  # First connection
+  ws1 <- create_mock_ws()
+  ws1$closed <- FALSE
+  ws1$close <- function() ws1$closed <- TRUE
+  temp_id1 <- ws1$id
+  state$connections[[temp_id1]] <- list(
+    ws = ws1,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  join_msg1 <- list(
+    type = "join",
+    senderId = "reconnectClient",
+    peerMetadata = list(isEphemeral = TRUE),
+    supportedProtocolVersions = list("1")
+  )
+
+  autosync:::handle_join(state, temp_id1, join_msg1)
+
+  # Verify first connection is active
+  expect_length(ws1$sent_messages, 1)
+  expect_true(exists("reconnectClient", envir = state$connections))
+
+  # Second connection with same senderId
+
+  ws2 <- create_mock_ws()
+  temp_id2 <- ws2$id
+  state$connections[[temp_id2]] <- list(
+    ws = ws2,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  join_msg2 <- list(
+    type = "join",
+    senderId = "reconnectClient",
+    peerMetadata = list(isEphemeral = TRUE),
+    supportedProtocolVersions = list("1")
+  )
+
+  autosync:::handle_join(state, temp_id2, join_msg2)
+
+  # Old WS should have been closed
+  expect_true(ws1$closed)
+
+  # New connection should be active
+  expect_length(ws2$sent_messages, 1)
+  response <- secretbase::cbordec(ws2$sent_messages[[1]])
+  expect_equal(response$type, "peer")
+  expect_equal(response$targetId, "reconnectClient")
+
+  # Connection env should point to new ws
+  conn <- state$connections[["reconnectClient"]]
+  expect_identical(conn$ws, ws2)
+})
+
+test_that("broadcast_ephemeral preserves count and sessionId from sender", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  ws1 <- create_mock_ws()
+  ws2 <- create_mock_ws()
+
+  state$connections[["sender"]] <- list(
+    ws = ws1,
+    client_id = "sender",
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  state$connections[["receiver"]] <- list(
+    ws = ws2,
+    client_id = "receiver",
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  doc_id <- "ephTestDoc"
+  state$doc_peers[[doc_id]] <- c("sender", "receiver")
+
+  ephemeral_msg <- list(
+    type = "ephemeral",
+    senderId = "sender",
+    documentId = doc_id,
+    count = 42L,
+    sessionId = "session-abc-123",
+    data = list(cursor = "line 10")
+  )
+
+  autosync:::handle_ephemeral(state, "sender", ephemeral_msg)
+
+  expect_length(ws2$sent_messages, 1)
+  relayed <- secretbase::cbordec(ws2$sent_messages[[1]])
+  expect_equal(relayed$type, "ephemeral")
+  expect_equal(relayed$count, 42L)
+  expect_equal(relayed$sessionId, "session-abc-123")
+  expect_equal(relayed$senderId, "sender")
+  expect_equal(relayed$data$cursor, "line 10")
+})
