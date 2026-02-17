@@ -66,9 +66,16 @@
 <div class="section level3">
 <h3 id="core-components">Core Components<a class="anchor" aria-label="anchor" href="#core-components"></a></h3>
 <p><strong>Server (R/server.R)</strong>: <code><a href="reference/amsync_server.html">amsync_server()</a></code> creates a WebSocket server using nanonext’s <code>http_server()</code>. The server maintains state in environments for: - <code>documents</code> - Loaded Automerge documents keyed by document ID - <code>sync_states</code> - Per-client, per-document sync states (nested: <code>sync_states[[client_id]][[doc_id]]</code>) - <code>connections</code> - WebSocket connection objects keyed by both temp ID and client ID - <code>doc_peers</code> - Document-to-peer mapping for broadcasting</p>
-<p><strong>Handlers (R/handlers.R)</strong>: Message routing via <code>handle_message()</code> which dispatches to type-specific handlers: - <code>handle_join</code> - Protocol handshake, validates version “1” - <code>handle_sync</code> - Document synchronization using Automerge sync protocol - <code>handle_ephemeral</code> - Transient message forwarding (point-to-point or broadcast) - <code>broadcast_sync</code> - Propagates changes to all peers subscribed to a document</p>
+<p><strong>Handlers (R/handlers.R)</strong>: Message routing via <code>handle_message()</code> which dispatches to type-specific handlers: - <code>handle_join</code> - Protocol handshake, validates version “1”, authentication - <code>handle_sync</code> - Document synchronization using Automerge sync protocol - <code>handle_ephemeral</code> - Transient message forwarding (point-to-point or broadcast) - <code>broadcast_sync</code> - Propagates changes to all peers subscribed to a document</p>
+<p><strong>Auth (R/auth.R)</strong>: Optional OAuth2 authentication via <code><a href="reference/auth_config.html">auth_config()</a></code>. Validates Google OAuth2 tokens, supports email/domain allowlists and custom validators. TLS is mandatory when auth is enabled. Uses <code><a href="https://later.r-lib.org/reference/later.html" class="external-link">later::later()</a></code> for auth timeout enforcement.</p>
 <p><strong>Client (R/client.R)</strong>: <code><a href="reference/amsync_fetch.html">amsync_fetch()</a></code> implements the client-side protocol for fetching documents from any automerge-repo server.</p>
 <p><strong>Storage (R/storage.R)</strong>: Persistence layer using <code>.automerge</code> files in a configurable data directory.</p>
+</div>
+<div class="section level3">
+<h3 id="key-patterns">Key Patterns<a class="anchor" aria-label="anchor" href="#key-patterns"></a></h3>
+<p><strong>Dual connection indexing</strong>: Pre-handshake connections are keyed by temp WebSocket ID (<code>ws$id</code> as character); post-handshake, the same connection object is also indexed by the client’s <code>senderId</code> from the join message. Both must be cleaned up on disconnect.</p>
+<p><strong>Storage ID semantics</strong>: <code>NULL</code> = auto-generate persistent ID, <code>NA</code> = ephemeral server (no storage ID in peer response), string = explicit storage ID.</p>
+<p><strong>Environment-based state</strong>: All server state uses environments (pass-by-reference), not lists. This is intentional for mutability.</p>
 </div>
 <div class="section level3">
 <h3 id="protocol-details">Protocol Details<a class="anchor" aria-label="anchor" href="#protocol-details"></a></h3>
@@ -90,7 +97,15 @@
 <div class="section level2">
 <h2 id="testing">Testing<a class="anchor" aria-label="anchor" href="#testing"></a></h2>
 <p>Tests use incrementing ports starting at 4000 via <code>get_test_port()</code> helper to avoid conflicts. Test files cover server, client, handlers, storage, and integration scenarios.</p>
-</div>
+<ul><li>
+<strong>Handler tests</strong> use mock WebSocket objects (<code>create_mock_ws()</code> and <code>create_test_state()</code> in test-handlers.R) to test message handling without network I/O</li>
+<li>
+<strong>Auth tests</strong> use <code>local_mocked_bindings()</code> to mock Google token validation and snapshot tests for error messages</li>
+<li>
+<strong>Integration tests</strong> use <code>skip_on_cran()</code> for network-dependent scenarios</li>
+<li>
+<strong>Cleanup</strong>: Tests use <code><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit()</a></code> consistently and <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile()</a></code> for isolated storage directories</li>
+</ul></div>
 </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
