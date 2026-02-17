@@ -96,7 +96,7 @@
 </div>
 <div class="section level2">
 <h2 id="testing">Testing<a class="anchor" aria-label="anchor" href="#testing"></a></h2>
-<p>Tests use incrementing ports starting at 4000 via <code>get_test_port()</code> helper to avoid conflicts. Test files cover server, client, handlers, storage, and integration scenarios.</p>
+<p>Tests use port 0 (OS-assigned) by default, retrieving the actual URL via <code>server$url</code>. Test files cover server, client, handlers, storage, and integration scenarios.</p>
 <ul><li>
 <strong>Handler tests</strong> use mock WebSocket objects (<code>create_mock_ws()</code> and <code>create_test_state()</code> in test-handlers.R) to test message handling without network I/O</li>
 <li>

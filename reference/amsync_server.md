@@ -7,7 +7,7 @@ protocol, compatible with JavaScript, Rust, and other Automerge clients.
 
 ``` r
 amsync_server(
-  port = 3030L,
+  port = 0L,
   host = "127.0.0.1",
   data_dir = ".automerge",
   auto_create_docs = TRUE,
@@ -21,7 +21,8 @@ amsync_server(
 
 - port:
 
-  Port to listen on. Default 3030.
+  Port to listen on. Default 0 (binds to a random available port). The
+  actual URL is retrieved via `server$url`.
 
 - host:
 
@@ -80,18 +81,18 @@ server$start()
 # Stop when done
 server$close()
 
-# Custom port with TLS
+# With TLS for secure connections
 cert <- nanonext::write_cert()
 tls <- nanonext::tls_config(server = cert$server)
-server <- amsync_server(port = 8080, tls = tls)
+server <- amsync_server(tls = tls)
 server$start()
+server$url
 server$close()
 
 # Server with Google OAuth authentication (requires TLS)
 cert <- nanonext::write_cert()
 tls <- nanonext::tls_config(server = cert$server)
 server <- amsync_server(
-  port = 3030,
   tls = tls,
   auth = auth_config(allowed_domains = c("mycompany.com"))
 )

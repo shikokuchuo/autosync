@@ -43,7 +43,7 @@ compatible with JavaScript, Rust, and other Automerge clients.</p>
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">amsync_server</span><span class="op">(</span></span>
-<span>  port <span class="op">=</span> <span class="fl">3030L</span>,</span>
+<span>  port <span class="op">=</span> <span class="fl">0L</span>,</span>
 <span>  host <span class="op">=</span> <span class="st">"127.0.0.1"</span>,</span>
 <span>  data_dir <span class="op">=</span> <span class="st">".automerge"</span>,</span>
 <span>  auto_create_docs <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -58,7 +58,8 @@ compatible with JavaScript, Rust, and other Automerge clients.</p>
 
 
 <dl><dt id="arg-port">port<a class="anchor" aria-label="anchor" href="#arg-port"></a></dt>
-<dd><p>Port to listen on. Default 3030.</p></dd>
+<dd><p>Port to listen on. Default 0 (binds to a random available port).
+The actual URL is retrieved via <code>server$url</code>.</p></dd>
 
 
 <dt id="arg-host">host<a class="anchor" aria-label="anchor" href="#arg-host"></a></dt>
@@ -116,18 +117,18 @@ Note: TLS is required when authentication is enabled to protect tokens.</p></dd>
 <span class="r-in"><span><span class="co"># Stop when done</span></span></span>
 <span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Custom port with TLS</span></span></span>
+<span class="r-in"><span><span class="co"># With TLS for secure connections</span></span></span>
 <span class="r-in"><span><span class="va">cert</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/write_cert.html" class="external-link">write_cert</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">tls</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">tls_config</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">cert</span><span class="op">$</span><span class="va">server</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span>port <span class="op">=</span> <span class="fl">8080</span>, tls <span class="op">=</span> <span class="va">tls</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span>tls <span class="op">=</span> <span class="va">tls</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="va">url</span></span></span>
 <span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Server with Google OAuth authentication (requires TLS)</span></span></span>
 <span class="r-in"><span><span class="va">cert</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/write_cert.html" class="external-link">write_cert</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">tls</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">tls_config</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">cert</span><span class="op">$</span><span class="va">server</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  port <span class="op">=</span> <span class="fl">3030</span>,</span></span>
 <span class="r-in"><span>  tls <span class="op">=</span> <span class="va">tls</span>,</span></span>
 <span class="r-in"><span>  auth <span class="op">=</span> <span class="fu"><a href="auth_config.html">auth_config</a></span><span class="op">(</span>allowed_domains <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mycompany.com"</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>

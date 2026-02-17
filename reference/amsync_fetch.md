@@ -77,12 +77,12 @@ if (FALSE) { # interactive()
 doc <- amsync_fetch("wss://sync.automerge.org", "4F63WJPDzbHkkfKa66h1Qrr1sC5U")
 
 # Fetch from local server with debug output
-doc <- amsync_fetch("ws://localhost:3030", "myDocId", verbose = TRUE)
+doc <- amsync_fetch(server$url, "myDocId", verbose = TRUE)
 
 # Fetch from server with self-signed certificate
 cert <- nanonext::write_cert()
 tls <- nanonext::tls_config(client = cert$client)
-doc <- amsync_fetch("wss://localhost:3030", "myDocId", tls = tls)
+doc <- amsync_fetch(server$url, "myDocId", tls = tls)
 
 # Fetch from authenticated server
 token <- amsync_auth()

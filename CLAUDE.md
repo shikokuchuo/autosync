@@ -108,9 +108,9 @@ Base64-encoded.
 
 ## Testing
 
-Tests use incrementing ports starting at 4000 via `get_test_port()`
-helper to avoid conflicts. Test files cover server, client, handlers,
-storage, and integration scenarios.
+Tests use port 0 (OS-assigned) by default, retrieving the actual URL via
+`server$url`. Test files cover server, client, handlers, storage, and
+integration scenarios.
 
 - **Handler tests** use mock WebSocket objects (`create_mock_ws()` and
   `create_test_state()` in test-handlers.R) to test message handling

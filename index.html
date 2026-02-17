@@ -79,8 +79,9 @@
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/shikokuchuo/autosync" class="external-link">autosync</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_server.html">amsync_server</a></span><span class="op">(</span>port <span class="op">=</span> <span class="fl">3030</span><span class="op">)</span></span>
+<span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_server.html">amsync_server</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">server</span></span>
 <span></span>
 <span><span class="co"># Server runs non-blocking in the background</span></span>
 <span></span>
@@ -90,8 +91,9 @@
 <code class="sourceCode R"><span><span class="va">cert</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/write_cert.html" class="external-link">write_cert</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">tls</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">tls_config</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">cert</span><span class="op">$</span><span class="va">server</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_server.html">amsync_server</a></span><span class="op">(</span>port <span class="op">=</span> <span class="fl">8080</span>, tls <span class="op">=</span> <span class="va">tls</span><span class="op">)</span></span>
-<span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_server.html">amsync_server</a></span><span class="op">(</span>tls <span class="op">=</span> <span class="va">tls</span><span class="op">)</span></span>
+<span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">server</span><span class="op">$</span><span class="va">url</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="authentication">Authentication<a class="anchor" aria-label="anchor" href="#authentication"></a>
 </h3>
@@ -101,7 +103,6 @@
 <span><span class="va">tls</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">tls_config</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">cert</span><span class="op">$</span><span class="va">server</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_server.html">amsync_server</a></span><span class="op">(</span></span>
-<span>  port <span class="op">=</span> <span class="fl">3030</span>,</span>
 <span>  tls <span class="op">=</span> <span class="va">tls</span>,  <span class="co"># TLS required when auth is enabled</span></span>
 <span>  auth <span class="op">=</span> <span class="fu"><a href="reference/auth_config.html">auth_config</a></span><span class="op">(</span>allowed_domains <span class="op">=</span> <span class="st">"posit.co"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
@@ -111,8 +112,8 @@
 <code class="sourceCode R"><span><span class="va">token</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_auth.html">amsync_auth</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># Interactive OAuth flow</span></span>
 <span><span class="va">tlsclient</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">tls_config</a></span><span class="op">(</span>client <span class="op">=</span> <span class="va">cert</span><span class="op">$</span><span class="va">client</span><span class="op">)</span></span>
 <span><span class="va">doc</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_fetch.html">amsync_fetch</a></span><span class="op">(</span></span>
-<span>  <span class="st">"wss://127.0.0.1:3030"</span>,</span>
-<span>  <span class="st">"doc-id"</span>,</span>
+<span>  <span class="va">server</span><span class="op">$</span><span class="va">url</span>,</span>
+<span>  <span class="st">"35ei6ouA7nLhtjmf3d9xk1KKvtKv"</span>,</span>
 <span>  access_token <span class="op">=</span> <span class="va">token</span>,</span>
 <span>  tls <span class="op">=</span> <span class="va">tlsclient</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -137,7 +138,7 @@
 <span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="im">import</span> { BrowserWebSocketClientAdapter } <span class="im">from</span> <span class="st">"@automerge/automerge-repo-network-websocket"</span></span>
 <span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a></span>
 <span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="kw">const</span> repo <span class="op">=</span> <span class="kw">new</span> <span class="fu">Repo</span>({</span>
-<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="dt">network</span><span class="op">:</span> [<span class="kw">new</span> <span class="fu">BrowserWebSocketClientAdapter</span>(<span class="st">"ws://localhost:3030"</span>)]</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="dt">network</span><span class="op">:</span> [<span class="kw">new</span> <span class="fu">BrowserWebSocketClientAdapter</span>(<span class="st">"ws://localhost:8080"</span>)]</span>
 <span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>})</span></code></pre></div>
 </div>
 </div>
