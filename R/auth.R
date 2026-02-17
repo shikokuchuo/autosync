@@ -163,36 +163,20 @@ auth_config <- function(
 #'
 #' @keywords internal
 authenticate_client <- function(auth_config, peer_metadata) {
+  auth_fail <- list(valid = FALSE, email = NULL, error = "Authentication failed")
+
   if (is.null(peer_metadata) || is.null(peer_metadata$access_token)) {
-    return(list(
-      valid = FALSE,
-      email = NULL,
-      error = "Missing access_token in peerMetadata"
-    ))
+    return(auth_fail)
   }
 
   token <- peer_metadata$access_token
 
-  if (!is.character(token) || length(token) != 1L) {
-    return(list(
-      valid = FALSE,
-      email = NULL,
-      error = "Invalid access_token format"
-    ))
-  }
-  if (nchar(token) < 20L || nchar(token) > 4096L) {
-    return(list(
-      valid = FALSE,
-      email = NULL,
-      error = "Invalid access_token length"
-    ))
-  }
-  if (grepl("[^A-Za-z0-9._~+/-]", token)) {
-    return(list(
-      valid = FALSE,
-      email = NULL,
-      error = "Invalid access_token characters"
-    ))
+  if (
+    !is.character(token) || length(token) != 1L ||
+      nchar(token) < 20L || nchar(token) > 4096L ||
+      grepl("[^A-Za-z0-9._~+/-]", token)
+  ) {
+    return(auth_fail)
   }
 
   validate_token(

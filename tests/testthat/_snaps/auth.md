@@ -30,62 +30,6 @@
       Error in `auth_config()`:
       ! 'token_timeout' must be a positive number
 
-# authenticate_client rejects missing peerMetadata
-
-    Code
-      result$error
-    Output
-      [1] "Missing access_token in peerMetadata"
-
-# authenticate_client rejects missing access_token
-
-    Code
-      result$error
-    Output
-      [1] "Missing access_token in peerMetadata"
-
-# authenticate_client rejects invalid token format
-
-    Code
-      result$error
-    Output
-      [1] "Invalid access_token format"
-
----
-
-    Code
-      result$error
-    Output
-      [1] "Invalid access_token format"
-
-# authenticate_client rejects token with invalid length
-
-    Code
-      result$error
-    Output
-      [1] "Invalid access_token length"
-
----
-
-    Code
-      result$error
-    Output
-      [1] "Invalid access_token length"
-
-# authenticate_client rejects token with invalid characters
-
-    Code
-      result$error
-    Output
-      [1] "Invalid access_token characters"
-
----
-
-    Code
-      result$error
-    Output
-      [1] "Invalid access_token characters"
-
 # server requires TLS when auth is enabled
 
     Code
@@ -102,5 +46,5 @@
       tls = client_tls)
     Condition
       Error in `amsync_fetch()`:
-      ! Server error: Missing access_token in peerMetadata
+      ! Server error: Authentication failed
 
