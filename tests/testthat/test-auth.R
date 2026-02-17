@@ -87,7 +87,6 @@ test_that("authenticate_client returns generic error for invalid credentials", {
 test_that("server requires TLS when auth is enabled", {
   expect_snapshot(
     amsync_server(
-      port = get_test_port(),
       auth = auth_config(allowed_emails = "test@example.com")
     ),
     error = TRUE
@@ -97,12 +96,10 @@ test_that("server requires TLS when auth is enabled", {
 test_that("server allows auth with TLS configured", {
   skip_on_cran()
 
-  port <- get_test_port()
   cert <- nanonext::write_cert()
   tls <- nanonext::tls_config(server = cert$server)
 
   server <- amsync_server(
-    port = port,
     tls = tls,
     auth = auth_config(allowed_emails = "test@example.com")
   )
@@ -117,13 +114,11 @@ test_that("server rejects unauthenticated client when auth enabled", {
   skip_on_cran()
   skip_if_not_installed("gargle")
 
-  port <- get_test_port()
   cert <- nanonext::write_cert()
   tls <- nanonext::tls_config(server = cert$server)
   client_tls <- nanonext::tls_config(client = cert$client)
 
   server <- amsync_server(
-    port = port,
     tls = tls,
     auth = auth_config(allowed_emails = "allowed@test.com")
   )
@@ -133,7 +128,7 @@ test_that("server rejects unauthenticated client when auth enabled", {
   # Client without token should be rejected
   expect_snapshot(
     amsync_fetch(
-      url = sprintf("wss://127.0.0.1:%d", port),
+      url = server$url,
       doc_id = generate_document_id(),
       tls = client_tls
     ),
@@ -145,13 +140,11 @@ test_that("server closes connection on auth timeout", {
   skip_on_cran()
   skip_if_not_installed("gargle")
 
-  port <- get_test_port()
   cert <- nanonext::write_cert()
   tls <- nanonext::tls_config(server = cert$server)
   client_tls <- nanonext::tls_config(client = cert$client)
 
   server <- amsync_server(
-    port = port,
     tls = tls,
     auth = auth_config(
       allowed_emails = "allowed@test.com",
@@ -163,7 +156,7 @@ test_that("server closes connection on auth timeout", {
 
   # Connect but don't send join message
   s <- nanonext::stream(
-    dial = sprintf("wss://127.0.0.1:%d", port),
+    dial = server$url,
     tls = client_tls
   )
   on.exit(close(s), add = TRUE)

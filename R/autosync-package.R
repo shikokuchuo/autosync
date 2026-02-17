@@ -32,8 +32,9 @@
 #' @section Example:
 #' \preformatted{
 #' # Create and start a server
-#' server <- amsync_server(port = 3030)
+#' server <- amsync_server()
 #' server$start()
+#' server$url
 #'
 #' # Stop when done
 #' server$close()

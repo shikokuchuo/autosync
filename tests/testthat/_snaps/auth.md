@@ -33,7 +33,7 @@
 # server requires TLS when auth is enabled
 
     Code
-      amsync_server(port = get_test_port(), auth = auth_config(allowed_emails = "test@example.com"))
+      amsync_server(auth = auth_config(allowed_emails = "test@example.com"))
     Condition
       Error in `amsync_server()`:
       ! Authentication requires TLS. Provide a 'tls' configuration.
@@ -42,8 +42,7 @@
 # server rejects unauthenticated client when auth enabled
 
     Code
-      amsync_fetch(url = sprintf("wss://127.0.0.1:%d", port), doc_id = generate_document_id(),
-      tls = client_tls)
+      amsync_fetch(url = server$url, doc_id = generate_document_id(), tls = client_tls)
     Condition
       Error in `amsync_fetch()`:
       ! Server error: Authentication failed

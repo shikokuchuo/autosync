@@ -24,8 +24,7 @@ test_that("amsync_fetch retrieves document from server", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  port <- get_test_port()
-  server <- amsync_server(port = port, data_dir = data_dir)
+  server <- amsync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -37,8 +36,7 @@ test_that("amsync_fetch retrieves document from server", {
   automerge::am_put(doc, automerge::AM_ROOT, "number", 42L)
 
   # Fetch the document
-  url <- paste0("ws://127.0.0.1:", port)
-  fetched <- amsync_fetch(url, doc_id, timeout = 5000L, verbose = FALSE)
+  fetched <- amsync_fetch(server$url, doc_id, timeout = 5000L, verbose = FALSE)
 
   expect_true(inherits(fetched, "am_doc"))
   expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "test_key"), "test_value")
@@ -50,8 +48,7 @@ test_that("amsync_fetch works in verbose mode", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  port <- get_test_port()
-  server <- amsync_server(port = port, data_dir = data_dir)
+  server <- amsync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -61,9 +58,8 @@ test_that("amsync_fetch works in verbose mode", {
   automerge::am_put(doc, automerge::AM_ROOT, "verbose_test", "value")
 
   # Fetch with verbose = TRUE and capture output
-  url <- paste0("ws://127.0.0.1:", port)
   output <- capture.output({
-    fetched <- amsync_fetch(url, doc_id, timeout = 5000L, verbose = TRUE)
+    fetched <- amsync_fetch(server$url, doc_id, timeout = 5000L, verbose = TRUE)
   }, type = "message")
 
   # Should have verbose output
@@ -82,8 +78,7 @@ test_that("amsync_fetch verbose mode shows sync details", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  port <- get_test_port()
-  server <- amsync_server(port = port, data_dir = data_dir)
+  server <- amsync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -91,9 +86,8 @@ test_that("amsync_fetch verbose mode shows sync details", {
   doc <- get_document(server, doc_id)
   automerge::am_put(doc, automerge::AM_ROOT, "key", "value")
 
-  url <- paste0("ws://127.0.0.1:", port)
   output <- capture.output({
-    fetched <- amsync_fetch(url, doc_id, timeout = 5000L, verbose = TRUE)
+    fetched <- amsync_fetch(server$url, doc_id, timeout = 5000L, verbose = TRUE)
   }, type = "message")
 
   # Check for sync-related verbose output
@@ -107,16 +101,14 @@ test_that("amsync_fetch non-verbose mode produces no output", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  port <- get_test_port()
-  server <- amsync_server(port = port, data_dir = data_dir)
+  server <- amsync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
   doc_id <- create_document(server)
 
-  url <- paste0("ws://127.0.0.1:", port)
   output <- capture.output({
-    fetched <- amsync_fetch(url, doc_id, timeout = 5000L, verbose = FALSE)
+    fetched <- amsync_fetch(server$url, doc_id, timeout = 5000L, verbose = FALSE)
   }, type = "message")
 
   # Should have no verbose output
@@ -129,8 +121,7 @@ test_that("amsync_fetch handles document with multiple values", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  port <- get_test_port()
-  server <- amsync_server(port = port, data_dir = data_dir)
+  server <- amsync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -141,8 +132,7 @@ test_that("amsync_fetch handles document with multiple values", {
   automerge::am_put(doc, automerge::AM_ROOT, "number", 123L)
   automerge::am_put(doc, automerge::AM_ROOT, "flag", TRUE)
 
-  url <- paste0("ws://127.0.0.1:", port)
-  fetched <- amsync_fetch(url, doc_id, timeout = 5000L, verbose = FALSE)
+  fetched <- amsync_fetch(server$url, doc_id, timeout = 5000L, verbose = FALSE)
 
   # Verify all values
   expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "string"), "hello")
@@ -155,8 +145,7 @@ test_that("amsync_fetch includes access_token in peer metadata", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  port <- get_test_port()
-  server <- amsync_server(port = port, data_dir = data_dir)
+  server <- amsync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -164,8 +153,7 @@ test_that("amsync_fetch includes access_token in peer metadata", {
   doc <- get_document(server, doc_id)
   automerge::am_put(doc, automerge::AM_ROOT, "key", "value")
 
-  url <- paste0("ws://127.0.0.1:", port)
-  fetched <- amsync_fetch(url, doc_id, access_token = "test_token_12345")
+  fetched <- amsync_fetch(server$url, doc_id, access_token = "test_token_12345")
 
   expect_true(inherits(fetched, "am_doc"))
   expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "key"), "value")
@@ -239,17 +227,15 @@ test_that("amsync_fetch returns empty document for new document ID", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  port <- get_test_port()
-  server <- amsync_server(port = port, data_dir = data_dir)
+  server <- amsync_server(data_dir = data_dir)
   server$start()
 
   on.exit(server$close(), add = TRUE)
 
-  url <- paste0("ws://127.0.0.1:", port)
   # Request a new document ID (server creates empty doc)
   new_id <- generate_document_id()
 
-  fetched <- amsync_fetch(url, new_id, timeout = 2000L, verbose = FALSE)
+  fetched <- amsync_fetch(server$url, new_id, timeout = 2000L, verbose = FALSE)
 
   # Should return a valid but empty document
   expect_true(inherits(fetched, "am_doc"))

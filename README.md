@@ -31,8 +31,9 @@ Create a WebSocket sync server:
 ``` r
 library(autosync)
 
-server <- amsync_server(port = 3030)
+server <- amsync_server()
 server$start()
+server$url
 
 # Server runs non-blocking in the background
 
@@ -45,8 +46,9 @@ With TLS for secure connections:
 cert <- nanonext::write_cert()
 tls <- nanonext::tls_config(server = cert$server)
 
-server <- amsync_server(port = 8080, tls = tls)
+server <- amsync_server(tls = tls)
 server$start()
+server$url
 ```
 
 ### Authentication
@@ -58,11 +60,11 @@ cert <- nanonext::write_cert()
 tls <- nanonext::tls_config(server = cert$server)
 
 server <- amsync_server(
-  port = 3030,
   tls = tls,  # TLS required when auth is enabled
   auth = auth_config(allowed_domains = "posit.co")
 )
 server$start()
+server$url
 ```
 
 Clients must provide an access token:
@@ -71,7 +73,7 @@ Clients must provide an access token:
 token <- amsync_auth()  # Interactive OAuth flow
 tlsclient <- nanonext::tls_config(client = cert$client)
 doc <- amsync_fetch(
-  "wss://127.0.0.1:3030",
+  server$url,
   "doc-id",
   access_token = token,
   tls = tlsclient
@@ -98,7 +100,7 @@ import { Repo } from "@automerge/automerge-repo"
 import { BrowserWebSocketClientAdapter } from "@automerge/automerge-repo-network-websocket"
 
 const repo = new Repo({
-  network: [new BrowserWebSocketClientAdapter("ws://localhost:3030")]
+  network: [new BrowserWebSocketClientAdapter("ws://localhost:8080")]
 })
 ```
 
