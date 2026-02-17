@@ -33,7 +33,7 @@ library(autosync)
 
 server <- amsync_server()
 server$start()
-server$url
+server
 
 # Server runs non-blocking in the background
 
@@ -64,7 +64,6 @@ server <- amsync_server(
   auth = auth_config(allowed_domains = "posit.co")
 )
 server$start()
-server$url
 ```
 
 Clients must provide an access token:
@@ -74,7 +73,7 @@ token <- amsync_auth()  # Interactive OAuth flow
 tlsclient <- nanonext::tls_config(client = cert$client)
 doc <- amsync_fetch(
   server$url,
-  "doc-id",
+  "35ei6ouA7nLhtjmf3d9xk1KKvtKv",
   access_token = token,
   tls = tlsclient
 )
