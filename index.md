@@ -125,12 +125,6 @@ Generate document IDs compatible with automerge-repo:
 doc_id <- generate_document_id()
 ```
 
-## Shiny Collaborative Editor
-
-For a real-time collaborative text editor widget, see the
-[autoedit](https://github.com/shikokuchuo/autoedit) package which
-provides a CodeMirror-based editor that connects to autosync servers.
-
 ## Links
 
 - [automerge](https://posit-dev.github.io/automerge-r/) - R bindings for
