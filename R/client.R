@@ -22,7 +22,8 @@ format_hex <- function(bytes, max_len = 20L) {
 #'   self-signed or custom CA certificates, a TLS configuration object
 #'   created by [nanonext::tls_config()].
 #' @param access_token (optional) OAuth2 access token for authenticated servers.
-#'   Use [amsync_auth()] to obtain a token interactively.
+#'   Sent as a Bearer token in the Authorization header of the WebSocket
+#'   upgrade request. Use [amsync_auth()] to obtain a token interactively.
 #' @param verbose Logical, print debug messages. Default FALSE.
 #'
 #' @return An automerge document object containing the fetched data.
@@ -85,10 +86,15 @@ amsync_fetch <- function(
     message("[CLIENT] Requesting document: ", doc_id)
   }
 
+  headers <- if (!is.null(access_token)) {
+    c(Authorization = paste("Bearer", access_token))
+  }
+
   s <- stream(
     dial = url,
     tls = tls,
-    textframes = FALSE
+    textframes = FALSE,
+    headers = headers
   )
   on.exit(close(s))
 
@@ -96,16 +102,10 @@ amsync_fetch <- function(
     message("[CLIENT] Connected, sending join message")
   }
 
-  # Build peerMetadata with optional token
-  peer_metadata <- list(isEphemeral = TRUE)
-  if (!is.null(access_token)) {
-    peer_metadata$access_token <- access_token
-  }
-
   join <- list(
     type = "join",
     senderId = peer_id,
-    peerMetadata = peer_metadata,
+    peerMetadata = list(isEphemeral = TRUE),
     supportedProtocolVersions = list("1")
   )
   join_bytes <- cborenc(join)

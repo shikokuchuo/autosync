@@ -17,8 +17,9 @@
 #' @param tls (optional) for secure wss:// connections, a TLS configuration
 #'   object created by [nanonext::tls_config()].
 #' @param auth Optional authentication configuration created by [auth_config()].
-#'   When provided, clients must include a valid OAuth2 access token
-#'   in their join message's peerMetadata. Requires the gargle package.
+#'   When provided, clients must include a valid OAuth2 access token as a
+#'   Bearer token in the Authorization header of the WebSocket upgrade request.
+#'   Connections without valid credentials are rejected immediately.
 #'   Note: TLS is required when authentication is enabled to protect tokens.
 #'
 #' @return An amsync_server object inheriting from 'nanoServer', with
@@ -106,34 +107,33 @@ amsync_server <- function(
   state$connections <- connections
   state$doc_peers <- doc_peers
   state$auth <- auth
-  state$pending_auth <- new.env(hash = TRUE, parent = emptyenv())
 
   load_all_documents(state)
 
-  on_open <- function(ws) {
+  on_open <- function(ws, req) {
     ws_id <- as.character(ws$id)
+
+    # Authenticate from Authorization header if auth is enabled
+    if (!is.null(state$auth)) {
+      auth_result <- authenticate_header(state$auth, req$headers)
+      if (!auth_result$valid) {
+        ws$send(cborenc(list(
+          type = "error",
+          senderId = state$peer_id,
+          message = auth_result$error
+        )))
+        ws$close()
+        return(invisible())
+      }
+    }
+
     state$connections[[ws_id]] <- list(
       ws = ws,
       client_id = NULL,
       metadata = NULL,
-      connected_at = Sys.time()
+      connected_at = Sys.time(),
+      authenticated_email = if (!is.null(state$auth)) auth_result$email
     )
-
-    # If auth is enabled, track connection time and schedule timeout
-    if (!is.null(state$auth)) {
-      state$pending_auth[[ws_id]] <- list(
-        connected_at = Sys.time(),
-        timeout_scheduled = TRUE
-      )
-
-      # Schedule auth timeout check using later
-      later::later(
-        function() {
-          check_auth_timeout(state, ws_id)
-        },
-        delay = state$auth$auth_timeout
-      )
-    }
   }
 
   on_message <- function(ws, data) {
