@@ -140,7 +140,7 @@ test_that("amsync_fetch handles document with multiple values", {
   expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "flag"), TRUE)
 })
 
-test_that("amsync_fetch includes access_token in peer metadata", {
+test_that("amsync_fetch sends access_token as Authorization header", {
   data_dir <- tempfile()
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
@@ -153,7 +153,8 @@ test_that("amsync_fetch includes access_token in peer metadata", {
   doc <- get_document(server, doc_id)
   automerge::am_put(doc, automerge::AM_ROOT, "key", "value")
 
-  fetched <- amsync_fetch(server$url, doc_id, access_token = "test_token_12345")
+  # Server has no auth, so token is sent but ignored
+  fetched <- amsync_fetch(server$url, doc_id, access_token = "test_token_12345_extra_padding")
 
   expect_true(inherits(fetched, "am_doc"))
   expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "key"), "value")

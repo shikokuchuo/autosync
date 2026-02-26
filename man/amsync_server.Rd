@@ -33,8 +33,9 @@ generates a new persistent identity. Set to NA for an ephemeral server
 object created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
 
 \item{auth}{Optional authentication configuration created by \code{\link[=auth_config]{auth_config()}}.
-When provided, clients must include a valid OAuth2 access token
-in their join message's peerMetadata. Requires the gargle package.
+When provided, clients must include a valid OAuth2 access token as a
+Bearer token in the Authorization header of the WebSocket upgrade request.
+Connections without valid credentials are rejected immediately.
 Note: TLS is required when authentication is enabled to protect tokens.}
 }
 \value{

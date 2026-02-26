@@ -8,7 +8,6 @@ auth_config(
   allowed_emails = NULL,
   allowed_domains = NULL,
   custom_validator = NULL,
-  auth_timeout = 10,
   token_timeout = 5
 )
 }
@@ -21,11 +20,6 @@ auth_config(
 \item{custom_validator}{Function(token_info) returning TRUE/FALSE for
 custom validation logic.}
 
-\item{auth_timeout}{Numeric, seconds to wait for client to send join message
-with valid credentials after WebSocket connection is established.
-Connections that don't authenticate within this window are closed.
-Default 10 seconds.}
-
 \item{token_timeout}{Numeric, seconds to wait for Google's tokeninfo endpoint
 to respond when validating tokens. Default 5 seconds.}
 }
@@ -34,7 +28,10 @@ An amsync_auth_config object.
 }
 \description{
 Creates a configuration object for enabling Google OAuth2 authentication
-on an autosync server.
+on an autosync server. When enabled, clients must include a valid OAuth2
+access token as a Bearer token in the Authorization header of the WebSocket
+upgrade request. Connections without valid credentials are rejected
+immediately at connection time.
 }
 \examples{
 # Allow specific email domains

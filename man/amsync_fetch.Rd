@@ -26,7 +26,8 @@ self-signed or custom CA certificates, a TLS configuration object
 created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
 
 \item{access_token}{(optional) OAuth2 access token for authenticated servers.
-Use \code{\link[=amsync_auth]{amsync_auth()}} to obtain a token interactively.}
+Sent as a Bearer token in the Authorization header of the WebSocket
+upgrade request. Use \code{\link[=amsync_auth]{amsync_auth()}} to obtain a token interactively.}
 
 \item{verbose}{Logical, print debug messages. Default FALSE.}
 }

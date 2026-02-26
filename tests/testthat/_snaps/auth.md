@@ -1,22 +1,6 @@
 # auth_config validates timeout parameters
 
     Code
-      auth_config(auth_timeout = -1)
-    Condition
-      Error in `auth_config()`:
-      ! 'auth_timeout' must be a positive number
-
----
-
-    Code
-      auth_config(auth_timeout = "10")
-    Condition
-      Error in `auth_config()`:
-      ! 'auth_timeout' must be a positive number
-
----
-
-    Code
       auth_config(token_timeout = 0)
     Condition
       Error in `auth_config()`:

@@ -12,6 +12,6 @@ close_connection(server, id)
 \item{id}{Connection ID (temp_id or client_id).}
 }
 \description{
-Closes a WebSocket connection and cleans up pending auth state.
+Closes a WebSocket connection by ID.
 }
 \keyword{internal}

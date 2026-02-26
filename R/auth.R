@@ -89,17 +89,16 @@ validate_token <- function(
 #' Create an authentication configuration
 #'
 #' Creates a configuration object for enabling Google OAuth2 authentication
-#' on an autosync server.
+#' on an autosync server. When enabled, clients must include a valid OAuth2
+#' access token as a Bearer token in the Authorization header of the WebSocket
+#' upgrade request. Connections without valid credentials are rejected
+#' immediately at connection time.
 #'
 #' @param allowed_emails Character vector of allowed email addresses.
 #' @param allowed_domains Character vector of allowed email domains
 #'   (e.g., "mycompany.com").
 #' @param custom_validator Function(token_info) returning TRUE/FALSE for
 #'   custom validation logic.
-#' @param auth_timeout Numeric, seconds to wait for client to send join message
-#'   with valid credentials after WebSocket connection is established.
-#'   Connections that don't authenticate within this window are closed.
-#'   Default 10 seconds.
 #' @param token_timeout Numeric, seconds to wait for Google's tokeninfo endpoint
 #'   to respond when validating tokens. Default 5 seconds.
 #'
@@ -123,14 +122,8 @@ auth_config <- function(
   allowed_emails = NULL,
   allowed_domains = NULL,
   custom_validator = NULL,
-  auth_timeout = 10,
   token_timeout = 5
 ) {
-  if (
-    !is.numeric(auth_timeout) || length(auth_timeout) != 1L || auth_timeout <= 0
-  ) {
-    stop("'auth_timeout' must be a positive number")
-  }
   if (
     !is.numeric(token_timeout) ||
       length(token_timeout) != 1L ||
@@ -144,36 +137,40 @@ auth_config <- function(
       allowed_emails = allowed_emails,
       allowed_domains = allowed_domains,
       custom_validator = custom_validator,
-      auth_timeout = auth_timeout,
       token_timeout = token_timeout
     ),
     class = "amsync_auth_config"
   )
 }
 
-#' Authenticate a client from peerMetadata
+#' Authenticate a client from HTTP request headers
 #'
-#' Extracts and validates the access token from a client's peerMetadata.
+#' Extracts and validates a Bearer token from the Authorization header
+#' of the WebSocket upgrade request.
 #'
 #' @param auth_config An amsync_auth_config object.
-#' @param peer_metadata List containing client's peer metadata.
+#' @param headers Named list of HTTP request headers.
 #'
 #' @return List with `valid` (logical), `email` (character or NULL),
 #'   `error` (character or NULL).
 #'
 #' @keywords internal
-authenticate_client <- function(auth_config, peer_metadata) {
+authenticate_header <- function(auth_config, headers) {
   auth_fail <- list(valid = FALSE, email = NULL, error = "Authentication failed")
 
-  if (is.null(peer_metadata) || is.null(peer_metadata$access_token)) {
+  if (is.null(headers) || !length(headers) || !"Authorization" %in% names(headers)) {
     return(auth_fail)
   }
 
-  token <- peer_metadata$access_token
+  auth_header <- unname(headers["Authorization"])
+  if (!startsWith(auth_header, "Bearer ")) {
+    return(auth_fail)
+  }
+
+  token <- substring(auth_header, 8L)
 
   if (
-    !is.character(token) || length(token) != 1L ||
-      nchar(token) < 20L || nchar(token) > 4096L ||
+    nchar(token) < 20L || nchar(token) > 4096L ||
       grepl("[^A-Za-z0-9._~+/-]", token)
   ) {
     return(auth_fail)
@@ -238,18 +235,3 @@ amsync_auth <- function(
   token$credentials$access_token
 }
 
-#' Check if a pending connection has timed out
-#'
-#' Called by later::later() to check if a client authenticated in time.
-#'
-#' @param server Server state environment.
-#' @param temp_id Temporary connection ID.
-#'
-#' @keywords internal
-check_auth_timeout <- function(server, temp_id) {
-  if (exists(temp_id, envir = server$pending_auth, inherits = FALSE)) {
-    rm(list = temp_id, envir = server$pending_auth)
-    send_error(server, NULL, "Authentication timeout", temp_id = temp_id)
-    close_connection(server, temp_id)
-  }
-}

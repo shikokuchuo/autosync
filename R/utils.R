@@ -32,18 +32,13 @@ generate_peer_id <- function() base64enc(random(16L, convert = FALSE))
 
 #' Close a WebSocket connection
 #'
-#' Closes a WebSocket connection and cleans up pending auth state.
+#' Closes a WebSocket connection by ID.
 #'
 #' @param server Server state environment.
 #' @param id Connection ID (temp_id or client_id).
 #'
 #' @keywords internal
 close_connection <- function(server, id) {
-  # Clean up pending_auth if exists
-  if (exists(id, envir = server$pending_auth, inherits = FALSE)) {
-    rm(list = id, envir = server$pending_auth)
-  }
-
   conn <- server$connections[[id]]
   if (!is.null(conn) && !is.null(conn$ws)) {
     conn$ws$close()
