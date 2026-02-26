@@ -53,9 +53,11 @@ amsync_server(
 
   Optional authentication configuration created by
   [`auth_config()`](http://shikokuchuo.net/autosync/reference/auth_config.md).
-  When provided, clients must include a valid OAuth2 access token in
-  their join message's peerMetadata. Requires the gargle package. Note:
-  TLS is required when authentication is enabled to protect tokens.
+  When provided, clients must include a valid OAuth2 access token as a
+  Bearer token in the Authorization header of the WebSocket upgrade
+  request. Connections without valid credentials are rejected
+  immediately. Note: TLS is required when authentication is enabled to
+  protect tokens.
 
 ## Value
 

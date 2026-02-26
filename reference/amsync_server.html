@@ -88,8 +88,9 @@ object created by <code><a href="https://nanonext.r-lib.org/reference/tls_config
 
 <dt id="arg-auth">auth<a class="anchor" aria-label="anchor" href="#arg-auth"></a></dt>
 <dd><p>Optional authentication configuration created by <code><a href="auth_config.html">auth_config()</a></code>.
-When provided, clients must include a valid OAuth2 access token
-in their join message's peerMetadata. Requires the gargle package.
+When provided, clients must include a valid OAuth2 access token as a
+Bearer token in the Authorization header of the WebSocket upgrade request.
+Connections without valid credentials are rejected immediately.
 Note: TLS is required when authentication is enabled to protect tokens.</p></dd>
 
 </dl></div>

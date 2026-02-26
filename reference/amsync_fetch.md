@@ -40,7 +40,9 @@ amsync_fetch(
 
 - access_token:
 
-  (optional) OAuth2 access token for authenticated servers. Use
+  (optional) OAuth2 access token for authenticated servers. Sent as a
+  Bearer token in the Authorization header of the WebSocket upgrade
+  request. Use
   [`amsync_auth()`](http://shikokuchuo.net/autosync/reference/amsync_auth.md)
   to obtain a token interactively.
 

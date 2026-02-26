@@ -1,7 +1,10 @@
 # Create an authentication configuration
 
 Creates a configuration object for enabling Google OAuth2 authentication
-on an autosync server.
+on an autosync server. When enabled, clients must include a valid OAuth2
+access token as a Bearer token in the Authorization header of the
+WebSocket upgrade request. Connections without valid credentials are
+rejected immediately at connection time.
 
 ## Usage
 
@@ -10,7 +13,6 @@ auth_config(
   allowed_emails = NULL,
   allowed_domains = NULL,
   custom_validator = NULL,
-  auth_timeout = 10,
   token_timeout = 5
 )
 ```
@@ -28,13 +30,6 @@ auth_config(
 - custom_validator:
 
   Function(token_info) returning TRUE/FALSE for custom validation logic.
-
-- auth_timeout:
-
-  Numeric, seconds to wait for client to send join message with valid
-  credentials after WebSocket connection is established. Connections
-  that don't authenticate within this window are closed. Default 10
-  seconds.
 
 - token_timeout:
 
@@ -59,9 +54,6 @@ auth_config(allowed_domains = c("mycompany.com", "partner.org"))
 #> $custom_validator
 #> NULL
 #> 
-#> $auth_timeout
-#> [1] 10
-#> 
 #> $token_timeout
 #> [1] 5
 #> 
@@ -78,9 +70,6 @@ auth_config(allowed_emails = c("alice@example.com", "bob@example.com"))
 #> 
 #> $custom_validator
 #> NULL
-#> 
-#> $auth_timeout
-#> [1] 10
 #> 
 #> $token_timeout
 #> [1] 5
@@ -104,10 +93,7 @@ auth_config(custom_validator = function(token_info) {
 #> {
 #>     as.integer(token_info$expires_in) > 300
 #> }
-#> <environment: 0x55e1517a0ed0>
-#> 
-#> $auth_timeout
-#> [1] 10
+#> <environment: 0x55f0de9691b0>
 #> 
 #> $token_timeout
 #> [1] 5

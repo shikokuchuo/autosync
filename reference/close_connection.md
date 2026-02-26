@@ -1,6 +1,6 @@
 # Close a WebSocket connection
 
-Closes a WebSocket connection and cleans up pending auth state.
+Closes a WebSocket connection by ID.
 
 ## Usage
 
