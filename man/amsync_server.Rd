@@ -10,6 +10,7 @@ amsync_server(
   data_dir = ".automerge",
   auto_create_docs = TRUE,
   storage_id = NULL,
+  announce = FALSE,
   tls = NULL,
   auth = NULL
 )
@@ -28,6 +29,10 @@ clients request unknown document IDs. Default TRUE.}
 \item{storage_id}{Optional storage ID for this server. If NULL (default),
 generates a new persistent identity. Set to NA for an ephemeral server
 (no persistence identity).}
+
+\item{announce}{Logical, whether the server proactively syncs all documents
+to newly connected clients immediately after the handshake. Default FALSE
+(only sync documents when explicitly requested).}
 
 \item{tls}{(optional) for secure wss:// connections, a TLS configuration
 object created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}

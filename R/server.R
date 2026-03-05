@@ -16,6 +16,9 @@
 #'   (no persistence identity).
 #' @param tls (optional) for secure wss:// connections, a TLS configuration
 #'   object created by [nanonext::tls_config()].
+#' @param announce Logical, whether the server proactively syncs all documents
+#'   to newly connected clients immediately after the handshake. Default FALSE
+#'   (only sync documents when explicitly requested).
 #' @param auth Optional authentication configuration created by [auth_config()].
 #'   When provided, clients must include a valid OAuth2 access token as a
 #'   Bearer token in the Authorization header of the WebSocket upgrade request.
@@ -63,6 +66,7 @@ amsync_server <- function(
   data_dir = ".automerge",
   auto_create_docs = TRUE,
   storage_id = NULL,
+  announce = FALSE,
   tls = NULL,
   auth = NULL
 ) {
@@ -106,6 +110,7 @@ amsync_server <- function(
   state$sync_states <- sync_states
   state$connections <- connections
   state$doc_peers <- doc_peers
+  state$announce <- announce
   state$auth <- auth
 
   load_all_documents(state)

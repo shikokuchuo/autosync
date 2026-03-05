@@ -1,12 +1,14 @@
 # Test handlers by creating the state environment directly
 # without using actual WebSocket connections
 
-create_test_state <- function(data_dir = tempfile(), auto_create_docs = TRUE) {
+create_test_state <- function(data_dir = tempfile(), auto_create_docs = TRUE,
+                              announce = FALSE) {
   dir.create(data_dir, showWarnings = FALSE)
 
   state <- new.env(hash = TRUE, parent = emptyenv())
   state$data_dir <- data_dir
   state$auto_create_docs <- auto_create_docs
+  state$announce <- announce
   state$peer_id <- autosync:::generate_peer_id()
   state$storage_id <- autosync:::generate_peer_id()
   state$documents <- new.env(hash = TRUE, parent = emptyenv())
@@ -899,6 +901,109 @@ test_that("handle_join closes previous socket on duplicate senderId", {
   # Connection env should point to new ws
   conn <- state$connections[["reconnectClient"]]
   expect_identical(conn$ws, ws2)
+})
+
+test_that("handle_join with announce=TRUE sends sync for all documents", {
+  state <- create_test_state(announce = TRUE)
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  # Pre-create two documents with data
+  doc1 <- automerge::am_create()
+  automerge::am_put(doc1, automerge::AM_ROOT, "key1", "value1")
+  doc_id1 <- generate_document_id()
+  state$documents[[doc_id1]] <- doc1
+
+  doc2 <- automerge::am_create()
+  automerge::am_put(doc2, automerge::AM_ROOT, "key2", "value2")
+  doc_id2 <- generate_document_id()
+  state$documents[[doc_id2]] <- doc2
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  join_msg <- list(
+    type = "join",
+    senderId = "announceClient",
+    peerMetadata = list(isEphemeral = TRUE),
+    supportedProtocolVersions = list("1")
+  )
+
+  autosync:::handle_join(state, temp_id, join_msg)
+
+  # Should receive: 1 peer response + 2 sync messages (one per document)
+  expect_length(ws$sent_messages, 3)
+
+  types <- vapply(ws$sent_messages, function(m) secretbase::cbordec(m)$type, "")
+  expect_equal(types[1], "peer")
+  expect_equal(sort(types[2:3]), c("sync", "sync"))
+
+  doc_ids <- vapply(ws$sent_messages[2:3], function(m) {
+    secretbase::cbordec(m)$documentId
+  }, "")
+  expect_true(doc_id1 %in% doc_ids)
+  expect_true(doc_id2 %in% doc_ids)
+
+  # Sync states and doc_peers should be set up
+  expect_true(exists("announceClient", envir = state$sync_states))
+  expect_true("announceClient" %in% state$doc_peers[[doc_id1]])
+  expect_true("announceClient" %in% state$doc_peers[[doc_id2]])
+})
+
+test_that("handle_join with announce=FALSE does not send sync messages", {
+  state <- create_test_state(announce = FALSE)
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  # Pre-create a document
+  doc <- automerge::am_create()
+  automerge::am_put(doc, automerge::AM_ROOT, "key", "value")
+  doc_id <- generate_document_id()
+  state$documents[[doc_id]] <- doc
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  join_msg <- list(
+    type = "join",
+    senderId = "noAnnounceClient",
+    peerMetadata = list(isEphemeral = TRUE),
+    supportedProtocolVersions = list("1")
+  )
+
+  autosync:::handle_join(state, temp_id, join_msg)
+
+  # Should only receive the peer response, no sync messages
+  expect_length(ws$sent_messages, 1)
+  response <- secretbase::cbordec(ws$sent_messages[[1]])
+  expect_equal(response$type, "peer")
+})
+
+test_that("announce_documents with no documents sends nothing", {
+  state <- create_test_state(announce = TRUE)
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  ws <- create_mock_ws()
+  state$connections[["emptyClient"]] <- list(
+    ws = ws,
+    client_id = "emptyClient",
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  autosync:::announce_documents(state, "emptyClient")
+
+  expect_length(ws$sent_messages, 0)
 })
 
 test_that("broadcast_ephemeral preserves count and sessionId from sender", {

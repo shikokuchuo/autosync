@@ -228,6 +228,11 @@ amsync_fetch <- function(
       message("[CLIENT] Message type: ", msg$type)
     }
 
+    if (msg$type == "sync" && !is.null(msg$documentId) && msg$documentId != doc_id) {
+      if (verbose) message("[CLIENT] Ignoring sync for different document: ", msg$documentId)
+      next
+    }
+
     if (msg$type == "sync") {
       sync_rounds <- sync_rounds + 1L
       data_len <- if (is.null(msg$data)) 0L else length(msg$data)
