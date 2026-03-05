@@ -10,7 +10,7 @@ amsync_server(
   data_dir = ".automerge",
   auto_create_docs = TRUE,
   storage_id = NULL,
-  announce = FALSE,
+  peer = NULL,
   tls = NULL,
   auth = NULL
 )
@@ -30,9 +30,11 @@ clients request unknown document IDs. Default TRUE.}
 generates a new persistent identity. Set to NA for an ephemeral server
 (no persistence identity).}
 
-\item{announce}{Logical, whether the server proactively syncs all documents
-to newly connected clients immediately after the handshake. Default FALSE
-(only sync documents when explicitly requested).}
+\item{peer}{Optional character vector of WebSocket URLs of remote autosync
+servers to peer with. The server will connect to each URL after startup,
+perform the join/peer handshake with \code{isPeer = TRUE} in metadata, and
+sync all documents bidirectionally. Remote peers that also set \code{isPeer}
+will announce all their documents back.}
 
 \item{tls}{(optional) for secure wss:// connections, a TLS configuration
 object created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}

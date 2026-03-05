@@ -99,7 +99,7 @@ handle_join <- function(server, temp_id, msg) {
   )
   send_to_peer(server, client_id, response)
 
-  if (server$announce) {
+  if (isTRUE(msg$peerMetadata$isPeer)) {
     announce_documents(server, client_id)
   }
 
@@ -109,7 +109,7 @@ handle_join <- function(server, temp_id, msg) {
 #' Announce all documents to a newly connected client
 #'
 #' Sends initial sync messages for every document the server holds.
-#' Called after the join handshake when `announce = "all"`.
+#' Called after the join handshake when the client signals `isPeer = TRUE`.
 #'
 #' @param server An amsync_server object.
 #' @param client_id Client's peer ID.
@@ -391,8 +391,7 @@ handle_disconnect <- function(server, client_id) {
 send_to_peer <- function(server, peer_id, msg) {
   conn <- server$connections[[peer_id]]
   if (!is.null(conn) && !is.null(conn$ws)) {
-    raw_msg <- cborenc(msg)
-    conn$ws$send(raw_msg)
+    conn$ws$send(cborenc(msg))
   }
   invisible()
 }

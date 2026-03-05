@@ -1,14 +1,12 @@
 # Test handlers by creating the state environment directly
 # without using actual WebSocket connections
 
-create_test_state <- function(data_dir = tempfile(), auto_create_docs = TRUE,
-                              announce = FALSE) {
+create_test_state <- function(data_dir = tempfile(), auto_create_docs = TRUE) {
   dir.create(data_dir, showWarnings = FALSE)
 
   state <- new.env(hash = TRUE, parent = emptyenv())
   state$data_dir <- data_dir
   state$auto_create_docs <- auto_create_docs
-  state$announce <- announce
   state$peer_id <- autosync:::generate_peer_id()
   state$storage_id <- autosync:::generate_peer_id()
   state$documents <- new.env(hash = TRUE, parent = emptyenv())
@@ -903,8 +901,8 @@ test_that("handle_join closes previous socket on duplicate senderId", {
   expect_identical(conn$ws, ws2)
 })
 
-test_that("handle_join with announce=TRUE sends sync for all documents", {
-  state <- create_test_state(announce = TRUE)
+test_that("handle_join with isPeer=TRUE announces all documents", {
+  state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))
 
   # Pre-create two documents with data
@@ -929,8 +927,8 @@ test_that("handle_join with announce=TRUE sends sync for all documents", {
 
   join_msg <- list(
     type = "join",
-    senderId = "announceClient",
-    peerMetadata = list(isEphemeral = TRUE),
+    senderId = "peerClient",
+    peerMetadata = list(isPeer = TRUE, isEphemeral = FALSE),
     supportedProtocolVersions = list("1")
   )
 
@@ -950,13 +948,13 @@ test_that("handle_join with announce=TRUE sends sync for all documents", {
   expect_true(doc_id2 %in% doc_ids)
 
   # Sync states and doc_peers should be set up
-  expect_true(exists("announceClient", envir = state$sync_states))
-  expect_true("announceClient" %in% state$doc_peers[[doc_id1]])
-  expect_true("announceClient" %in% state$doc_peers[[doc_id2]])
+  expect_true(exists("peerClient", envir = state$sync_states))
+  expect_true("peerClient" %in% state$doc_peers[[doc_id1]])
+  expect_true("peerClient" %in% state$doc_peers[[doc_id2]])
 })
 
-test_that("handle_join with announce=FALSE does not send sync messages", {
-  state <- create_test_state(announce = FALSE)
+test_that("handle_join without isPeer does not announce documents", {
+  state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))
 
   # Pre-create a document
@@ -976,7 +974,7 @@ test_that("handle_join with announce=FALSE does not send sync messages", {
 
   join_msg <- list(
     type = "join",
-    senderId = "noAnnounceClient",
+    senderId = "regularClient",
     peerMetadata = list(isEphemeral = TRUE),
     supportedProtocolVersions = list("1")
   )
@@ -990,7 +988,7 @@ test_that("handle_join with announce=FALSE does not send sync messages", {
 })
 
 test_that("announce_documents with no documents sends nothing", {
-  state <- create_test_state(announce = TRUE)
+  state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))
 
   ws <- create_mock_ws()
