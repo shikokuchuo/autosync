@@ -34,6 +34,7 @@ test_that("amsync_fetch retrieves document from server", {
   doc <- get_document(server, doc_id)
   automerge::am_put(doc, automerge::AM_ROOT, "test_key", "test_value")
   automerge::am_put(doc, automerge::AM_ROOT, "number", 42L)
+  automerge::am_put(doc, automerge::AM_ROOT, "flag", TRUE)
 
   # Fetch the document
   fetched <- amsync_fetch(server$url, doc_id, timeout = 5000L, verbose = FALSE)
@@ -41,6 +42,7 @@ test_that("amsync_fetch retrieves document from server", {
   expect_true(inherits(fetched, "am_doc"))
   expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "test_key"), "test_value")
   expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "number"), 42L)
+  expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "flag"), TRUE)
 })
 
 test_that("amsync_fetch works in verbose mode", {
@@ -63,37 +65,16 @@ test_that("amsync_fetch works in verbose mode", {
   }, type = "message")
 
   # Should have verbose output
-
   expect_true(any(grepl("\\[CLIENT\\]", output)))
   expect_true(any(grepl("Connecting", output)))
   expect_true(any(grepl("peer", output, ignore.case = TRUE)))
+  expect_true(any(grepl("join", output, ignore.case = TRUE)))
+  expect_true(any(grepl("sync", output, ignore.case = TRUE)))
+  expect_true(any(grepl("document", output, ignore.case = TRUE)))
 
   # Document should still be fetched correctly
   expect_true(inherits(fetched, "am_doc"))
   expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "verbose_test"), "value")
-})
-
-test_that("amsync_fetch verbose mode shows sync details", {
-  data_dir <- tempfile()
-  dir.create(data_dir)
-  on.exit(unlink(data_dir, recursive = TRUE))
-
-  server <- amsync_server(data_dir = data_dir)
-  server$start()
-  on.exit(server$close(), add = TRUE)
-
-  doc_id <- create_document(server)
-  doc <- get_document(server, doc_id)
-  automerge::am_put(doc, automerge::AM_ROOT, "key", "value")
-
-  output <- capture.output({
-    fetched <- amsync_fetch(server$url, doc_id, timeout = 5000L, verbose = TRUE)
-  }, type = "message")
-
-  # Check for sync-related verbose output
-  expect_true(any(grepl("join", output, ignore.case = TRUE)))
-  expect_true(any(grepl("sync", output, ignore.case = TRUE)))
-  expect_true(any(grepl("document", output, ignore.case = TRUE)))
 })
 
 test_that("amsync_fetch non-verbose mode produces no output", {
@@ -114,30 +95,6 @@ test_that("amsync_fetch non-verbose mode produces no output", {
   # Should have no verbose output
 
   expect_length(output, 0)
-})
-
-test_that("amsync_fetch handles document with multiple values", {
-  data_dir <- tempfile()
-  dir.create(data_dir)
-  on.exit(unlink(data_dir, recursive = TRUE))
-
-  server <- amsync_server(data_dir = data_dir)
-  server$start()
-  on.exit(server$close(), add = TRUE)
-
-  # Create document with multiple values
-  doc_id <- create_document(server)
-  doc <- get_document(server, doc_id)
-  automerge::am_put(doc, automerge::AM_ROOT, "string", "hello")
-  automerge::am_put(doc, automerge::AM_ROOT, "number", 123L)
-  automerge::am_put(doc, automerge::AM_ROOT, "flag", TRUE)
-
-  fetched <- amsync_fetch(server$url, doc_id, timeout = 5000L, verbose = FALSE)
-
-  # Verify all values
-  expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "string"), "hello")
-  expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "number"), 123L)
-  expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "flag"), TRUE)
 })
 
 test_that("amsync_fetch sends access_token as Authorization header", {

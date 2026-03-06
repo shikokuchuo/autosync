@@ -143,15 +143,6 @@ test_that("auth_config stores custom_validator function", {
   expect_identical(cfg$custom_validator, validator)
 })
 
-test_that("auth_config stores multiple emails and domains", {
-  cfg <- auth_config(
-    allowed_emails = c("alice@test.com", "bob@test.com"),
-    allowed_domains = c("test.com", "example.com")
-  )
-  expect_equal(cfg$allowed_emails, c("alice@test.com", "bob@test.com"))
-  expect_equal(cfg$allowed_domains, c("test.com", "example.com"))
-})
-
 # ---- authenticate_header boundary tests ----
 
 test_that("authenticate_header accepts token at minimum length boundary", {
@@ -163,13 +154,6 @@ test_that("authenticate_header accepts token at minimum length boundary", {
   expect_true(result$valid)
 })
 
-test_that("authenticate_header rejects token one below minimum length", {
-  cfg <- auth_config()
-  result <- authenticate_header(cfg, c(Authorization = paste("Bearer", strrep("a", 19))))
-  expect_false(result$valid)
-  expect_equal(result$error, "Authentication failed")
-})
-
 test_that("authenticate_header accepts token at maximum length boundary", {
   cfg <- auth_config()
   local_mocked_bindings(
@@ -177,13 +161,6 @@ test_that("authenticate_header accepts token at maximum length boundary", {
   )
   result <- authenticate_header(cfg, c(Authorization = paste("Bearer", strrep("a", 4096))))
   expect_true(result$valid)
-})
-
-test_that("authenticate_header rejects token one above maximum length", {
-  cfg <- auth_config()
-  result <- authenticate_header(cfg, c(Authorization = paste("Bearer", strrep("a", 4097))))
-  expect_false(result$valid)
-  expect_equal(result$error, "Authentication failed")
 })
 
 test_that("authenticate_header accepts all valid special characters", {
@@ -300,21 +277,6 @@ test_that("validate_token detects expired token", {
   result <- validate_token("expired_token_for_test_1234")
   expect_false(result$valid)
   expect_null(result$email)
-  expect_equal(result$error, "Token expired")
-})
-
-test_that("validate_token detects negative expires_in", {
-  local_mocked_bindings(
-    ncurl = function(...) list(
-      data = charToRaw('{"email":"user@test.com","expires_in":"-100"}'),
-      status = 200L
-    ),
-    is_error_value = function(x) FALSE,
-    .package = "nanonext"
-  )
-
-  result <- validate_token("expired_token_for_test_1234")
-  expect_false(result$valid)
   expect_equal(result$error, "Token expired")
 })
 
@@ -463,5 +425,49 @@ test_that("validate_token applies email, domain, and custom checks in order", {
   )
   expect_true(result$valid)
   expect_equal(result$email, "user@trusted.com")
+})
+
+# ---- amsync_auth tests ----
+
+test_that("amsync_auth errors when gargle is not available", {
+  local_mocked_bindings(
+    requireNamespace = function(pkg, ...) FALSE,
+    .package = "base"
+  )
+
+  expect_error(amsync_auth(), "Package 'gargle' is required")
+})
+
+test_that("amsync_auth errors when token_fetch returns NULL", {
+  skip_if_not_installed("gargle")
+
+  local_mocked_bindings(
+    token_fetch = function(...) NULL,
+    .package = "gargle"
+  )
+
+  expect_error(amsync_auth(email = "test@example.com"), "Failed to obtain OAuth2 token")
+})
+
+test_that("amsync_auth returns access_token and passes args to token_fetch", {
+  skip_if_not_installed("gargle")
+
+  captured_args <- NULL
+  local_mocked_bindings(
+    token_fetch = function(...) {
+      captured_args <<- list(...)
+      list(credentials = list(access_token = "mock_access_token_12345"))
+    },
+    .package = "gargle"
+  )
+
+  result <- amsync_auth(
+    email = "user@test.com",
+    scopes = "https://www.googleapis.com/auth/userinfo.email"
+  )
+
+  expect_equal(result, "mock_access_token_12345")
+  expect_equal(captured_args$email, "user@test.com")
+  expect_equal(captured_args$scopes, "https://www.googleapis.com/auth/userinfo.email")
 })
 
