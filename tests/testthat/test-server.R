@@ -6,6 +6,9 @@ test_that("amsync_server creates valid server object", {
   expect_s3_class(server, "amsync_server")
   expect_type(state$peer_id, "character")
   expect_type(state$storage_id, "character")
+  expect_true(is.environment(state$documents))
+  expect_true(is.environment(state$sync_states))
+  expect_true(is.environment(state$connections))
 })
 
 test_that("amsync_server with TLS creates wss URL", {

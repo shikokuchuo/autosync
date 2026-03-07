@@ -901,6 +901,109 @@ test_that("handle_join closes previous socket on duplicate senderId", {
   expect_identical(conn$ws, ws2)
 })
 
+test_that("handle_join with isPeer=TRUE announces all documents", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  # Pre-create two documents with data
+  doc1 <- automerge::am_create()
+  automerge::am_put(doc1, automerge::AM_ROOT, "key1", "value1")
+  doc_id1 <- generate_document_id()
+  state$documents[[doc_id1]] <- doc1
+
+  doc2 <- automerge::am_create()
+  automerge::am_put(doc2, automerge::AM_ROOT, "key2", "value2")
+  doc_id2 <- generate_document_id()
+  state$documents[[doc_id2]] <- doc2
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  join_msg <- list(
+    type = "join",
+    senderId = "peerClient",
+    peerMetadata = list(isPeer = TRUE, isEphemeral = FALSE),
+    supportedProtocolVersions = list("1")
+  )
+
+  autosync:::handle_join(state, temp_id, join_msg)
+
+  # Should receive: 1 peer response + 2 sync messages (one per document)
+  expect_length(ws$sent_messages, 3)
+
+  types <- vapply(ws$sent_messages, function(m) secretbase::cbordec(m)$type, "")
+  expect_equal(types[1], "peer")
+  expect_equal(sort(types[2:3]), c("sync", "sync"))
+
+  doc_ids <- vapply(ws$sent_messages[2:3], function(m) {
+    secretbase::cbordec(m)$documentId
+  }, "")
+  expect_true(doc_id1 %in% doc_ids)
+  expect_true(doc_id2 %in% doc_ids)
+
+  # Sync states and doc_peers should be set up
+  expect_true(exists("peerClient", envir = state$sync_states))
+  expect_true("peerClient" %in% state$doc_peers[[doc_id1]])
+  expect_true("peerClient" %in% state$doc_peers[[doc_id2]])
+})
+
+test_that("handle_join without isPeer does not announce documents", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  # Pre-create a document
+  doc <- automerge::am_create()
+  automerge::am_put(doc, automerge::AM_ROOT, "key", "value")
+  doc_id <- generate_document_id()
+  state$documents[[doc_id]] <- doc
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  join_msg <- list(
+    type = "join",
+    senderId = "regularClient",
+    peerMetadata = list(isEphemeral = TRUE),
+    supportedProtocolVersions = list("1")
+  )
+
+  autosync:::handle_join(state, temp_id, join_msg)
+
+  # Should only receive the peer response, no sync messages
+  expect_length(ws$sent_messages, 1)
+  response <- secretbase::cbordec(ws$sent_messages[[1]])
+  expect_equal(response$type, "peer")
+})
+
+test_that("announce_documents with no documents sends nothing", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  ws <- create_mock_ws()
+  state$connections[["emptyClient"]] <- list(
+    ws = ws,
+    client_id = "emptyClient",
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  autosync:::announce_documents(state, "emptyClient")
+
+  expect_length(ws$sent_messages, 0)
+})
+
 test_that("broadcast_ephemeral preserves count and sessionId from sender", {
   state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))

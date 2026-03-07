@@ -99,19 +99,3 @@ test_that("server URL format is correct", {
   expect_true(grepl("^ws://127\\.0\\.0\\.1:\\d+$", server$url))
 })
 
-test_that("server state is accessible via attribute", {
-  data_dir <- tempfile()
-  dir.create(data_dir)
-  on.exit(unlink(data_dir, recursive = TRUE))
-
-  server <- amsync_server(data_dir = data_dir)
-  on.exit(server$close())
-
-  state <- attr(server, "sync")
-
-  expect_type(state$peer_id, "character")
-  expect_type(state$storage_id, "character")
-  expect_true(inherits(state$documents, "environment"))
-  expect_true(inherits(state$sync_states, "environment"))
-  expect_true(inherits(state$connections, "environment"))
-})

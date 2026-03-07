@@ -99,6 +99,59 @@ handle_join <- function(server, temp_id, msg) {
   )
   send_to_peer(server, client_id, response)
 
+  if (isTRUE(msg$peerMetadata$isPeer)) {
+    announce_documents(server, client_id)
+  }
+
+  invisible()
+}
+
+#' Announce all documents to a newly connected client
+#'
+#' Sends initial sync messages for every document the server holds.
+#' Called after the join handshake when the client signals `isPeer = TRUE`.
+#'
+#' @param server An amsync_server object.
+#' @param client_id Client's peer ID.
+#'
+#' @noRd
+announce_documents <- function(server, client_id) {
+  doc_ids <- ls(server$documents)
+  if (!length(doc_ids)) {
+    return(invisible())
+  }
+
+  for (doc_id in doc_ids) {
+    doc <- server$documents[[doc_id]]
+
+    # Create sync state for this client/document pair
+    client_states <- server$sync_states[[client_id]]
+    if (is.null(client_states)) {
+      client_states <- new.env(hash = TRUE, parent = emptyenv())
+      server$sync_states[[client_id]] <- client_states
+    }
+    if (is.null(client_states[[doc_id]])) {
+      client_states[[doc_id]] <- am_sync_state()
+      add_doc_peer(server, doc_id, client_id)
+    }
+
+    sync_state <- client_states[[doc_id]]
+    sync_data <- tryCatch(
+      am_sync_encode(doc, sync_state),
+      error = function(e) NULL
+    )
+    if (!is.null(sync_data)) {
+      response <- list(
+        type = "sync",
+        senderId = server$peer_id,
+        targetId = client_id,
+        documentId = doc_id,
+        data = sync_data
+      )
+      send_to_peer(server, client_id, response)
+    }
+  }
+
   invisible()
 }
 
@@ -338,8 +391,7 @@ handle_disconnect <- function(server, client_id) {
 send_to_peer <- function(server, peer_id, msg) {
   conn <- server$connections[[peer_id]]
   if (!is.null(conn) && !is.null(conn$ws)) {
-    raw_msg <- cborenc(msg)
-    conn$ws$send(raw_msg)
+    conn$ws$send(cborenc(msg))
   }
   invisible()
 }

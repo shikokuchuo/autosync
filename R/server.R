@@ -16,6 +16,11 @@
 #'   (no persistence identity).
 #' @param tls (optional) for secure wss:// connections, a TLS configuration
 #'   object created by [nanonext::tls_config()].
+#' @param peer Optional character vector of WebSocket URLs of remote autosync
+#'   servers to peer with. The server will connect to each URL after startup,
+#'   perform the join/peer handshake with `isPeer = TRUE` in metadata, and
+#'   sync all documents bidirectionally. Remote peers that also set `isPeer`
+#'   will announce all their documents back.
 #' @param auth Optional authentication configuration created by [auth_config()].
 #'   When provided, clients must include a valid OAuth2 access token as a
 #'   Bearer token in the Authorization header of the WebSocket upgrade request.
@@ -63,6 +68,7 @@ amsync_server <- function(
   data_dir = ".automerge",
   auto_create_docs = TRUE,
   storage_id = NULL,
+  peer = NULL,
   tls = NULL,
   auth = NULL
 ) {
@@ -172,6 +178,18 @@ amsync_server <- function(
 
   attr(server, "sync") <- state
   class(server) <- c("amsync_server", class(server))
+
+  # Schedule outbound peer connections after server is running
+  if (!is.null(peer)) {
+    for (peer_url in peer) {
+      force(peer_url)
+      local({
+        url <- peer_url
+        later(function() connect_peer(state, url, tls = tls), delay = 0)
+      })
+    }
+  }
+
   server
 }
 
