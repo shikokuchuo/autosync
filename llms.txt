@@ -78,6 +78,31 @@ doc <- amsync_fetch(
 )
 ```
 
+### Server peering
+
+Servers can peer to sync documents bidirectionally. Documents on one
+server are automatically announced and synced to its peer:
+
+``` r
+# Start server A and create a document
+server_a <- amsync_server(data_dir = tempfile())
+server_a$start()
+doc_id <- create_document(server_a)
+
+# Start server B, peering with A
+server_b <- amsync_server(data_dir = tempfile(), peer = server_a$url)
+server_b$start()
+
+# Allow the peer handshake and sync to complete
+for (i in 1:10) later::run_now(1) || break
+
+# The document has synced from A to B
+list_documents(server_b)
+
+server_a$close()
+server_b$close()
+```
+
 ### Document management
 
 ``` r

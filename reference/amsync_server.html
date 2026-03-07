@@ -48,6 +48,7 @@ compatible with JavaScript, Rust, and other Automerge clients.</p>
 <span>  data_dir <span class="op">=</span> <span class="st">".automerge"</span>,</span>
 <span>  auto_create_docs <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  storage_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  peer <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  tls <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -79,6 +80,14 @@ clients request unknown document IDs. Default TRUE.</p></dd>
 <dd><p>Optional storage ID for this server. If NULL (default),
 generates a new persistent identity. Set to NA for an ephemeral server
 (no persistence identity).</p></dd>
+
+
+<dt id="arg-peer">peer<a class="anchor" aria-label="anchor" href="#arg-peer"></a></dt>
+<dd><p>Optional character vector of WebSocket URLs of remote autosync
+servers to peer with. The server will connect to each URL after startup,
+perform the join/peer handshake with <code>isPeer = TRUE</code> in metadata, and
+sync all documents bidirectionally. Remote peers that also set <code>isPeer</code>
+will announce all their documents back.</p></dd>
 
 
 <dt id="arg-tls">tls<a class="anchor" aria-label="anchor" href="#arg-tls"></a></dt>

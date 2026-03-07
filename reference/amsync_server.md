@@ -12,6 +12,7 @@ amsync_server(
   data_dir = ".automerge",
   auto_create_docs = TRUE,
   storage_id = NULL,
+  peer = NULL,
   tls = NULL,
   auth = NULL
 )
@@ -42,6 +43,14 @@ amsync_server(
   Optional storage ID for this server. If NULL (default), generates a
   new persistent identity. Set to NA for an ephemeral server (no
   persistence identity).
+
+- peer:
+
+  Optional character vector of WebSocket URLs of remote autosync servers
+  to peer with. The server will connect to each URL after startup,
+  perform the join/peer handshake with `isPeer = TRUE` in metadata, and
+  sync all documents bidirectionally. Remote peers that also set
+  `isPeer` will announce all their documents back.
 
 - tls:
 
