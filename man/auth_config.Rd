@@ -5,45 +5,63 @@
 \title{Create an authentication configuration}
 \usage{
 auth_config(
+  issuer,
+  client_id,
   allowed_emails = NULL,
   allowed_domains = NULL,
-  custom_validator = NULL,
-  token_timeout = 5
+  custom_validator = NULL
 )
 }
 \arguments{
+\item{issuer}{The OIDC issuer URL. This is used to discover the provider's
+public keys via the \code{.well-known/openid-configuration} endpoint, and to
+validate the \code{iss} claim in JWTs.}
+
+\item{client_id}{The OIDC client ID (application ID). Validated against the
+\code{aud} claim in JWTs.}
+
 \item{allowed_emails}{Character vector of allowed email addresses.}
 
 \item{allowed_domains}{Character vector of allowed email domains
 (e.g., "mycompany.com").}
 
-\item{custom_validator}{Function(token_info) returning TRUE/FALSE for
-custom validation logic.}
-
-\item{token_timeout}{Numeric, seconds to wait for Google's tokeninfo endpoint
-to respond when validating tokens. Default 5 seconds.}
+\item{custom_validator}{Function(claims) returning TRUE/FALSE for
+custom validation logic. Receives the decoded JWT claims as a list.}
 }
 \value{
 An amsync_auth_config object.
 }
 \description{
-Creates a configuration object for enabling Google OAuth2 authentication
-on an autosync server. When enabled, clients must include a valid OAuth2
-access token as a Bearer token in the Authorization header of the WebSocket
+Creates a configuration object for enabling OIDC JWT authentication
+on an autosync server. When enabled, clients must include a valid JWT
+(ID token) as a Bearer token in the Authorization header of the WebSocket
 upgrade request. Connections without valid credentials are rejected
 immediately at connection time.
 }
+\details{
+Works with any OIDC-compliant identity provider: Google, Microsoft Entra,
+Okta, Auth0, etc.
+}
 \examples{
-# Allow specific email domains
-auth_config(allowed_domains = c("mycompany.com", "partner.org"))
+# Google
+auth_config(
+  issuer = "https://accounts.google.com",
+  client_id = "123456789.apps.googleusercontent.com",
+  allowed_domains = "mycompany.com"
+)
 
-# Allow specific users
-auth_config(allowed_emails = c("alice@example.com", "bob@example.com"))
+# Microsoft Entra
+auth_config(
+  issuer = "https://login.microsoftonline.com/common/v2.0",
+  client_id = "abcdef-1234-5678",
+  allowed_emails = "alice@mycompany.com"
+)
 
 # Custom validator
-auth_config(custom_validator = function(token_info) {
-  # Only allow tokens with at least 5 minutes remaining
-  as.integer(token_info$expires_in) > 300
-})
+auth_config(
+  issuer = "https://dev-123456.okta.com/oauth2/default",
+  client_id = "0oaXXXXXXXX",
+  custom_validator = function(claims) "editors" \%in\% claims$groups
+)
 
 }

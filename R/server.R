@@ -17,7 +17,7 @@
 #' @param tls (optional) for secure wss:// connections, a TLS configuration
 #'   object created by [nanonext::tls_config()].
 #' @param auth Optional authentication configuration created by [auth_config()].
-#'   When provided, clients must include a valid OAuth2 access token as a
+#'   When provided, clients must include a valid JWT (ID token) as a
 #'   Bearer token in the Authorization header of the WebSocket upgrade request.
 #'   Connections without valid credentials are rejected immediately.
 #'   Note: TLS is required when authentication is enabled to protect tokens.
@@ -62,12 +62,16 @@
 #' server$url
 #' server$close()
 #'
-#' # Server with Google OAuth authentication (requires TLS)
+#' # Server with OIDC authentication (requires TLS)
 #' cert <- nanonext::write_cert()
 #' tls <- nanonext::tls_config(server = cert$server)
 #' server <- amsync_server(
 #'   tls = tls,
-#'   auth = auth_config(allowed_domains = c("mycompany.com"))
+#'   auth = auth_config(
+#'     issuer = "https://accounts.google.com",
+#'     client_id = "123456789.apps.googleusercontent.com",
+#'     allowed_domains = "mycompany.com"
+#'   )
 #' )
 #'
 #' @export
@@ -87,7 +91,7 @@ amsync_server <- function(
   if (!is.null(auth) && is.null(tls)) {
     stop(
       "Authentication requires TLS. Provide a 'tls' configuration.\n",
-      "Transmitting OAuth tokens over unencrypted connections is a security risk."
+      "Transmitting tokens over unencrypted connections is a security risk."
     )
   }
 

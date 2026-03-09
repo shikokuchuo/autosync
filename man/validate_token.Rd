@@ -2,33 +2,36 @@
 % Please edit documentation in R/auth.R
 \name{validate_token}
 \alias{validate_token}
-\title{Validate an OAuth2 access token}
+\title{Validate a JWT token}
 \usage{
 validate_token(
-  access_token,
+  token,
+  issuer,
+  client_id,
   allowed_emails = NULL,
   allowed_domains = NULL,
-  custom_validator = NULL,
-  token_timeout = 5
+  custom_validator = NULL
 )
 }
 \arguments{
-\item{access_token}{Character string, the OAuth2 access token.}
+\item{token}{Character string, the JWT.}
+
+\item{issuer}{Expected issuer URL.}
+
+\item{client_id}{Expected audience (client ID).}
 
 \item{allowed_emails}{Character vector of allowed email addresses (optional).}
 
 \item{allowed_domains}{Character vector of allowed email domains (optional).}
 
-\item{custom_validator}{Function(token_info) returning TRUE/FALSE (optional).}
-
-\item{token_timeout}{Numeric, seconds to wait for Google tokeninfo endpoint
-(default 5).}
+\item{custom_validator}{Function(claims) returning TRUE/FALSE (optional).}
 }
 \value{
 List with \code{valid} (logical), \code{email} (character or NULL),
 \code{error} (character or NULL).
 }
 \description{
-Validates an access token by calling Google's tokeninfo endpoint.
+Verifies a JWT locally using the issuer's public keys (JWKS) and validates
+standard OIDC claims.
 }
 \keyword{internal}
