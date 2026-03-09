@@ -124,6 +124,43 @@ handle_join <- function(server, temp_id, msg) {
   invisible()
 }
 
+#' Sync a single document to a single peer
+#'
+#' Creates sync state if needed and sends a sync message.
+#'
+#' @param server An amsync_server object.
+#' @param client_id Client's peer ID.
+#' @param doc_id Document ID.
+#' @param doc Automerge document object.
+#'
+#' @noRd
+sync_to_peer <- function(server, client_id, doc_id, doc) {
+  client_states <- server$sync_states[[client_id]]
+  if (is.null(client_states)) {
+    client_states <- new.env(hash = TRUE, parent = emptyenv())
+    server$sync_states[[client_id]] <- client_states
+  }
+  if (is.null(client_states[[doc_id]])) {
+    client_states[[doc_id]] <- am_sync_state()
+    add_doc_peer(server, doc_id, client_id)
+  }
+
+  sync_data <- tryCatch(
+    am_sync_encode(doc, client_states[[doc_id]]),
+    error = function(e) NULL
+  )
+  if (!is.null(sync_data)) {
+    send_to_peer(server, client_id, list(
+      type = "sync",
+      senderId = server$peer_id,
+      targetId = client_id,
+      documentId = doc_id,
+      data = sync_data
+    ))
+  }
+  invisible()
+}
+
 #' Announce all documents to a newly connected client
 #'
 #' Sends initial sync messages for every document the server holds.
@@ -134,42 +171,9 @@ handle_join <- function(server, temp_id, msg) {
 #'
 #' @noRd
 announce_documents <- function(server, client_id) {
-  doc_ids <- ls(server$documents)
-  if (!length(doc_ids)) {
-    return(invisible())
+  for (doc_id in ls(server$documents)) {
+    sync_to_peer(server, client_id, doc_id, server$documents[[doc_id]])
   }
-
-  for (doc_id in doc_ids) {
-    doc <- server$documents[[doc_id]]
-
-    # Create sync state for this client/document pair
-    client_states <- server$sync_states[[client_id]]
-    if (is.null(client_states)) {
-      client_states <- new.env(hash = TRUE, parent = emptyenv())
-      server$sync_states[[client_id]] <- client_states
-    }
-    if (is.null(client_states[[doc_id]])) {
-      client_states[[doc_id]] <- am_sync_state()
-      add_doc_peer(server, doc_id, client_id)
-    }
-
-    sync_state <- client_states[[doc_id]]
-    sync_data <- tryCatch(
-      am_sync_encode(doc, sync_state),
-      error = function(e) NULL
-    )
-    if (!is.null(sync_data)) {
-      response <- list(
-        type = "sync",
-        senderId = server$peer_id,
-        targetId = client_id,
-        documentId = doc_id,
-        data = sync_data
-      )
-      send_to_peer(server, client_id, response)
-    }
-  }
-
   invisible()
 }
 
@@ -482,6 +486,27 @@ send_unavailable <- function(server, client_id, doc_id) {
     documentId = doc_id
   )
   send_to_peer(server, client_id, response)
+  invisible()
+}
+
+#' Announce a new document to all connected peers
+#'
+#' Sends an initial sync message for a single document to every peer connection.
+#' Called when a document is created via [create_document()] after peering is
+#' already established.
+#'
+#' @param server An amsync_server object.
+#' @param doc_id Document ID.
+#' @param doc Automerge document object.
+#'
+#' @noRd
+announce_new_document <- function(server, doc_id, doc) {
+  for (client_id in ls(server$connections)) {
+    conn <- server$connections[[client_id]]
+    if (is.null(conn$client_id) || client_id != conn$client_id) next
+    if (!isTRUE(conn$is_peer) && !isTRUE(conn$metadata$isPeer)) next
+    sync_to_peer(server, client_id, doc_id, doc)
+  }
   invisible()
 }
 

@@ -241,6 +241,7 @@ create_document <- function(server, doc_id = NULL) {
   doc <- am_create()
   state$documents[[doc_id]] <- doc
   save_document(state, doc_id, doc)
+  announce_new_document(state, doc_id, doc)
 
   doc_id
 }

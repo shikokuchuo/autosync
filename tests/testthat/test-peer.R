@@ -275,6 +275,132 @@ test_that("handle_peer_message handles sync decode errors gracefully", {
   )
 })
 
+# --- announce_new_document tests ---
+
+test_that("announce_new_document sends sync to outbound peer connections", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  doc <- automerge::am_create()
+  doc_id <- generate_document_id()
+  state$documents[[doc_id]] <- doc
+
+  peer_id <- "outboundPeer"
+  ws <- create_mock_ws()
+  state$connections[[peer_id]] <- list(
+    ws = ws,
+    client_id = peer_id,
+    metadata = list(),
+    connected_at = Sys.time(),
+    is_peer = TRUE
+  )
+
+  autosync:::announce_new_document(state, doc_id, doc)
+
+  expect_true(length(ws$sent_messages) >= 1)
+  msg <- secretbase::cbordec(ws$sent_messages[[1]])
+  expect_equal(msg$type, "sync")
+  expect_equal(msg$documentId, doc_id)
+  expect_equal(msg$targetId, peer_id)
+  expect_true(peer_id %in% state$doc_peers[[doc_id]])
+})
+
+test_that("announce_new_document sends sync to inbound peer connections", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  doc <- automerge::am_create()
+  doc_id <- generate_document_id()
+  state$documents[[doc_id]] <- doc
+
+  peer_id <- "inboundPeer"
+  ws <- create_mock_ws()
+  state$connections[[peer_id]] <- list(
+    ws = ws,
+    client_id = peer_id,
+    metadata = list(isPeer = TRUE),
+    connected_at = Sys.time()
+  )
+
+  autosync:::announce_new_document(state, doc_id, doc)
+
+  expect_true(length(ws$sent_messages) >= 1)
+  msg <- secretbase::cbordec(ws$sent_messages[[1]])
+  expect_equal(msg$type, "sync")
+  expect_equal(msg$documentId, doc_id)
+})
+
+test_that("announce_new_document skips non-peer connections", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  doc <- automerge::am_create()
+  doc_id <- generate_document_id()
+  state$documents[[doc_id]] <- doc
+
+  client_id <- "regularClient"
+  ws <- create_mock_ws()
+  state$connections[[client_id]] <- list(
+    ws = ws,
+    client_id = client_id,
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  autosync:::announce_new_document(state, doc_id, doc)
+
+  expect_length(ws$sent_messages, 0)
+})
+
+test_that("announce_new_document skips pre-handshake connections", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  doc <- automerge::am_create()
+  doc_id <- generate_document_id()
+  state$documents[[doc_id]] <- doc
+
+  temp_id <- "tempWsId"
+  ws <- create_mock_ws()
+  state$connections[[temp_id]] <- list(
+    ws = ws,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  autosync:::announce_new_document(state, doc_id, doc)
+
+  expect_length(ws$sent_messages, 0)
+})
+
+test_that("announce_new_document skips duplicate temp_id entries", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  doc <- automerge::am_create()
+  doc_id <- generate_document_id()
+  state$documents[[doc_id]] <- doc
+
+  peer_id <- "dualIndexPeer"
+  temp_id <- "tempId123"
+  ws <- create_mock_ws()
+  conn <- list(
+    ws = ws,
+    client_id = peer_id,
+    metadata = list(isPeer = TRUE),
+    connected_at = Sys.time()
+  )
+  # Both entries point to the same connection (dual indexing)
+  state$connections[[peer_id]] <- conn
+  state$connections[[temp_id]] <- conn
+
+  autosync:::announce_new_document(state, doc_id, doc)
+
+  # Should send exactly once (skip temp_id entry where key != client_id)
+  expect_length(ws$sent_messages, 1)
+})
+
 # --- connect_peer tests ---
 
 test_that("connect_peer warns on connection failure", {
