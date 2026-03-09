@@ -48,9 +48,9 @@ compatible with JavaScript, Rust, and other Automerge clients.</p>
 <span>  data_dir <span class="op">=</span> <span class="st">".automerge"</span>,</span>
 <span>  auto_create_docs <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  storage_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  peer <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  tls <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  auth <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  auth <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  share <span class="op">=</span> <span class="cn">NA</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -82,14 +82,6 @@ generates a new persistent identity. Set to NA for an ephemeral server
 (no persistence identity).</p></dd>
 
 
-<dt id="arg-peer">peer<a class="anchor" aria-label="anchor" href="#arg-peer"></a></dt>
-<dd><p>Optional character vector of WebSocket URLs of remote autosync
-servers to peer with. The server will connect to each URL after startup,
-perform the join/peer handshake with <code>isPeer = TRUE</code> in metadata, and
-sync all documents bidirectionally. Remote peers that also set <code>isPeer</code>
-will announce all their documents back.</p></dd>
-
-
 <dt id="arg-tls">tls<a class="anchor" aria-label="anchor" href="#arg-tls"></a></dt>
 <dd><p>(optional) for secure wss:// connections, a TLS configuration
 object created by <code><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">nanonext::tls_config()</a></code>.</p></dd>
@@ -101,6 +93,21 @@ When provided, clients must include a valid OAuth2 access token as a
 Bearer token in the Authorization header of the WebSocket upgrade request.
 Connections without valid credentials are rejected immediately.
 Note: TLS is required when authentication is enabled to protect tokens.</p></dd>
+
+
+<dt id="arg-share">share<a class="anchor" aria-label="anchor" href="#arg-share"></a></dt>
+<dd><p>Controls document sharing policy for connected clients. This
+unified parameter governs both proactive document announcement (pushing
+documents to clients) and access control (allowing clients to request
+documents). Accepts one of:</p><ul><li><p><code>NA</code> (default) — never announce but allow all requests.</p></li>
+<li><p><code>TRUE</code> — announce all documents to all clients and allow all
+requests.</p></li>
+<li><p><code>FALSE</code> — never announce and deny all requests (sends
+<code>doc-unavailable</code>).</p></li>
+<li><p>A function with signature <code>function(client_id, doc_id)</code>
+returning <code>TRUE</code> (announce and allow), <code>NA</code> (allow on request only),
+or <code>FALSE</code> (deny access). Called per client and per document.</p></li>
+</ul></dd>
 
 </dl></div>
     <div class="section level2">

@@ -119,32 +119,56 @@
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="server-peering">Server peering<a class="anchor" aria-label="anchor" href="#server-peering"></a>
+<h3 id="sharing-policy">Sharing policy<a class="anchor" aria-label="anchor" href="#sharing-policy"></a>
 </h3>
-<p>Servers can peer to sync documents bidirectionally. Documents on one server are automatically announced and synced to its peer:</p>
+<p>The <code>share</code> parameter controls which documents are announced to clients and which requests are allowed. It accepts <code>TRUE</code>, <code>FALSE</code>, <code>NA</code>, or a function returning one of these per client and document:</p>
+<table class="table">
+<thead><tr class="header">
+<th>Value</th>
+<th>Announce</th>
+<th>Allow requests</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>
+<code>NA</code> (default)</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<td><code>TRUE</code></td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr class="odd">
+<td><code>FALSE</code></td>
+<td>No</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p>Announce all documents to every client that connects:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Start server A and create a document</span></span>
-<span><span class="va">server_a</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_server.html">amsync_server</a></span><span class="op">(</span>data_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">server_a</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">doc_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_document.html">create_document</a></span><span class="op">(</span><span class="va">server_a</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_server.html">amsync_server</a></span><span class="op">(</span>share <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<p>Combine with authentication and use a <code>share</code> function for fine-grained access control. The function receives the <code>client_id</code> and <code>doc_id</code>, and can look up the authenticated email on the connection to decide:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Allow list of emails that can access documents</span></span>
+<span><span class="va">allowed</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alice@example.com"</span>, <span class="st">"bob@example.com"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Start server B, peering with A</span></span>
-<span><span class="va">server_b</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_server.html">amsync_server</a></span><span class="op">(</span>data_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="op">)</span>, peer <span class="op">=</span> <span class="va">server_a</span><span class="op">$</span><span class="va">url</span><span class="op">)</span></span>
-<span><span class="va">server_b</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Allow the peer handshake and sync to complete</span></span>
-<span><span class="kw">for</span> <span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fl">10</span><span class="op">)</span> <span class="fu">later</span><span class="fu">::</span><span class="fu"><a href="https://later.r-lib.org/reference/run_now.html" class="external-link">run_now</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span> <span class="op">||</span> <span class="kw">break</span></span>
-<span></span>
-<span><span class="co"># The document has synced from A to B</span></span>
-<span><span class="fu"><a href="reference/list_documents.html">list_documents</a></span><span class="op">(</span><span class="va">server_b</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">server_a</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">server_b</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_server.html">amsync_server</a></span><span class="op">(</span></span>
+<span>  tls <span class="op">=</span> <span class="va">tls</span>,</span>
+<span>  auth <span class="op">=</span> <span class="fu"><a href="reference/auth_config.html">auth_config</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  share <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">client_id</span>, <span class="va">doc_id</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">state</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">server</span>, <span class="st">"sync"</span><span class="op">)</span></span>
+<span>    <span class="va">conn</span> <span class="op">&lt;-</span> <span class="va">state</span><span class="op">$</span><span class="va">connections</span><span class="op">[[</span><span class="va">client_id</span><span class="op">]</span><span class="op">]</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="va">conn</span><span class="op">$</span><span class="va">authenticated_email</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">allowed</span><span class="op">)</span> <span class="cn">NA</span> <span class="kw">else</span> <span class="cn">FALSE</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="document-management">Document management<a class="anchor" aria-label="anchor" href="#document-management"></a>
 </h3>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Create a new document</span></span>
 <span><span class="va">doc_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_document.html">create_document</a></span><span class="op">(</span><span class="va">server</span><span class="op">)</span></span>
 <span></span>
@@ -157,19 +181,19 @@
 <div class="section level3">
 <h3 id="connecting-from-javascript">Connecting from JavaScript<a class="anchor" aria-label="anchor" href="#connecting-from-javascript"></a>
 </h3>
-<div class="sourceCode" id="cb8"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="im">import</span> { Repo } <span class="im">from</span> <span class="st">"@automerge/automerge-repo"</span></span>
-<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="im">import</span> { BrowserWebSocketClientAdapter } <span class="im">from</span> <span class="st">"@automerge/automerge-repo-network-websocket"</span></span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a></span>
-<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="kw">const</span> repo <span class="op">=</span> <span class="kw">new</span> <span class="fu">Repo</span>({</span>
-<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>  <span class="dt">network</span><span class="op">:</span> [<span class="kw">new</span> <span class="fu">BrowserWebSocketClientAdapter</span>(<span class="st">"ws://localhost:8080"</span>)]</span>
-<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>})</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="im">import</span> { Repo } <span class="im">from</span> <span class="st">"@automerge/automerge-repo"</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="im">import</span> { BrowserWebSocketClientAdapter } <span class="im">from</span> <span class="st">"@automerge/automerge-repo-network-websocket"</span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="kw">const</span> repo <span class="op">=</span> <span class="kw">new</span> <span class="fu">Repo</span>({</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>  <span class="dt">network</span><span class="op">:</span> [<span class="kw">new</span> <span class="fu">BrowserWebSocketClientAdapter</span>(<span class="st">"ws://localhost:8080"</span>)]</span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>})</span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
 <h2 id="client">Client<a class="anchor" aria-label="anchor" href="#client"></a>
 </h2>
 <p>Fetch documents from any automerge-repo sync server:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Fetch from public sync server</span></span>
 <span><span class="va">doc</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_fetch.html">amsync_fetch</a></span><span class="op">(</span><span class="st">"wss://sync.automerge.org"</span>, <span class="st">"your-document-id"</span><span class="op">)</span></span>
 <span></span>
@@ -183,7 +207,7 @@
 <h2 id="utilities">Utilities<a class="anchor" aria-label="anchor" href="#utilities"></a>
 </h2>
 <p>Generate document IDs compatible with automerge-repo:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">doc_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/generate_document_id.html">generate_document_id</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">

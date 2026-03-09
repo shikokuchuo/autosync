@@ -12,9 +12,9 @@ amsync_server(
   data_dir = ".automerge",
   auto_create_docs = TRUE,
   storage_id = NULL,
-  peer = NULL,
   tls = NULL,
-  auth = NULL
+  auth = NULL,
+  share = NA
 )
 ```
 
@@ -44,14 +44,6 @@ amsync_server(
   new persistent identity. Set to NA for an ephemeral server (no
   persistence identity).
 
-- peer:
-
-  Optional character vector of WebSocket URLs of remote autosync servers
-  to peer with. The server will connect to each URL after startup,
-  perform the join/peer handshake with `isPeer = TRUE` in metadata, and
-  sync all documents bidirectionally. Remote peers that also set
-  `isPeer` will announce all their documents back.
-
 - tls:
 
   (optional) for secure wss:// connections, a TLS configuration object
@@ -67,6 +59,25 @@ amsync_server(
   request. Connections without valid credentials are rejected
   immediately. Note: TLS is required when authentication is enabled to
   protect tokens.
+
+- share:
+
+  Controls document sharing policy for connected clients. This unified
+  parameter governs both proactive document announcement (pushing
+  documents to clients) and access control (allowing clients to request
+  documents). Accepts one of:
+
+  - `NA` (default) — never announce but allow all requests.
+
+  - `TRUE` — announce all documents to all clients and allow all
+    requests.
+
+  - `FALSE` — never announce and deny all requests (sends
+    `doc-unavailable`).
+
+  - A function with signature `function(client_id, doc_id)` returning
+    `TRUE` (announce and allow), `NA` (allow on request only), or
+    `FALSE` (deny access). Called per client and per document.
 
 ## Value
 
