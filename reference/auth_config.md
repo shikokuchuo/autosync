@@ -93,7 +93,7 @@ auth_config(custom_validator = function(token_info) {
 #> {
 #>     as.integer(token_info$expires_in) > 300
 #> }
-#> <environment: 0x5565bc431628>
+#> <environment: 0x55749fe7bd58>
 #> 
 #> $token_timeout
 #> [1] 5
