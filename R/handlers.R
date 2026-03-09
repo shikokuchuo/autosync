@@ -1,16 +1,16 @@
 # Message handlers for autosync
 
-#' Evaluate the share policy for a peer and document
+#' Evaluate the share policy for a client and document
 #'
 #' @param share The share policy (TRUE, FALSE, NA, or function).
-#' @param peer_metadata The peer's metadata list.
+#' @param client_id Client's peer ID.
 #' @param doc_id Document ID string.
 #'
 #' @return TRUE (announce and allow), NA (allow only), or FALSE (deny).
 #'
 #' @noRd
-eval_share <- function(share, peer_metadata, doc_id) {
-  if (is.function(share)) share(peer_metadata, doc_id) else share
+eval_share <- function(share, client_id, doc_id) {
+  if (is.function(share)) share(client_id, doc_id) else share
 }
 
 #' Main message dispatcher
@@ -130,9 +130,8 @@ handle_join <- function(server, temp_id, msg) {
   )
   send_to_peer(server, client_id, response)
 
-  metadata <- msg$peerMetadata %||% list()
   for (doc_id in ls(server$documents)) {
-    if (isTRUE(eval_share(server$share, metadata, doc_id))) {
+    if (isTRUE(eval_share(server$share, client_id, doc_id))) {
       sync_to_peer(server, client_id, doc_id, server$documents[[doc_id]])
     }
   }
@@ -205,9 +204,7 @@ handle_sync <- function(server, client_id, msg, is_request) {
   }
 
   # Check share policy for access control
-  conn <- server$connections[[client_id]]
-  metadata <- if (!is.null(conn)) conn$metadata %||% list() else list()
-  if (isFALSE(eval_share(server$share, metadata, doc_id))) {
+  if (isFALSE(eval_share(server$share, client_id, doc_id))) {
     send_unavailable(server, client_id, doc_id)
     return(invisible())
   }
@@ -512,7 +509,7 @@ announce_new_document <- function(server, doc_id, doc) {
   for (client_id in ls(server$connections)) {
     conn <- server$connections[[client_id]]
     if (is.null(conn$client_id) || client_id != conn$client_id) next
-    if (!isTRUE(eval_share(server$share, conn$metadata %||% list(), doc_id))) next
+    if (!isTRUE(eval_share(server$share, client_id, doc_id))) next
     sync_to_peer(server, client_id, doc_id, doc)
   }
   invisible()

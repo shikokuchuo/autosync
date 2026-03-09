@@ -16,29 +16,24 @@
 #'   (no persistence identity).
 #' @param tls (optional) for secure wss:// connections, a TLS configuration
 #'   object created by [nanonext::tls_config()].
-#' @param peer Optional character vector of WebSocket URLs of remote autosync
-#'   servers to peer with. The server will connect to each URL after startup,
-#'   perform the join/peer handshake with `isPeer = TRUE` in metadata, and
-#'   sync all documents bidirectionally. Remote peers that also set `isPeer`
-#'   will announce all their documents back.
 #' @param auth Optional authentication configuration created by [auth_config()].
 #'   When provided, clients must include a valid OAuth2 access token as a
 #'   Bearer token in the Authorization header of the WebSocket upgrade request.
 #'   Connections without valid credentials are rejected immediately.
 #'   Note: TLS is required when authentication is enabled to protect tokens.
-#' @param share Controls document sharing policy for connected peers. This
+#' @param share Controls document sharing policy for connected clients. This
 #'   unified parameter governs both proactive document announcement (pushing
-#'   documents to peers) and access control (allowing peers to request
+#'   documents to clients) and access control (allowing clients to request
 #'   documents). Accepts one of:
 #'   \itemize{
 #'     \item `NA` (default) — never announce but allow all requests.
-#'     \item `TRUE` — announce all documents to all peers and allow all
+#'     \item `TRUE` — announce all documents to all clients and allow all
 #'       requests.
 #'     \item `FALSE` — never announce and deny all requests (sends
 #'       `doc-unavailable`).
-#'     \item A function with signature `function(peer_metadata, doc_id)`
+#'     \item A function with signature `function(client_id, doc_id)`
 #'       returning `TRUE` (announce and allow), `NA` (allow on request only),
-#'       or `FALSE` (deny access). Called per peer and per document.
+#'       or `FALSE` (deny access). Called per client and per document.
 #'   }
 #'
 #' @return An amsync_server object inheriting from 'nanoServer', with
@@ -82,7 +77,6 @@ amsync_server <- function(
   data_dir = ".automerge",
   auto_create_docs = TRUE,
   storage_id = NULL,
-  peer = NULL,
   tls = NULL,
   auth = NULL,
   share = NA
@@ -195,17 +189,6 @@ amsync_server <- function(
 
   attr(server, "sync") <- state
   class(server) <- c("amsync_server", class(server))
-
-  # Schedule outbound peer connections after server is running
-  if (!is.null(peer)) {
-    for (peer_url in peer) {
-      force(peer_url)
-      local({
-        url <- peer_url
-        later(function() connect_peer(state, url, tls = tls), delay = 0)
-      })
-    }
-  }
 
   server
 }

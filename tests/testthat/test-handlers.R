@@ -1436,7 +1436,7 @@ test_that("share function controls announce per peer and document", {
   state$documents[[doc_id2]] <- doc2
 
   # Only announce doc1
-  state$share <- function(peer_metadata, doc_id) {
+  state$share <- function(client_id, doc_id) {
     if (doc_id == doc_id1) TRUE else NA
   }
 
@@ -1476,7 +1476,7 @@ test_that("share function controls access per peer and document", {
   state$documents[[doc_id2]] <- doc2
 
   # Allow doc1, deny doc2
-  state$share <- function(peer_metadata, doc_id) {
+  state$share <- function(client_id, doc_id) {
     if (doc_id == doc_id1) NA else FALSE
   }
 
@@ -1510,7 +1510,7 @@ test_that("share function controls access per peer and document", {
   expect_equal(resp2$documentId, doc_id2)
 })
 
-test_that("share function receives peer_metadata", {
+test_that("share function receives client_id", {
   state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))
 
@@ -1518,9 +1518,9 @@ test_that("share function receives peer_metadata", {
   doc_id <- autosync:::generate_document_id()
   state$documents[[doc_id]] <- doc
 
-  captured_metadata <- NULL
-  state$share <- function(peer_metadata, doc_id) {
-    captured_metadata <<- peer_metadata
+  captured_id <- NULL
+  state$share <- function(client_id, doc_id) {
+    captured_id <<- client_id
     TRUE
   }
 
@@ -1533,14 +1533,13 @@ test_that("share function receives peer_metadata", {
   join_msg <- list(
     type = "join",
     senderId = "metadataClient",
-    peerMetadata = list(role = "admin", isEphemeral = TRUE),
+    peerMetadata = list(isEphemeral = TRUE),
     supportedProtocolVersions = list("1")
   )
 
   autosync:::handle_join(state, temp_id, join_msg)
 
-  expect_equal(captured_metadata$role, "admin")
-  expect_true(captured_metadata$isEphemeral)
+  expect_equal(captured_id, "metadataClient")
 })
 
 test_that("announce_new_document respects share policy", {
@@ -1561,9 +1560,73 @@ test_that("announce_new_document respects share policy", {
 
   autosync:::announce_new_document(state, doc_id, doc)
 
-  # share=TRUE means announce to all connected peers, even non-isPeer
+  # share=TRUE means announce to all connected peers
   expect_length(ws$sent_messages, 1)
   response <- secretbase::cbordec(ws$sent_messages[[1]])
   expect_equal(response$type, "sync")
   expect_equal(response$documentId, doc_id)
+})
+
+test_that("announce_new_document skips connections when share=NA", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  doc <- automerge::am_create()
+  doc_id <- autosync:::generate_document_id()
+
+  client_id <- "regularClient"
+  ws <- create_mock_ws()
+  state$connections[[client_id]] <- list(
+    ws = ws, client_id = client_id,
+    metadata = list(), connected_at = Sys.time()
+  )
+
+  autosync:::announce_new_document(state, doc_id, doc)
+
+  expect_length(ws$sent_messages, 0)
+})
+
+test_that("announce_new_document skips pre-handshake connections", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+  state$share <- TRUE
+
+  doc <- automerge::am_create()
+  doc_id <- autosync:::generate_document_id()
+
+  temp_id <- "tempWsId"
+  ws <- create_mock_ws()
+  state$connections[[temp_id]] <- list(
+    ws = ws, client_id = NULL,
+    metadata = NULL, connected_at = Sys.time()
+  )
+
+  autosync:::announce_new_document(state, doc_id, doc)
+
+  expect_length(ws$sent_messages, 0)
+})
+
+test_that("announce_new_document skips duplicate temp_id entries", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+  state$share <- TRUE
+
+  doc <- automerge::am_create()
+  doc_id <- autosync:::generate_document_id()
+
+  peer_id <- "dualIndexPeer"
+  temp_id <- "tempId123"
+  ws <- create_mock_ws()
+  conn <- list(
+    ws = ws, client_id = peer_id,
+    metadata = list(), connected_at = Sys.time()
+  )
+  # Both entries point to the same connection (dual indexing)
+  state$connections[[peer_id]] <- conn
+  state$connections[[temp_id]] <- conn
+
+  autosync:::announce_new_document(state, doc_id, doc)
+
+  # Should send exactly once (skip temp_id entry where key != client_id)
+  expect_length(ws$sent_messages, 1)
 })

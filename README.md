@@ -79,28 +79,37 @@ doc <- amsync_fetch(
 )
 ```
 
-### Server peering
+### Sharing policy
 
-Servers can peer to sync documents bidirectionally. Documents on one server are automatically announced and synced to its peer:
+The `share` parameter controls which documents are announced to clients and which requests are allowed. It accepts `TRUE`, `FALSE`, `NA`, or a function returning one of these per client and document:
+
+| Value | Announce | Allow requests |
+|-------|----------|----------------|
+| `NA` (default) | No | Yes |
+| `TRUE` | Yes | Yes |
+| `FALSE` | No | No |
+
+Announce all documents to every client that connects:
 
 ``` r
-# Start server A and create a document
-server_a <- amsync_server(data_dir = tempfile())
-server_a$start()
-doc_id <- create_document(server_a)
+server <- amsync_server(share = TRUE)
+```
 
-# Start server B, peering with A
-server_b <- amsync_server(data_dir = tempfile(), peer = server_a$url)
-server_b$start()
+Combine with authentication and use a `share` function for fine-grained access control. The function receives the `client_id` and `doc_id`, and can look up the authenticated email on the connection to decide:
 
-# Allow the peer handshake and sync to complete
-for (i in 1:10) later::run_now(1) || break
+``` r
+# Allow list of emails that can access documents
+allowed <- c("alice@example.com", "bob@example.com")
 
-# The document has synced from A to B
-list_documents(server_b)
-
-server_a$close()
-server_b$close()
+server <- amsync_server(
+  tls = tls,
+  auth = auth_config(),
+  share = function(client_id, doc_id) {
+    state <- attr(server, "sync")
+    conn <- state$connections[[client_id]]
+    if (conn$authenticated_email %in% allowed) NA else FALSE
+  }
+)
 ```
 
 ### Document management
