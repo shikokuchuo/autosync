@@ -11,6 +11,10 @@
 #'
 #' @noRd
 handle_message <- function(server, client_id, temp_id, raw_msg) {
+  if (!length(raw_msg)) {
+    return(invisible())
+  }
+
   msg <- tryCatch(
     cbordec(raw_msg),
     error = function(e) {
@@ -19,6 +23,13 @@ handle_message <- function(server, client_id, temp_id, raw_msg) {
     }
   )
   if (is.null(msg)) {
+    return(invisible())
+  }
+
+  conn <- server$connections[[temp_id]]
+  if (is.null(conn$client_id) && msg$type != "join") {
+    send_error(server, msg$senderId %||% "unknown", "Expected join message", temp_id = temp_id)
+    close_connection(server, temp_id)
     return(invisible())
   }
 
@@ -47,7 +58,7 @@ handle_join <- function(server, temp_id, msg) {
   # Validate protocol version
   if (
     !is.null(msg$supportedProtocolVersions) &&
-      as.integer(msg$supportedProtocolVersions) != 1L
+      !("1" %in% msg$supportedProtocolVersions)
   ) {
     send_error(
       server,
@@ -55,6 +66,7 @@ handle_join <- function(server, temp_id, msg) {
       "Unsupported protocol version",
       temp_id = temp_id
     )
+    close_connection(server, temp_id)
     return(invisible())
   }
 
@@ -85,6 +97,12 @@ handle_join <- function(server, temp_id, msg) {
 
   # Also store connection indexed by client_id for message routing
   server$connections[[client_id]] <- server$connections[[temp_id]]
+
+  # Load persisted sync states for peers with a storageId
+  peer_storage_id <- msg$peerMetadata$storageId
+  if (!is.null(peer_storage_id) && is.character(peer_storage_id)) {
+    load_sync_states(server, peer_storage_id, client_id)
+  }
 
   response <- list(
     type = "peer",
@@ -178,6 +196,7 @@ handle_sync <- function(server, client_id, msg, is_request) {
   )
   if (is.null(doc_bytes)) {
     send_error(server, client_id, "Invalid document ID format")
+    close_connection(server, client_id)
     return(invisible())
   }
 
@@ -216,6 +235,13 @@ handle_sync <- function(server, client_id, msg, is_request) {
       }
     )
     save_document(server, doc_id, doc)
+
+    # Persist sync state for peers with a storageId
+    conn <- server$connections[[client_id]]
+    peer_storage_id <- conn$metadata$storageId
+    if (!is.null(peer_storage_id) && is.character(peer_storage_id)) {
+      save_sync_state(server, peer_storage_id, doc_id, sync_state)
+    }
   }
 
   reply_data <- tryCatch(
@@ -263,6 +289,17 @@ handle_leave <- function(server, client_id, msg) {
 #'
 #' @noRd
 handle_ephemeral <- function(server, client_id, msg) {
+  session_id <- msg$sessionId
+  count <- msg$count
+  if (!is.null(session_id) && !is.null(count)) {
+    key <- paste0(client_id, "\x1f", session_id)
+    last_count <- server$ephemeral_counts[[key]]
+    if (!is.null(last_count) && count <= last_count) {
+      return(invisible())
+    }
+    server$ephemeral_counts[[key]] <- count
+  }
+
   target_id <- msg$targetId
   doc_id <- msg$documentId
 
@@ -377,6 +414,14 @@ handle_disconnect <- function(server, client_id) {
     rm(list = client_id, envir = server$sync_states)
   }
   remove_peer_from_all_docs(server, client_id)
+
+  # Clean up ephemeral count entries for this client
+  prefix <- paste0(client_id, "\x1f")
+  for (key in ls(server$ephemeral_counts)) {
+    if (startsWith(key, prefix)) {
+      rm(list = key, envir = server$ephemeral_counts)
+    }
+  }
 
   invisible()
 }

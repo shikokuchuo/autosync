@@ -99,3 +99,44 @@ test_that("server URL format is correct", {
   expect_true(grepl("^ws://127\\.0\\.0\\.1:\\d+$", server$url))
 })
 
+test_that("save_sync_state and load_sync_states round-trip correctly", {
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  state <- new.env(hash = TRUE, parent = emptyenv())
+  state$data_dir <- data_dir
+  state$sync_states <- new.env(hash = TRUE, parent = emptyenv())
+
+  storage_id <- "testStoragePeer"
+  doc_id <- generate_document_id()
+  sync_state <- automerge::am_sync_state()
+
+  # Save
+  autosync:::save_sync_state(state, storage_id, doc_id, sync_state)
+  expect_true(file.exists(
+    file.path(data_dir, ".sync_states", storage_id, paste0(doc_id, ".sync"))
+  ))
+
+  # Load into a new client_id
+  autosync:::load_sync_states(state, storage_id, "newClientId")
+
+  expect_true(exists("newClientId", envir = state$sync_states))
+  expect_true(exists(doc_id, envir = state$sync_states[["newClientId"]]))
+  expect_true(inherits(state$sync_states[["newClientId"]][[doc_id]], "am_syncstate"))
+})
+
+test_that("load_sync_states with no persisted data is a no-op", {
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  state <- new.env(hash = TRUE, parent = emptyenv())
+  state$data_dir <- data_dir
+  state$sync_states <- new.env(hash = TRUE, parent = emptyenv())
+
+  autosync:::load_sync_states(state, "nonexistentPeer", "clientX")
+
+  expect_false(exists("clientX", envir = state$sync_states))
+})
+

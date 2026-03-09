@@ -13,16 +13,20 @@ create_test_state <- function(data_dir = tempfile(), auto_create_docs = TRUE) {
   state$sync_states <- new.env(hash = TRUE, parent = emptyenv())
   state$connections <- new.env(hash = TRUE, parent = emptyenv())
   state$doc_peers <- new.env(hash = TRUE, parent = emptyenv())
+  state$ephemeral_counts <- new.env(hash = TRUE, parent = emptyenv())
   state
 }
 
 # Mock WebSocket object for testing
 create_mock_ws <- function() {
+
   ws <- new.env(hash = TRUE)
   ws$sent_messages <- list()
+  ws$closed <- FALSE
   ws$send <- function(data) {
     ws$sent_messages <- c(ws$sent_messages, list(data))
   }
+  ws$close <- function() ws$closed <- TRUE
   ws$id <- as.character(sample.int(1e6, 1))
   ws
 }
@@ -844,8 +848,6 @@ test_that("handle_join closes previous socket on duplicate senderId", {
 
   # First connection
   ws1 <- create_mock_ws()
-  ws1$closed <- FALSE
-  ws1$close <- function() ws1$closed <- TRUE
   temp_id1 <- ws1$id
   state$connections[[temp_id1]] <- list(
     ws = ws1,
@@ -1046,4 +1048,252 @@ test_that("broadcast_ephemeral preserves count and sessionId from sender", {
   expect_equal(relayed$sessionId, "session-abc-123")
   expect_equal(relayed$senderId, "sender")
   expect_equal(relayed$data$cursor, "line 10")
+})
+
+# --- RFC compliance tests ---
+
+test_that("handle_join accepts version list containing '1' among others", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  join_msg <- list(
+    type = "join",
+    senderId = "multiVersionClient",
+    peerMetadata = list(isEphemeral = TRUE),
+    supportedProtocolVersions = list("1", "2")
+  )
+
+  autosync:::handle_join(state, temp_id, join_msg)
+
+  expect_length(ws$sent_messages, 1)
+  response <- secretbase::cbordec(ws$sent_messages[[1]])
+  expect_equal(response$type, "peer")
+  expect_equal(response$selectedProtocolVersion, "1")
+})
+
+test_that("handle_join rejects version list not containing '1'", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  join_msg <- list(
+    type = "join",
+    senderId = "futureClient",
+    peerMetadata = list(isEphemeral = TRUE),
+    supportedProtocolVersions = list("2")
+  )
+
+  autosync:::handle_join(state, temp_id, join_msg)
+
+  expect_length(ws$sent_messages, 1)
+  response <- secretbase::cbordec(ws$sent_messages[[1]])
+  expect_equal(response$type, "error")
+  expect_true(grepl("protocol", response$message, ignore.case = TRUE))
+})
+
+test_that("handle_join closes connection after protocol version error", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  join_msg <- list(
+    type = "join",
+    senderId = "badVersionClient2",
+    peerMetadata = list(isEphemeral = TRUE),
+    supportedProtocolVersions = list("999")
+  )
+
+  autosync:::handle_join(state, temp_id, join_msg)
+
+  expect_true(ws$closed)
+})
+
+test_that("handle_sync closes connection after invalid document ID error", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  ws <- create_mock_ws()
+  client_id <- "invalidDocClient"
+  state$connections[[client_id]] <- list(
+    ws = ws,
+    client_id = client_id,
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  sync_msg <- list(
+    type = "request",
+    senderId = client_id,
+    targetId = state$peer_id,
+    documentId = "!!!invalid!!!",
+    data = raw(0)
+  )
+
+  autosync:::handle_sync(state, client_id, sync_msg, is_request = TRUE)
+
+  expect_length(ws$sent_messages, 1)
+  response <- secretbase::cbordec(ws$sent_messages[[1]])
+  expect_equal(response$type, "error")
+  expect_true(ws$closed)
+})
+
+test_that("handle_message rejects non-join messages before handshake", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  sync_msg <- secretbase::cborenc(list(
+    type = "sync",
+    senderId = "sneakyClient",
+    documentId = "someDoc",
+    data = raw(0)
+  ))
+
+  autosync:::handle_message(state, temp_id, temp_id, sync_msg)
+
+  expect_length(ws$sent_messages, 1)
+  response <- secretbase::cbordec(ws$sent_messages[[1]])
+  expect_equal(response$type, "error")
+  expect_true(grepl("join", response$message, ignore.case = TRUE))
+  expect_true(ws$closed)
+})
+
+test_that("handle_message discards zero-length messages", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  expect_no_error(
+    autosync:::handle_message(state, temp_id, temp_id, raw())
+  )
+  expect_length(ws$sent_messages, 0)
+})
+
+test_that("handle_ephemeral deduplicates by count and sessionId", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  ws1 <- create_mock_ws()
+  ws2 <- create_mock_ws()
+
+  state$connections[["sender"]] <- list(
+    ws = ws1,
+    client_id = "sender",
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  state$connections[["receiver"]] <- list(
+    ws = ws2,
+    client_id = "receiver",
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  doc_id <- "dedupDoc"
+  state$doc_peers[[doc_id]] <- c("sender", "receiver")
+
+  # First message with count = 2 should be forwarded
+  msg1 <- list(
+    type = "ephemeral",
+    senderId = "sender",
+    documentId = doc_id,
+    sessionId = "session-1",
+    count = 2L,
+    data = "first"
+  )
+  autosync:::handle_ephemeral(state, "sender", msg1)
+  expect_length(ws2$sent_messages, 1)
+
+  # Second message with count = 1 (stale) should be discarded
+  msg2 <- list(
+    type = "ephemeral",
+    senderId = "sender",
+    documentId = doc_id,
+    sessionId = "session-1",
+    count = 1L,
+    data = "stale"
+  )
+  autosync:::handle_ephemeral(state, "sender", msg2)
+  expect_length(ws2$sent_messages, 1) # Still 1, not forwarded
+
+  # Third message with count = 2 (equal) should also be discarded
+  msg3 <- list(
+    type = "ephemeral",
+    senderId = "sender",
+    documentId = doc_id,
+    sessionId = "session-1",
+    count = 2L,
+    data = "duplicate"
+  )
+  autosync:::handle_ephemeral(state, "sender", msg3)
+  expect_length(ws2$sent_messages, 1) # Still 1
+
+  # Fourth message with count = 3 should be forwarded
+  msg4 <- list(
+    type = "ephemeral",
+    senderId = "sender",
+    documentId = doc_id,
+    sessionId = "session-1",
+    count = 3L,
+    data = "new"
+  )
+  autosync:::handle_ephemeral(state, "sender", msg4)
+  expect_length(ws2$sent_messages, 2)
+})
+
+test_that("handle_disconnect cleans up ephemeral counts", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  client_id <- "ephCleanupClient"
+  state$ephemeral_counts[[paste0(client_id, "\x1f", "session1")]] <- 5L
+  state$ephemeral_counts[[paste0(client_id, "\x1f", "session2")]] <- 3L
+  state$ephemeral_counts[[paste0("otherClient", "\x1f", "session1")]] <- 7L
+
+  autosync:::handle_disconnect(state, client_id)
+
+  expect_equal(length(ls(state$ephemeral_counts)), 1)
+  expect_equal(state$ephemeral_counts[[paste0("otherClient", "\x1f", "session1")]], 7L)
 })

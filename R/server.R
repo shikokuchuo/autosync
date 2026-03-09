@@ -112,6 +112,7 @@ amsync_server <- function(
   state$sync_states <- sync_states
   state$connections <- connections
   state$doc_peers <- doc_peers
+  state$ephemeral_counts <- new.env(hash = TRUE, parent = emptyenv())
   state$auth <- auth
 
   load_all_documents(state)
