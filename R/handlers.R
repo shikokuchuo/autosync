@@ -1,5 +1,18 @@
 # Message handlers for autosync
 
+#' Evaluate the share policy for a client and document
+#'
+#' @param share The share policy (TRUE, FALSE, NA, or function).
+#' @param client_id Client's peer ID.
+#' @param doc_id Document ID string.
+#'
+#' @return TRUE (announce and allow), NA (allow only), or FALSE (deny).
+#'
+#' @noRd
+eval_share <- function(share, client_id, doc_id) {
+  if (is.function(share)) share(client_id, doc_id) else share
+}
+
 #' Main message dispatcher
 #'
 #' Routes incoming CBOR messages to the appropriate handler.
@@ -117,8 +130,10 @@ handle_join <- function(server, temp_id, msg) {
   )
   send_to_peer(server, client_id, response)
 
-  if (isTRUE(msg$peerMetadata$isPeer)) {
-    announce_documents(server, client_id)
+  for (doc_id in ls(server$documents)) {
+    if (isTRUE(eval_share(server$share, client_id, doc_id))) {
+      sync_to_peer(server, client_id, doc_id, server$documents[[doc_id]])
+    }
   }
 
   invisible()
@@ -161,22 +176,6 @@ sync_to_peer <- function(server, client_id, doc_id, doc) {
   invisible()
 }
 
-#' Announce all documents to a newly connected client
-#'
-#' Sends initial sync messages for every document the server holds.
-#' Called after the join handshake when the client signals `isPeer = TRUE`.
-#'
-#' @param server An amsync_server object.
-#' @param client_id Client's peer ID.
-#'
-#' @noRd
-announce_documents <- function(server, client_id) {
-  for (doc_id in ls(server$documents)) {
-    sync_to_peer(server, client_id, doc_id, server$documents[[doc_id]])
-  }
-  invisible()
-}
-
 #' Handle sync or request message
 #'
 #' @param server An amsync_server object.
@@ -201,6 +200,12 @@ handle_sync <- function(server, client_id, msg, is_request) {
   if (is.null(doc_bytes)) {
     send_error(server, client_id, "Invalid document ID format")
     close_connection(server, client_id)
+    return(invisible())
+  }
+
+  # Check share policy for access control
+  if (isFALSE(eval_share(server$share, client_id, doc_id))) {
+    send_unavailable(server, client_id, doc_id)
     return(invisible())
   }
 
@@ -504,7 +509,7 @@ announce_new_document <- function(server, doc_id, doc) {
   for (client_id in ls(server$connections)) {
     conn <- server$connections[[client_id]]
     if (is.null(conn$client_id) || client_id != conn$client_id) next
-    if (!isTRUE(conn$is_peer) && !isTRUE(conn$metadata$isPeer)) next
+    if (!isTRUE(eval_share(server$share, client_id, doc_id))) next
     sync_to_peer(server, client_id, doc_id, doc)
   }
   invisible()
