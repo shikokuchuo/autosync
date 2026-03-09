@@ -12,6 +12,7 @@ create_test_state <- function(data_dir = tempfile(), auto_create_docs = TRUE) {
   state$sync_states <- new.env(hash = TRUE, parent = emptyenv())
   state$connections <- new.env(hash = TRUE, parent = emptyenv())
   state$doc_peers <- new.env(hash = TRUE, parent = emptyenv())
+  state$share <- NA
   state
 }
 
@@ -277,9 +278,10 @@ test_that("handle_peer_message handles sync decode errors gracefully", {
 
 # --- announce_new_document tests ---
 
-test_that("announce_new_document sends sync to outbound peer connections", {
+test_that("announce_new_document sends sync when share=TRUE", {
   state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))
+  state$share <- TRUE
 
   doc <- automerge::am_create()
   doc_id <- generate_document_id()
@@ -291,8 +293,7 @@ test_that("announce_new_document sends sync to outbound peer connections", {
     ws = ws,
     client_id = peer_id,
     metadata = list(),
-    connected_at = Sys.time(),
-    is_peer = TRUE
+    connected_at = Sys.time()
   )
 
   autosync:::announce_new_document(state, doc_id, doc)
@@ -305,13 +306,17 @@ test_that("announce_new_document sends sync to outbound peer connections", {
   expect_true(peer_id %in% state$doc_peers[[doc_id]])
 })
 
-test_that("announce_new_document sends sync to inbound peer connections", {
+test_that("announce_new_document sends sync with share function", {
   state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))
 
   doc <- automerge::am_create()
   doc_id <- generate_document_id()
   state$documents[[doc_id]] <- doc
+
+  state$share <- function(peer_metadata, doc_id) {
+    if (isTRUE(peer_metadata$isPeer)) TRUE else NA
+  }
 
   peer_id <- "inboundPeer"
   ws <- create_mock_ws()
@@ -330,7 +335,7 @@ test_that("announce_new_document sends sync to inbound peer connections", {
   expect_equal(msg$documentId, doc_id)
 })
 
-test_that("announce_new_document skips non-peer connections", {
+test_that("announce_new_document skips connections when share=NA", {
   state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))
 
@@ -377,6 +382,7 @@ test_that("announce_new_document skips pre-handshake connections", {
 test_that("announce_new_document skips duplicate temp_id entries", {
   state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))
+  state$share <- TRUE
 
   doc <- automerge::am_create()
   doc_id <- generate_document_id()
@@ -388,7 +394,7 @@ test_that("announce_new_document skips duplicate temp_id entries", {
   conn <- list(
     ws = ws,
     client_id = peer_id,
-    metadata = list(isPeer = TRUE),
+    metadata = list(),
     connected_at = Sys.time()
   )
   # Both entries point to the same connection (dual indexing)

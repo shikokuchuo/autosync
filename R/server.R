@@ -26,6 +26,20 @@
 #'   Bearer token in the Authorization header of the WebSocket upgrade request.
 #'   Connections without valid credentials are rejected immediately.
 #'   Note: TLS is required when authentication is enabled to protect tokens.
+#' @param share Controls document sharing policy for connected peers. This
+#'   unified parameter governs both proactive document announcement (pushing
+#'   documents to peers) and access control (allowing peers to request
+#'   documents). Accepts one of:
+#'   \itemize{
+#'     \item `NA` (default) — never announce but allow all requests.
+#'     \item `TRUE` — announce all documents to all peers and allow all
+#'       requests.
+#'     \item `FALSE` — never announce and deny all requests (sends
+#'       `doc-unavailable`).
+#'     \item A function with signature `function(peer_metadata, doc_id)`
+#'       returning `TRUE` (announce and allow), `NA` (allow on request only),
+#'       or `FALSE` (deny access). Called per peer and per document.
+#'   }
 #'
 #' @return An amsync_server object inheriting from 'nanoServer', with
 #'   `$start()` and `$close()` methods.
@@ -70,7 +84,8 @@ amsync_server <- function(
   storage_id = NULL,
   peer = NULL,
   tls = NULL,
-  auth = NULL
+  auth = NULL,
+  share = NA
 ) {
   port <- as.integer(port)
 
@@ -114,6 +129,7 @@ amsync_server <- function(
   state$doc_peers <- doc_peers
   state$ephemeral_counts <- new.env(hash = TRUE, parent = emptyenv())
   state$auth <- auth
+  state$share <- share
 
   load_all_documents(state)
 

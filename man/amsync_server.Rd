@@ -12,7 +12,8 @@ amsync_server(
   storage_id = NULL,
   peer = NULL,
   tls = NULL,
-  auth = NULL
+  auth = NULL,
+  share = NA
 )
 }
 \arguments{
@@ -44,6 +45,21 @@ When provided, clients must include a valid OAuth2 access token as a
 Bearer token in the Authorization header of the WebSocket upgrade request.
 Connections without valid credentials are rejected immediately.
 Note: TLS is required when authentication is enabled to protect tokens.}
+
+\item{share}{Controls document sharing policy for connected peers. This
+unified parameter governs both proactive document announcement (pushing
+documents to peers) and access control (allowing peers to request
+documents). Accepts one of:
+\itemize{
+\item \code{NA} (default) — never announce but allow all requests.
+\item \code{TRUE} — announce all documents to all peers and allow all
+requests.
+\item \code{FALSE} — never announce and deny all requests (sends
+\code{doc-unavailable}).
+\item A function with signature \verb{function(peer_metadata, doc_id)}
+returning \code{TRUE} (announce and allow), \code{NA} (allow on request only),
+or \code{FALSE} (deny access). Called per peer and per document.
+}}
 }
 \value{
 An amsync_server object inheriting from 'nanoServer', with

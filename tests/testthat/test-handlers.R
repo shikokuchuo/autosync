@@ -14,6 +14,7 @@ create_test_state <- function(data_dir = tempfile(), auto_create_docs = TRUE) {
   state$connections <- new.env(hash = TRUE, parent = emptyenv())
   state$doc_peers <- new.env(hash = TRUE, parent = emptyenv())
   state$ephemeral_counts <- new.env(hash = TRUE, parent = emptyenv())
+  state$share <- NA
   state
 }
 
@@ -903,9 +904,10 @@ test_that("handle_join closes previous socket on duplicate senderId", {
   expect_identical(conn$ws, ws2)
 })
 
-test_that("handle_join with isPeer=TRUE announces all documents", {
+test_that("handle_join with share=TRUE announces all documents", {
   state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))
+  state$share <- TRUE
 
   # Pre-create two documents with data
   doc1 <- automerge::am_create()
@@ -930,7 +932,7 @@ test_that("handle_join with isPeer=TRUE announces all documents", {
   join_msg <- list(
     type = "join",
     senderId = "peerClient",
-    peerMetadata = list(isPeer = TRUE, isEphemeral = FALSE),
+    peerMetadata = list(isEphemeral = FALSE),
     supportedProtocolVersions = list("1")
   )
 
@@ -955,7 +957,7 @@ test_that("handle_join with isPeer=TRUE announces all documents", {
   expect_true("peerClient" %in% state$doc_peers[[doc_id2]])
 })
 
-test_that("handle_join without isPeer does not announce documents", {
+test_that("handle_join with share=NA does not announce documents", {
   state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))
 
@@ -987,23 +989,6 @@ test_that("handle_join without isPeer does not announce documents", {
   expect_length(ws$sent_messages, 1)
   response <- secretbase::cbordec(ws$sent_messages[[1]])
   expect_equal(response$type, "peer")
-})
-
-test_that("announce_documents with no documents sends nothing", {
-  state <- create_test_state()
-  on.exit(unlink(state$data_dir, recursive = TRUE))
-
-  ws <- create_mock_ws()
-  state$connections[["emptyClient"]] <- list(
-    ws = ws,
-    client_id = "emptyClient",
-    metadata = list(),
-    connected_at = Sys.time()
-  )
-
-  autosync:::announce_documents(state, "emptyClient")
-
-  expect_length(ws$sent_messages, 0)
 })
 
 test_that("broadcast_ephemeral preserves count and sessionId from sender", {
@@ -1296,4 +1281,289 @@ test_that("handle_disconnect cleans up ephemeral counts", {
 
   expect_equal(length(ls(state$ephemeral_counts)), 1)
   expect_equal(state$ephemeral_counts[[paste0("otherClient", "\x1f", "session1")]], 7L)
+})
+
+# --- share policy tests ---
+
+test_that("share=TRUE announces documents to all peers on join", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+  state$share <- TRUE
+
+  doc <- automerge::am_create()
+  automerge::am_put(doc, automerge::AM_ROOT, "key", "value")
+  doc_id <- autosync:::generate_document_id()
+  state$documents[[doc_id]] <- doc
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws, client_id = NULL, metadata = NULL, connected_at = Sys.time()
+  )
+
+  # Regular client (no isPeer) should still get announcements with share=TRUE
+  join_msg <- list(
+    type = "join",
+    senderId = "shareClient",
+    peerMetadata = list(isEphemeral = TRUE),
+    supportedProtocolVersions = list("1")
+  )
+
+  autosync:::handle_join(state, temp_id, join_msg)
+
+  # peer response + sync announcement
+  expect_length(ws$sent_messages, 2)
+  types <- vapply(ws$sent_messages, function(m) secretbase::cbordec(m)$type, "")
+  expect_equal(types, c("peer", "sync"))
+})
+
+test_that("share=FALSE denies document requests", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+  state$share <- FALSE
+
+  doc <- automerge::am_create()
+  doc_id <- autosync:::generate_document_id()
+  state$documents[[doc_id]] <- doc
+
+  ws <- create_mock_ws()
+  client_id <- "deniedClient"
+  state$connections[[client_id]] <- list(
+    ws = ws, client_id = client_id, metadata = list(), connected_at = Sys.time()
+  )
+
+  sync_msg <- list(
+    type = "request",
+    senderId = client_id,
+    targetId = state$peer_id,
+    documentId = doc_id,
+    data = raw(0)
+  )
+
+  autosync:::handle_sync(state, client_id, sync_msg, is_request = TRUE)
+
+  expect_length(ws$sent_messages, 1)
+  response <- secretbase::cbordec(ws$sent_messages[[1]])
+  expect_equal(response$type, "doc-unavailable")
+  expect_equal(response$documentId, doc_id)
+})
+
+test_that("share=FALSE does not announce on join", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+  state$share <- FALSE
+
+  doc <- automerge::am_create()
+  doc_id <- autosync:::generate_document_id()
+  state$documents[[doc_id]] <- doc
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws, client_id = NULL, metadata = NULL, connected_at = Sys.time()
+  )
+
+  join_msg <- list(
+    type = "join",
+    senderId = "deniedPeer",
+    peerMetadata = list(isPeer = TRUE),
+    supportedProtocolVersions = list("1")
+  )
+
+  autosync:::handle_join(state, temp_id, join_msg)
+
+  # Only peer response, no sync announcements
+  expect_length(ws$sent_messages, 1)
+  response <- secretbase::cbordec(ws$sent_messages[[1]])
+  expect_equal(response$type, "peer")
+})
+
+test_that("share=NA allows requests but does not announce", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+  state$share <- NA
+
+  doc <- automerge::am_create()
+  automerge::am_put(doc, automerge::AM_ROOT, "key", "value")
+  doc_id <- autosync:::generate_document_id()
+  state$documents[[doc_id]] <- doc
+
+  # Test no announce on join
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws, client_id = NULL, metadata = NULL, connected_at = Sys.time()
+  )
+
+  join_msg <- list(
+    type = "join",
+    senderId = "naClient",
+    peerMetadata = list(isPeer = TRUE),
+    supportedProtocolVersions = list("1")
+  )
+
+  autosync:::handle_join(state, temp_id, join_msg)
+  expect_length(ws$sent_messages, 1)  # peer response only
+
+  # Test request is allowed
+  sync_msg <- list(
+    type = "request",
+    senderId = "naClient",
+    targetId = state$peer_id,
+    documentId = doc_id,
+    data = raw(0)
+  )
+
+  autosync:::handle_sync(state, "naClient", sync_msg, is_request = TRUE)
+
+  # Should get a sync response (not doc-unavailable)
+  expect_length(ws$sent_messages, 2)
+  response <- secretbase::cbordec(ws$sent_messages[[2]])
+  expect_equal(response$type, "sync")
+  expect_equal(response$documentId, doc_id)
+})
+
+test_that("share function controls announce per peer and document", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  doc1 <- automerge::am_create()
+  doc_id1 <- autosync:::generate_document_id()
+  state$documents[[doc_id1]] <- doc1
+
+  doc2 <- automerge::am_create()
+  doc_id2 <- autosync:::generate_document_id()
+  state$documents[[doc_id2]] <- doc2
+
+  # Only announce doc1
+  state$share <- function(peer_metadata, doc_id) {
+    if (doc_id == doc_id1) TRUE else NA
+  }
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws, client_id = NULL, metadata = NULL, connected_at = Sys.time()
+  )
+
+  join_msg <- list(
+    type = "join",
+    senderId = "selectiveClient",
+    peerMetadata = list(isEphemeral = TRUE),
+    supportedProtocolVersions = list("1")
+  )
+
+  autosync:::handle_join(state, temp_id, join_msg)
+
+  # peer response + 1 sync (only doc1 announced)
+  expect_length(ws$sent_messages, 2)
+  types <- vapply(ws$sent_messages, function(m) secretbase::cbordec(m)$type, "")
+  expect_equal(types, c("peer", "sync"))
+  sync_msg <- secretbase::cbordec(ws$sent_messages[[2]])
+  expect_equal(sync_msg$documentId, doc_id1)
+})
+
+test_that("share function controls access per peer and document", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  doc1 <- automerge::am_create()
+  doc_id1 <- autosync:::generate_document_id()
+  state$documents[[doc_id1]] <- doc1
+
+  doc2 <- automerge::am_create()
+  doc_id2 <- autosync:::generate_document_id()
+  state$documents[[doc_id2]] <- doc2
+
+  # Allow doc1, deny doc2
+  state$share <- function(peer_metadata, doc_id) {
+    if (doc_id == doc_id1) NA else FALSE
+  }
+
+  ws <- create_mock_ws()
+  client_id <- "aclClient"
+  state$connections[[client_id]] <- list(
+    ws = ws, client_id = client_id, metadata = list(), connected_at = Sys.time()
+  )
+
+  # Request doc1 — should succeed
+  msg1 <- list(
+    type = "request", senderId = client_id,
+    targetId = state$peer_id, documentId = doc_id1, data = raw(0)
+  )
+  autosync:::handle_sync(state, client_id, msg1, is_request = TRUE)
+
+  expect_length(ws$sent_messages, 1)
+  resp1 <- secretbase::cbordec(ws$sent_messages[[1]])
+  expect_equal(resp1$type, "sync")
+
+  # Request doc2 — should be denied
+  msg2 <- list(
+    type = "request", senderId = client_id,
+    targetId = state$peer_id, documentId = doc_id2, data = raw(0)
+  )
+  autosync:::handle_sync(state, client_id, msg2, is_request = TRUE)
+
+  expect_length(ws$sent_messages, 2)
+  resp2 <- secretbase::cbordec(ws$sent_messages[[2]])
+  expect_equal(resp2$type, "doc-unavailable")
+  expect_equal(resp2$documentId, doc_id2)
+})
+
+test_that("share function receives peer_metadata", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  doc <- automerge::am_create()
+  doc_id <- autosync:::generate_document_id()
+  state$documents[[doc_id]] <- doc
+
+  captured_metadata <- NULL
+  state$share <- function(peer_metadata, doc_id) {
+    captured_metadata <<- peer_metadata
+    TRUE
+  }
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws, client_id = NULL, metadata = NULL, connected_at = Sys.time()
+  )
+
+  join_msg <- list(
+    type = "join",
+    senderId = "metadataClient",
+    peerMetadata = list(role = "admin", isEphemeral = TRUE),
+    supportedProtocolVersions = list("1")
+  )
+
+  autosync:::handle_join(state, temp_id, join_msg)
+
+  expect_equal(captured_metadata$role, "admin")
+  expect_true(captured_metadata$isEphemeral)
+})
+
+test_that("announce_new_document respects share policy", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+  state$share <- TRUE
+
+  ws <- create_mock_ws()
+  client_id <- "announceShareClient"
+  state$connections[[client_id]] <- list(
+    ws = ws, client_id = client_id,
+    metadata = list(isEphemeral = TRUE),
+    connected_at = Sys.time()
+  )
+
+  doc <- automerge::am_create()
+  doc_id <- autosync:::generate_document_id()
+
+  autosync:::announce_new_document(state, doc_id, doc)
+
+  # share=TRUE means announce to all connected peers, even non-isPeer
+  expect_length(ws$sent_messages, 1)
+  response <- secretbase::cbordec(ws$sent_messages[[1]])
+  expect_equal(response$type, "sync")
+  expect_equal(response$documentId, doc_id)
 })
