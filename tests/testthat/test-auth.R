@@ -662,6 +662,165 @@ test_that("get_signing_key refreshes expired cache", {
   rm(list = ls(oidc_cache), envir = oidc_cache)
 })
 
+# ---- fetch_jwks tests ----
+
+test_that("fetch_jwks parses keys and cache-control", {
+  key <- openssl::rsa_keygen(2048)
+  pubkey <- as.list(key)$pubkey
+  jwk <- jsondec(jose::write_jwk(pubkey))
+  jwk$kid <- "test-kid"
+  jwks_json <- jsonenc(list(keys = list(jwk)))
+
+  local_mocked_bindings(
+    ncurl = function(url, ...) list(
+      data = charToRaw(jwks_json),
+      status = 200L,
+      headers = list("Cache-Control" = "public, max-age=7200")
+    ),
+    is_error_value = function(x) FALSE,
+    .package = "nanonext"
+  )
+
+  result <- fetch_jwks("https://example.com/jwks")
+  expect_true("test-kid" %in% names(result$keys))
+  expect_true(result$expiry > Sys.time() + 7000)
+})
+
+test_that("fetch_jwks uses default TTL without cache-control", {
+  key <- openssl::rsa_keygen(2048)
+  pubkey <- as.list(key)$pubkey
+  jwk <- jsondec(jose::write_jwk(pubkey))
+  jwk$kid <- "test-kid"
+  jwks_json <- jsonenc(list(keys = list(jwk)))
+
+  local_mocked_bindings(
+    ncurl = function(url, ...) list(
+      data = charToRaw(jwks_json),
+      status = 200L,
+      headers = list()
+    ),
+    is_error_value = function(x) FALSE,
+    .package = "nanonext"
+  )
+
+  result <- fetch_jwks("https://example.com/jwks")
+  expect_true("test-kid" %in% names(result$keys))
+  expect_true(result$expiry > Sys.time() + 3500)
+  expect_true(result$expiry < Sys.time() + 3700)
+})
+
+test_that("fetch_jwks errors on failed request", {
+  local_mocked_bindings(
+    ncurl = function(...) list(
+      data = structure(5L, class = "errorValue"),
+      status = 0L
+    ),
+    is_error_value = function(x) inherits(x, "errorValue"),
+    .package = "nanonext"
+  )
+
+  expect_error(fetch_jwks("https://example.com/jwks"), "Failed to fetch JWKS")
+})
+
+test_that("fetch_jwks errors on empty keys", {
+  local_mocked_bindings(
+    ncurl = function(...) list(
+      data = charToRaw('{"keys":[]}'),
+      status = 200L,
+      headers = list()
+    ),
+    is_error_value = function(x) FALSE,
+    .package = "nanonext"
+  )
+
+  expect_error(fetch_jwks("https://example.com/jwks"), "No keys found")
+})
+
+test_that("fetch_jwks skips keys without kid", {
+  key <- openssl::rsa_keygen(2048)
+  pubkey <- as.list(key)$pubkey
+  jwk_with_kid <- jsondec(jose::write_jwk(pubkey))
+  jwk_with_kid$kid <- "good-kid"
+  jwk_no_kid <- jsondec(jose::write_jwk(pubkey))
+  jwks_json <- jsonenc(list(keys = list(jwk_no_kid, jwk_with_kid)))
+
+  local_mocked_bindings(
+    ncurl = function(...) list(
+      data = charToRaw(jwks_json),
+      status = 200L,
+      headers = list()
+    ),
+    is_error_value = function(x) FALSE,
+    .package = "nanonext"
+  )
+
+  result <- fetch_jwks("https://example.com/jwks")
+  expect_equal(names(result$keys), "good-kid")
+})
+
+test_that("fetch_jwks skips unparseable keys", {
+  key <- openssl::rsa_keygen(2048)
+  pubkey <- as.list(key)$pubkey
+  good_jwk <- jsondec(jose::write_jwk(pubkey))
+  good_jwk$kid <- "good-kid"
+  bad_jwk <- list(kid = "bad-kid", kty = "INVALID")
+  jwks_json <- jsonenc(list(keys = list(bad_jwk, good_jwk)))
+
+  local_mocked_bindings(
+    ncurl = function(...) list(
+      data = charToRaw(jwks_json),
+      status = 200L,
+      headers = list()
+    ),
+    is_error_value = function(x) FALSE,
+    .package = "nanonext"
+  )
+
+  result <- fetch_jwks("https://example.com/jwks")
+  expect_equal(names(result$keys), "good-kid")
+})
+
+# ---- parse_query_params tests ----
+
+test_that("parse_query_params extracts parameters", {
+  result <- parse_query_params("/callback?code=abc&state=xyz")
+  expect_equal(result$code, "abc")
+  expect_equal(result$state, "xyz")
+})
+
+test_that("parse_query_params handles URL-encoded values", {
+  result <- parse_query_params("/callback?msg=hello%20world&key=a%26b")
+  expect_equal(result$msg, "hello world")
+  expect_equal(result$key, "a&b")
+})
+
+test_that("parse_query_params returns empty list without query string", {
+  expect_equal(parse_query_params("/callback"), list())
+  expect_equal(parse_query_params("/"), list())
+})
+
+# ---- validate_token missing exp ----
+
+test_that("validate_token rejects JWT with missing exp claim", {
+  key <- openssl::rsa_keygen(2048)
+  pubkey <- as.list(key)$pubkey
+  claims <- valid_claims()
+  claims$exp <- NULL
+  jwt <- create_test_jwt(claims, key)
+
+  local_mocked_bindings(
+    get_signing_key = function(issuer, kid) pubkey
+  )
+
+  result <- validate_token(
+    token = jwt,
+    issuer = "https://accounts.google.com",
+    client_id = "test-client-id"
+  )
+  expect_false(result$valid)
+  expect_equal(result$error, "Token expired")
+})
+
 # ---- server integration tests ----
 
 test_that("server requires TLS when auth is enabled", {
