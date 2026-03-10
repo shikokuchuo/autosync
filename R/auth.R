@@ -267,7 +267,8 @@ validate_token <- function(
 #'
 #' @param issuer The OIDC issuer URL. This is used to discover the provider's
 #'   public keys via the `.well-known/openid-configuration` endpoint, and to
-#'   validate the `iss` claim in JWTs.
+#'   validate the `iss` claim in JWTs. Defaults to Google
+#'   (`"https://accounts.google.com"`).
 #' @param client_id The OIDC client ID (application ID). Validated against the
 #'   `aud` claim in JWTs.
 #' @param allowed_emails Character vector of allowed email addresses.
@@ -279,9 +280,8 @@ validate_token <- function(
 #' @return An amsync_auth_config object.
 #'
 #' @examples
-#' # Google
+#' # Google (default issuer)
 #' auth_config(
-#'   issuer = "https://accounts.google.com",
 #'   client_id = "123456789.apps.googleusercontent.com",
 #'   allowed_domains = "mycompany.com"
 #' )
@@ -302,13 +302,13 @@ validate_token <- function(
 #'
 #' @export
 auth_config <- function(
-  issuer,
+  issuer = "https://accounts.google.com",
   client_id,
   allowed_emails = NULL,
   allowed_domains = NULL,
   custom_validator = NULL
 ) {
-  if (missing(issuer) || !is.character(issuer) || length(issuer) != 1L) {
+  if (!is.character(issuer) || length(issuer) != 1L) {
     stop("'issuer' must be a single character string (OIDC issuer URL)")
   }
 

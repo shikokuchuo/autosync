@@ -4,7 +4,7 @@
       auth_config()
     Condition
       Error in `auth_config()`:
-      ! 'issuer' must be a single character string (OIDC issuer URL)
+      ! 'client_id' must be a single character string (OIDC client ID)
 
 ---
 

@@ -5,7 +5,7 @@
 \title{Create an authentication configuration}
 \usage{
 auth_config(
-  issuer,
+  issuer = "https://accounts.google.com",
   client_id,
   allowed_emails = NULL,
   allowed_domains = NULL,
@@ -15,7 +15,8 @@ auth_config(
 \arguments{
 \item{issuer}{The OIDC issuer URL. This is used to discover the provider's
 public keys via the \code{.well-known/openid-configuration} endpoint, and to
-validate the \code{iss} claim in JWTs.}
+validate the \code{iss} claim in JWTs. Defaults to Google
+(\code{"https://accounts.google.com"}).}
 
 \item{client_id}{The OIDC client ID (application ID). Validated against the
 \code{aud} claim in JWTs.}
@@ -43,9 +44,8 @@ Works with any OIDC-compliant identity provider: Google, Microsoft Entra,
 Okta, Auth0, etc.
 }
 \examples{
-# Google
+# Google (default issuer)
 auth_config(
-  issuer = "https://accounts.google.com",
   client_id = "123456789.apps.googleusercontent.com",
   allowed_domains = "mycompany.com"
 )
