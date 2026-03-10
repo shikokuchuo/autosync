@@ -68,7 +68,6 @@
 #' server <- amsync_server(
 #'   tls = tls,
 #'   auth = auth_config(
-#'     issuer = "https://accounts.google.com",
 #'     client_id = "123456789.apps.googleusercontent.com",
 #'     allowed_domains = "mycompany.com"
 #'   )

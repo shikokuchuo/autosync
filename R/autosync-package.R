@@ -47,6 +47,6 @@
 #' @importFrom automerge am_create am_get am_keys am_length am_load am_save am_sync_decode am_sync_encode am_sync_state am_sync_state_decode am_sync_state_encode AM_ROOT
 #' @importFrom later later run_now
 #' @importFrom nanonext http_server random recv recv_aio send stream tls_config unresolved write_cert
-#' @importFrom secretbase base64enc base64dec base58enc base58dec cborenc cbordec jsondec jsonenc
+#' @importFrom secretbase base64enc base64dec base58enc base58dec cborenc cbordec jsondec jsonenc sha256
 #' @importFrom utils str
 "_PACKAGE"

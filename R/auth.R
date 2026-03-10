@@ -56,7 +56,9 @@ fetch_jwks <- function(jwks_uri) {
   keys <- list()
   for (jwk in jwks$keys) {
     kid <- jwk$kid
-    if (is.null(kid)) next
+    if (is.null(kid)) {
+      next
+    }
     key <- tryCatch(
       jose::read_jwk(jsonenc(jwk)),
       error = function(e) NULL
@@ -214,12 +216,20 @@ validate_token <- function(
 
   # Validate issued-at
   if (!is.null(claims$iat) && as.numeric(claims$iat) > now + clock_skew) {
-    return(list(valid = FALSE, email = NULL, error = "Token issued in the future"))
+    return(list(
+      valid = FALSE,
+      email = NULL,
+      error = "Token issued in the future"
+    ))
   }
 
   # Check email_verified if present
   if (isFALSE(claims$email_verified)) {
-    return(list(valid = FALSE, email = claims$email, error = "Email not verified"))
+    return(list(
+      valid = FALSE,
+      email = claims$email,
+      error = "Email not verified"
+    ))
   }
 
   email <- claims$email
@@ -270,7 +280,7 @@ validate_token <- function(
 #'   validate the `iss` claim in JWTs. Defaults to Google
 #'   (`"https://accounts.google.com"`).
 #' @param client_id The OIDC client ID (application ID). Validated against the
-#'   `aud` claim in JWTs.
+#'   `aud` claim in JWTs. Defaults to the `OIDC_CLIENT_ID` environment variable.
 #' @param allowed_emails Character vector of allowed email addresses.
 #' @param allowed_domains Character vector of allowed email domains
 #'   (e.g., "mycompany.com").
@@ -303,7 +313,7 @@ validate_token <- function(
 #' @export
 auth_config <- function(
   issuer = "https://accounts.google.com",
-  client_id,
+  client_id = Sys.getenv("OIDC_CLIENT_ID"),
   allowed_emails = NULL,
   allowed_domains = NULL,
   custom_validator = NULL
@@ -312,8 +322,8 @@ auth_config <- function(
     stop("'issuer' must be a single character string (OIDC issuer URL)")
   }
 
-  if (missing(client_id) || !is.character(client_id) || length(client_id) != 1L) {
-    stop("'client_id' must be a single character string (OIDC client ID)")
+  if (!is.character(client_id) || length(client_id) != 1L || !nzchar(client_id)) {
+    stop("'client_id' must be set (or set the OIDC_CLIENT_ID environment variable)")
   }
 
   structure(
@@ -326,6 +336,238 @@ auth_config <- function(
     ),
     class = "amsync_auth_config"
   )
+}
+
+#' Obtain an OIDC token interactively
+#'
+#' Performs the OAuth 2.0 Authorization Code flow with PKCE to obtain a JWT
+#' (ID token) from an OIDC provider. Opens the system browser for the user to
+#' authenticate, and returns the ID token for use with [amsync_fetch()].
+#'
+#' @param client_id The OIDC client ID (application ID). Defaults to the
+#'   `OIDC_CLIENT_ID` environment variable.
+#' @param client_secret The OIDC client secret. Required for "Web application"
+#'   client types. Not needed for "Desktop app" client types (which use PKCE
+#'   only). Defaults to the `OIDC_CLIENT_SECRET` environment variable.
+#' @param issuer The OIDC issuer URL. Defaults to Google
+#'   (`"https://accounts.google.com"`).
+#' @param scopes Space-separated OAuth scopes to request. Default
+#'   `"openid email"`.
+#' @param redirect_uri Local redirect URI for the OAuth callback. Default
+#'   `"http://localhost:5173"`. Must match the redirect URI registered with the
+#'   OIDC provider.
+#' @param timeout Seconds to wait for the user to complete authentication.
+#'   Default 120.
+#'
+#' @return A JWT (ID token) as a character string.
+#'
+#' @examplesIf interactive()
+#' # Uses OIDC_CLIENT_ID and OIDC_CLIENT_SECRET env vars by default
+#' token <- amsync_token()
+#'
+#' # Or supply credentials directly
+#' token <- amsync_token(
+#'   client_id = "YOUR_CLIENT_ID.apps.googleusercontent.com",
+#'   client_secret = "YOUR_CLIENT_SECRET"
+#' )
+#'
+#' # Use with amsync_fetch
+#' doc <- amsync_fetch(server$url, "myDocId", token = token, tls = tls)
+#'
+#' @export
+amsync_token <- function(
+  client_id = Sys.getenv("OIDC_CLIENT_ID"),
+  client_secret = Sys.getenv("OIDC_CLIENT_SECRET"),
+  issuer = "https://accounts.google.com",
+  scopes = "openid email",
+  redirect_uri = "http://localhost:5173",
+  timeout = 120
+) {
+  if (!interactive()) {
+    stop("amsync_token() requires an interactive session")
+  }
+
+  if (!is.character(client_id) || length(client_id) != 1L || !nzchar(client_id)) {
+    stop("'client_id' must be set (or set the OIDC_CLIENT_ID environment variable)")
+  }
+
+  # Discover OIDC endpoints
+  config_url <- paste0(issuer, "/.well-known/openid-configuration")
+  resp <- nanonext::ncurl(config_url, timeout = 5000L)
+
+  if (nanonext::is_error_value(resp$data) || resp$status != 200L) {
+    stop("Failed to fetch OIDC configuration from: ", config_url)
+  }
+
+  config <- jsondec(resp$data)
+  auth_endpoint <- config$authorization_endpoint
+  token_endpoint <- config$token_endpoint
+
+  if (is.null(auth_endpoint) || is.null(token_endpoint)) {
+    stop(
+      "OIDC configuration missing authorization_endpoint or token_endpoint"
+    )
+  }
+
+  # PKCE: code_verifier is a 64-char hex string, code_challenge is its
+  # base64url-encoded SHA-256 hash
+  code_verifier <- random(32)
+  code_challenge <- jose::base64url_encode(sha256(
+    code_verifier,
+    convert = FALSE
+  ))
+
+  # CSRF protection
+  state <- random(16)
+
+  # Parse redirect_uri into server URL and handler path
+  parts <- nanonext::parse_url(redirect_uri)
+  server_url <- paste0(parts[["scheme"]], "://", parts[["hostname"]], ":", parts[["port"]])
+  handler_path <- if (nzchar(parts[["path"]])) parts[["path"]] else "/"
+
+  # Start local callback server
+  auth_result <- new.env(parent = emptyenv())
+
+  callback_handler <- nanonext::handler(
+    path = handler_path,
+    callback = function(req) {
+      params <- parse_query_params(req$uri)
+      if (!is.null(params$error)) {
+        auth_result$error <- params$error_description %||% params$error
+      } else if (is.null(params$code)) {
+        auth_result$error <- "No authorization code received"
+      } else if (is.null(params$state) || params$state != state) {
+        auth_result$error <- "State mismatch"
+      } else {
+        auth_result$code <- params$code
+      }
+      body <- if (is.null(auth_result$error)) {
+        "<html><body><h2>Authentication successful</h2><p>You can close this window.</p></body></html>"
+      } else {
+        paste0(
+          "<html><body><h2>Authentication failed</h2><p>",
+          auth_result$error,
+          "</p></body></html>"
+        )
+      }
+      list(
+        status = 200L,
+        headers = c("Content-Type" = "text/html"),
+        body = body
+      )
+    }
+  )
+
+  server <- nanonext::http_server(
+    server_url,
+    handlers = list(callback_handler)
+  )
+  server$start()
+  on.exit(server$close())
+
+  # Build authorization URL
+  auth_url <- paste0(
+    auth_endpoint,
+    "?client_id=",
+    utils::URLencode(client_id, reserved = TRUE),
+    "&response_type=code",
+    "&scope=",
+    utils::URLencode(scopes, reserved = TRUE),
+    "&redirect_uri=",
+    utils::URLencode(redirect_uri, reserved = TRUE),
+    "&state=",
+    state,
+    "&code_challenge=",
+    code_challenge,
+    "&code_challenge_method=S256"
+  )
+
+  message("Opening browser for authentication...")
+  utils::browseURL(auth_url)
+  message("Waiting for authentication (", timeout, "s timeout)...")
+
+  # Wait for callback
+  deadline <- Sys.time() + timeout
+  while (
+    is.null(auth_result$code) &&
+      is.null(auth_result$error) &&
+      Sys.time() < deadline
+  ) {
+    run_now(1L)
+  }
+
+  if (!is.null(auth_result$error)) {
+    stop("Authentication failed: ", auth_result$error)
+  }
+
+  if (is.null(auth_result$code)) {
+    stop("Authentication timed out after ", timeout, " seconds")
+  }
+
+  # Exchange authorization code for tokens
+  token_data <- paste0(
+    "code=",
+    utils::URLencode(auth_result$code, reserved = TRUE),
+    "&client_id=",
+    utils::URLencode(client_id, reserved = TRUE),
+    if (nzchar(client_secret)) paste0(
+      "&client_secret=",
+      utils::URLencode(client_secret, reserved = TRUE)
+    ),
+    "&redirect_uri=",
+    utils::URLencode(redirect_uri, reserved = TRUE),
+    "&grant_type=authorization_code",
+    "&code_verifier=",
+    utils::URLencode(code_verifier, reserved = TRUE)
+  )
+
+  token_resp <- nanonext::ncurl(
+    token_endpoint,
+    method = "POST",
+    headers = c("Content-Type" = "application/x-www-form-urlencoded"),
+    data = token_data,
+    timeout = 10000L
+  )
+
+  if (nanonext::is_error_value(token_resp$data) || token_resp$status != 200L) {
+    detail <- tryCatch(
+      jsondec(token_resp$data)$error_description %||%
+        jsondec(token_resp$data)$error,
+      error = function(e) token_resp$data
+    )
+    stop("Token exchange failed: ", detail)
+  }
+
+  tokens <- jsondec(token_resp$data)
+
+  if (is.null(tokens$id_token)) {
+    stop("No ID token in response (ensure 'openid' scope is requested)")
+  }
+
+  tokens$id_token
+}
+
+#' Parse query parameters from a URI
+#'
+#' @param uri Request URI string (e.g., "/callback?code=abc&state=xyz").
+#'
+#' @return Named list of decoded query parameters.
+#'
+#' @keywords internal
+parse_query_params <- function(uri) {
+  query <- sub("^[^?]*\\?", "", uri)
+  if (query == uri) {
+    return(list())
+  }
+  pairs <- strsplit(query, "&", fixed = TRUE)[[1L]]
+  result <- list()
+  for (pair in pairs) {
+    kv <- strsplit(pair, "=", fixed = TRUE)[[1L]]
+    if (length(kv) == 2L) {
+      result[[utils::URLdecode(kv[1L])]] <- utils::URLdecode(kv[2L])
+    }
+  }
+  result
 }
 
 #' Authenticate a client from HTTP request headers
@@ -341,9 +583,15 @@ auth_config <- function(
 #'
 #' @keywords internal
 authenticate_header <- function(auth_config, headers) {
-  auth_fail <- list(valid = FALSE, email = NULL, error = "Authentication failed")
+  auth_fail <- list(
+    valid = FALSE,
+    email = NULL,
+    error = "Authentication failed"
+  )
 
-  if (is.null(headers) || !length(headers) || !"Authorization" %in% names(headers)) {
+  if (
+    is.null(headers) || !length(headers) || !"Authorization" %in% names(headers)
+  ) {
     return(auth_fail)
   }
 
@@ -356,7 +604,8 @@ authenticate_header <- function(auth_config, headers) {
 
   # JWT format: Base64URL chars and dots, typically 800-2000 chars
   if (
-    nchar(token) < 20L || nchar(token) > 8192L ||
+    nchar(token) < 20L ||
+      nchar(token) > 8192L ||
       grepl("[^A-Za-z0-9_.-]", token)
   ) {
     return(auth_fail)

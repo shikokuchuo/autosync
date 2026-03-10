@@ -6,7 +6,7 @@
 \usage{
 auth_config(
   issuer = "https://accounts.google.com",
-  client_id,
+  client_id = Sys.getenv("OIDC_CLIENT_ID"),
   allowed_emails = NULL,
   allowed_domains = NULL,
   custom_validator = NULL
@@ -19,7 +19,7 @@ validate the \code{iss} claim in JWTs. Defaults to Google
 (\code{"https://accounts.google.com"}).}
 
 \item{client_id}{The OIDC client ID (application ID). Validated against the
-\code{aud} claim in JWTs.}
+\code{aud} claim in JWTs. Defaults to the \code{OIDC_CLIENT_ID} environment variable.}
 
 \item{allowed_emails}{Character vector of allowed email addresses.}
 

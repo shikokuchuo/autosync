@@ -41,14 +41,10 @@ test_that("auth_config creates valid configuration", {
   expect_equal(cfg$allowed_emails, "test@example.com")
 })
 
-test_that("auth_config requires issuer and client_id", {
-  expect_snapshot(auth_config(), error = TRUE)
-  expect_snapshot(
-    auth_config(issuer = "https://accounts.google.com"),
-    error = TRUE
-  )
+test_that("auth_config validates issuer and client_id", {
   expect_snapshot(auth_config(issuer = 123, client_id = "x"), error = TRUE)
   expect_snapshot(auth_config(issuer = "x", client_id = 123), error = TRUE)
+  expect_snapshot(auth_config(client_id = ""), error = TRUE)
 })
 
 test_that("auth_config has NULL defaults for optional parameters", {

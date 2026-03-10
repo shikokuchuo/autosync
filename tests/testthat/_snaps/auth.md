@@ -1,20 +1,4 @@
-# auth_config requires issuer and client_id
-
-    Code
-      auth_config()
-    Condition
-      Error in `auth_config()`:
-      ! 'client_id' must be a single character string (OIDC client ID)
-
----
-
-    Code
-      auth_config(issuer = "https://accounts.google.com")
-    Condition
-      Error in `auth_config()`:
-      ! 'client_id' must be a single character string (OIDC client ID)
-
----
+# auth_config validates issuer and client_id
 
     Code
       auth_config(issuer = 123, client_id = "x")
@@ -28,7 +12,15 @@
       auth_config(issuer = "x", client_id = 123)
     Condition
       Error in `auth_config()`:
-      ! 'client_id' must be a single character string (OIDC client ID)
+      ! 'client_id' must be set (or set the OIDC_CLIENT_ID environment variable)
+
+---
+
+    Code
+      auth_config(client_id = "")
+    Condition
+      Error in `auth_config()`:
+      ! 'client_id' must be set (or set the OIDC_CLIENT_ID environment variable)
 
 # server requires TLS when auth is enabled
 
