@@ -1,24 +1,34 @@
-# Validate an OAuth2 access token
+# Validate a JWT token
 
-Validates an access token by calling Google's tokeninfo endpoint.
+Verifies a JWT locally using the issuer's public keys (JWKS) and
+validates standard OIDC claims.
 
 ## Usage
 
 ``` r
 validate_token(
-  access_token,
+  token,
+  issuer,
+  client_id,
   allowed_emails = NULL,
   allowed_domains = NULL,
-  custom_validator = NULL,
-  token_timeout = 5
+  custom_validator = NULL
 )
 ```
 
 ## Arguments
 
-- access_token:
+- token:
 
-  Character string, the OAuth2 access token.
+  Character string, the JWT.
+
+- issuer:
+
+  Expected issuer URL.
+
+- client_id:
+
+  Expected audience (client ID).
 
 - allowed_emails:
 
@@ -30,11 +40,7 @@ validate_token(
 
 - custom_validator:
 
-  Function(token_info) returning TRUE/FALSE (optional).
-
-- token_timeout:
-
-  Numeric, seconds to wait for Google tokeninfo endpoint (default 5).
+  Function(claims) returning TRUE/FALSE (optional).
 
 ## Value
 

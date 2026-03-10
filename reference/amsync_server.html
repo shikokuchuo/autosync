@@ -89,7 +89,7 @@ object created by <code><a href="https://nanonext.r-lib.org/reference/tls_config
 
 <dt id="arg-auth">auth<a class="anchor" aria-label="anchor" href="#arg-auth"></a></dt>
 <dd><p>Optional authentication configuration created by <code><a href="auth_config.html">auth_config()</a></code>.
-When provided, clients must include a valid OAuth2 access token as a
+When provided, clients must include a valid JWT (ID token) as a
 Bearer token in the Authorization header of the WebSocket upgrade request.
 Connections without valid credentials are rejected immediately.
 Note: TLS is required when authentication is enabled to protect tokens.</p></dd>
@@ -142,12 +142,15 @@ or <code>FALSE</code> (deny access). Called per client and per document.</p></li
 <span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="va">url</span></span></span>
 <span class="r-in"><span><span class="va">server</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Server with Google OAuth authentication (requires TLS)</span></span></span>
+<span class="r-in"><span><span class="co"># Server with OIDC authentication (requires TLS)</span></span></span>
 <span class="r-in"><span><span class="va">cert</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/write_cert.html" class="external-link">write_cert</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">tls</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">tls_config</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">cert</span><span class="op">$</span><span class="va">server</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="fu">amsync_server</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  tls <span class="op">=</span> <span class="va">tls</span>,</span></span>
-<span class="r-in"><span>  auth <span class="op">=</span> <span class="fu"><a href="auth_config.html">auth_config</a></span><span class="op">(</span>allowed_domains <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mycompany.com"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  auth <span class="op">=</span> <span class="fu"><a href="auth_config.html">auth_config</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    client_id <span class="op">=</span> <span class="st">"123456789.apps.googleusercontent.com"</span>,</span></span>
+<span class="r-in"><span>    allowed_domains <span class="op">=</span> <span class="st">"mycompany.com"</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
 </code></pre></div>

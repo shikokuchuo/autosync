@@ -1,7 +1,7 @@
 # Authenticate a client from HTTP request headers
 
-Extracts and validates a Bearer token from the Authorization header of
-the WebSocket upgrade request.
+Extracts and validates a Bearer token (JWT) from the Authorization
+header of the WebSocket upgrade request.
 
 ## Usage
 

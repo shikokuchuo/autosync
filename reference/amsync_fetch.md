@@ -12,7 +12,7 @@ amsync_fetch(
   doc_id,
   timeout = 5000L,
   tls = NULL,
-  access_token = NULL,
+  token = NULL,
   verbose = FALSE
 )
 ```
@@ -38,13 +38,10 @@ amsync_fetch(
   or custom CA certificates, a TLS configuration object created by
   [`nanonext::tls_config()`](https://nanonext.r-lib.org/reference/tls_config.html).
 
-- access_token:
+- token:
 
-  (optional) OAuth2 access token for authenticated servers. Sent as a
-  Bearer token in the Authorization header of the WebSocket upgrade
-  request. Use
-  [`amsync_auth()`](http://shikokuchuo.net/autosync/reference/amsync_auth.md)
-  to obtain a token interactively.
+  (optional) JWT (ID token) for authenticated servers. Sent as a Bearer
+  token in the Authorization header of the WebSocket upgrade request.
 
 - verbose:
 
@@ -87,11 +84,10 @@ tls <- nanonext::tls_config(client = cert$client)
 doc <- amsync_fetch(server$url, "myDocId", tls = tls)
 
 # Fetch from authenticated server
-token <- amsync_auth()
 doc <- amsync_fetch(
   "wss://secure.example.com",
   "myDocId",
-  access_token = token
+  token = "eyJhbGciOi..."
 )
 
 # Inspect the document

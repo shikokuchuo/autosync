@@ -52,7 +52,11 @@ server$url
 
 ### Authentication
 
-Enable Google OAuth2 authentication to restrict access:
+Enable OIDC authentication to restrict access. The defaults point to
+Google, but any OIDC-compliant provider (Microsoft Entra, Okta, Auth0,
+etc.) can be used by setting the `issuer` argument. Set the
+`OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` environment variables (e.g. in
+`.Renviron`) for your OAuth credentials:
 
 ``` r
 cert <- nanonext::write_cert()
@@ -65,15 +69,16 @@ server <- amsync_server(
 server$start()
 ```
 
-Clients must provide an access token:
+Clients obtain a token interactively, then pass it when fetching:
 
 ``` r
-token <- amsync_auth()  # Interactive OAuth flow
+token <- amsync_token()
+
 tlsclient <- nanonext::tls_config(client = cert$client)
 doc <- amsync_fetch(
   server$url,
   "35ei6ouA7nLhtjmf3d9xk1KKvtKv",
-  access_token = token,
+  token = token,
   tls = tlsclient
 )
 ```
@@ -171,12 +176,12 @@ doc_id <- generate_document_id()
 
 ## All functions
 
-- [`amsync_auth()`](http://shikokuchuo.net/autosync/reference/amsync_auth.md)
-  : Get an access token for autosync authentication
 - [`amsync_fetch()`](http://shikokuchuo.net/autosync/reference/amsync_fetch.md)
   : Fetch a document from a sync server
 - [`amsync_server()`](http://shikokuchuo.net/autosync/reference/amsync_server.md)
   : Create an Automerge sync server
+- [`amsync_token()`](http://shikokuchuo.net/autosync/reference/amsync_token.md)
+  : Obtain an OIDC token interactively
 - [`auth_config()`](http://shikokuchuo.net/autosync/reference/auth_config.md)
   : Create an authentication configuration
 - [`autosync-package`](http://shikokuchuo.net/autosync/reference/autosync-package.md)

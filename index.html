@@ -97,7 +97,7 @@
 <div class="section level3">
 <h3 id="authentication">Authentication<a class="anchor" aria-label="anchor" href="#authentication"></a>
 </h3>
-<p>Enable Google OAuth2 authentication to restrict access:</p>
+<p>Enable OIDC authentication to restrict access. The defaults point to Google, but any OIDC-compliant provider (Microsoft Entra, Okta, Auth0, etc.) can be used by setting the <code>issuer</code> argument. Set the <code>OIDC_CLIENT_ID</code> and <code>OIDC_CLIENT_SECRET</code> environment variables (e.g. in <code>.Renviron</code>) for your OAuth credentials:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cert</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/write_cert.html" class="external-link">write_cert</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">tls</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">tls_config</a></span><span class="op">(</span>server <span class="op">=</span> <span class="va">cert</span><span class="op">$</span><span class="va">server</span><span class="op">)</span></span>
@@ -107,14 +107,15 @@
 <span>  auth <span class="op">=</span> <span class="fu"><a href="reference/auth_config.html">auth_config</a></span><span class="op">(</span>allowed_domains <span class="op">=</span> <span class="st">"posit.co"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">server</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>Clients must provide an access token:</p>
+<p>Clients obtain a token interactively, then pass it when fetching:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">token</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_auth.html">amsync_auth</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># Interactive OAuth flow</span></span>
+<code class="sourceCode R"><span><span class="va">token</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_token.html">amsync_token</a></span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
 <span><span class="va">tlsclient</span> <span class="op">&lt;-</span> <span class="fu">nanonext</span><span class="fu">::</span><span class="fu"><a href="https://nanonext.r-lib.org/reference/tls_config.html" class="external-link">tls_config</a></span><span class="op">(</span>client <span class="op">=</span> <span class="va">cert</span><span class="op">$</span><span class="va">client</span><span class="op">)</span></span>
 <span><span class="va">doc</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/amsync_fetch.html">amsync_fetch</a></span><span class="op">(</span></span>
 <span>  <span class="va">server</span><span class="op">$</span><span class="va">url</span>,</span>
 <span>  <span class="st">"35ei6ouA7nLhtjmf3d9xk1KKvtKv"</span>,</span>
-<span>  access_token <span class="op">=</span> <span class="va">token</span>,</span>
+<span>  token <span class="op">=</span> <span class="va">token</span>,</span>
 <span>  tls <span class="op">=</span> <span class="va">tlsclient</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>

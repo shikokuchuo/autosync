@@ -1,0 +1,73 @@
+# Obtain an OIDC token interactively
+
+Performs the OAuth 2.0 Authorization Code flow with PKCE to obtain a JWT
+(ID token) from an OIDC provider. Opens the system browser for the user
+to authenticate, and returns the ID token for use with
+[`amsync_fetch()`](http://shikokuchuo.net/autosync/reference/amsync_fetch.md).
+
+## Usage
+
+``` r
+amsync_token(
+  client_id = Sys.getenv("OIDC_CLIENT_ID"),
+  client_secret = Sys.getenv("OIDC_CLIENT_SECRET"),
+  issuer = "https://accounts.google.com",
+  scopes = "openid email",
+  redirect_uri = "http://localhost:5173",
+  timeout = 120
+)
+```
+
+## Arguments
+
+- client_id:
+
+  The OIDC client ID (application ID). Defaults to the `OIDC_CLIENT_ID`
+  environment variable.
+
+- client_secret:
+
+  The OIDC client secret. Required for "Web application" client types.
+  Not needed for "Desktop app" client types (which use PKCE only).
+  Defaults to the `OIDC_CLIENT_SECRET` environment variable.
+
+- issuer:
+
+  The OIDC issuer URL. Defaults to Google
+  (`"https://accounts.google.com"`).
+
+- scopes:
+
+  Space-separated OAuth scopes to request. Default `"openid email"`.
+
+- redirect_uri:
+
+  Local redirect URI for the OAuth callback. Default
+  `"http://localhost:5173"`. Must match the redirect URI registered with
+  the OIDC provider.
+
+- timeout:
+
+  Seconds to wait for the user to complete authentication. Default 120.
+
+## Value
+
+A JWT (ID token) as a character string.
+
+## Examples
+
+``` r
+if (FALSE) { # interactive()
+# Uses OIDC_CLIENT_ID and OIDC_CLIENT_SECRET env vars by default
+token <- amsync_token()
+
+# Or supply credentials directly
+token <- amsync_token(
+  client_id = "YOUR_CLIENT_ID.apps.googleusercontent.com",
+  client_secret = "YOUR_CLIENT_SECRET"
+)
+
+# Use with amsync_fetch
+doc <- amsync_fetch(server$url, "myDocId", token = token, tls = tls)
+}
+```
