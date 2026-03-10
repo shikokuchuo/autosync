@@ -16,7 +16,7 @@ List with \code{valid} (logical), \code{email} (character or NULL),
 \code{error} (character or NULL).
 }
 \description{
-Extracts and validates a Bearer token from the Authorization header
+Extracts and validates a Bearer token (JWT) from the Authorization header
 of the WebSocket upgrade request.
 }
 \keyword{internal}

@@ -34,7 +34,7 @@ generates a new persistent identity. Set to NA for an ephemeral server
 object created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
 
 \item{auth}{Optional authentication configuration created by \code{\link[=auth_config]{auth_config()}}.
-When provided, clients must include a valid OAuth2 access token as a
+When provided, clients must include a valid JWT (ID token) as a
 Bearer token in the Authorization header of the WebSocket upgrade request.
 Connections without valid credentials are rejected immediately.
 Note: TLS is required when authentication is enabled to protect tokens.}
@@ -86,12 +86,15 @@ server$start()
 server$url
 server$close()
 
-# Server with Google OAuth authentication (requires TLS)
+# Server with OIDC authentication (requires TLS)
 cert <- nanonext::write_cert()
 tls <- nanonext::tls_config(server = cert$server)
 server <- amsync_server(
   tls = tls,
-  auth = auth_config(allowed_domains = c("mycompany.com"))
+  auth = auth_config(
+    client_id = "123456789.apps.googleusercontent.com",
+    allowed_domains = "mycompany.com"
+  )
 )
 \dontshow{\}) # examplesIf}
 }

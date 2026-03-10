@@ -53,7 +53,11 @@ server$url
 
 ### Authentication
 
-Enable Google OAuth2 authentication to restrict access:
+Enable OIDC authentication to restrict access. The defaults point to
+Google, but any OIDC-compliant provider (Microsoft Entra, Okta, Auth0,
+etc.) can be used by setting the `issuer` argument. Set the
+`OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` environment variables (e.g.
+in `.Renviron`) for your OAuth credentials:
 
 ``` r
 cert <- nanonext::write_cert()
@@ -66,15 +70,16 @@ server <- amsync_server(
 server$start()
 ```
 
-Clients must provide an access token:
+Clients obtain a token interactively, then pass it when fetching:
 
 ``` r
-token <- amsync_auth()  # Interactive OAuth flow
+token <- amsync_token()
+
 tlsclient <- nanonext::tls_config(client = cert$client)
 doc <- amsync_fetch(
   server$url,
   "35ei6ouA7nLhtjmf3d9xk1KKvtKv",
-  access_token = token,
+  token = token,
   tls = tlsclient
 )
 ```

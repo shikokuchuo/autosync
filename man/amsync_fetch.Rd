@@ -9,7 +9,7 @@ amsync_fetch(
   doc_id,
   timeout = 5000L,
   tls = NULL,
-  access_token = NULL,
+  token = NULL,
   verbose = FALSE
 )
 }
@@ -25,9 +25,9 @@ or "wss://sync.automerge.org/"). Note: trailing slash may be required.}
 self-signed or custom CA certificates, a TLS configuration object
 created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
 
-\item{access_token}{(optional) OAuth2 access token for authenticated servers.
+\item{token}{(optional) JWT (ID token) for authenticated servers.
 Sent as a Bearer token in the Authorization header of the WebSocket
-upgrade request. Use \code{\link[=amsync_auth]{amsync_auth()}} to obtain a token interactively.}
+upgrade request.}
 
 \item{verbose}{Logical, print debug messages. Default FALSE.}
 }
@@ -66,11 +66,10 @@ tls <- nanonext::tls_config(client = cert$client)
 doc <- amsync_fetch(server$url, "myDocId", tls = tls)
 
 # Fetch from authenticated server
-token <- amsync_auth()
 doc <- amsync_fetch(
   "wss://secure.example.com",
   "myDocId",
-  access_token = token
+  token = "eyJhbGciOi..."
 )
 
 # Inspect the document

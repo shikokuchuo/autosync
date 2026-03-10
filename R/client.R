@@ -21,9 +21,9 @@ format_hex <- function(bytes, max_len = 20L) {
 #' @param tls (optional) for secure wss:// connections to servers with
 #'   self-signed or custom CA certificates, a TLS configuration object
 #'   created by [nanonext::tls_config()].
-#' @param access_token (optional) OAuth2 access token for authenticated servers.
+#' @param token (optional) JWT (ID token) for authenticated servers.
 #'   Sent as a Bearer token in the Authorization header of the WebSocket
-#'   upgrade request. Use [amsync_auth()] to obtain a token interactively.
+#'   upgrade request.
 #' @param verbose Logical, print debug messages. Default FALSE.
 #'
 #' @return An automerge document object containing the fetched data.
@@ -52,11 +52,10 @@ format_hex <- function(bytes, max_len = 20L) {
 #' doc <- amsync_fetch(server$url, "myDocId", tls = tls)
 #'
 #' # Fetch from authenticated server
-#' token <- amsync_auth()
 #' doc <- amsync_fetch(
 #'   "wss://secure.example.com",
 #'   "myDocId",
-#'   access_token = token
+#'   token = "eyJhbGciOi..."
 #' )
 #'
 #' # Inspect the document
@@ -68,7 +67,7 @@ amsync_fetch <- function(
   doc_id,
   timeout = 5000L,
   tls = NULL,
-  access_token = NULL,
+  token = NULL,
   verbose = FALSE
 ) {
   doc <- am_create()
@@ -86,8 +85,8 @@ amsync_fetch <- function(
     message("[CLIENT] Requesting document: ", doc_id)
   }
 
-  headers <- if (!is.null(access_token)) {
-    c(Authorization = paste("Bearer", access_token))
+  headers <- if (!is.null(token)) {
+    c(Authorization = paste("Bearer", token))
   }
 
   s <- stream(

@@ -111,7 +111,7 @@ test_that("amsync_fetch sends access_token as Authorization header", {
   automerge::am_put(doc, automerge::AM_ROOT, "key", "value")
 
   # Server has no auth, so token is sent but ignored
-  fetched <- amsync_fetch(server$url, doc_id, access_token = "test_token_12345_extra_padding")
+  fetched <- amsync_fetch(server$url, doc_id, token = "test_token_12345_extra_padding")
 
   expect_true(inherits(fetched, "am_doc"))
   expect_equal(automerge::am_get(fetched, automerge::AM_ROOT, "key"), "value")
