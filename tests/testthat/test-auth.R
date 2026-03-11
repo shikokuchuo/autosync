@@ -98,6 +98,16 @@ test_that("auth_config stores custom_validator function", {
 
 # ---- authenticate_header tests ----
 
+test_that("authenticate_header returns error for NULL headers", {
+  cfg <- auth_config(
+    issuer = "https://accounts.google.com",
+    client_id = "test-id"
+  )
+  result <- authenticate_header(cfg, NULL)
+  expect_false(result$valid)
+  expect_equal(result$error, "Authentication failed")
+})
+
 test_that("authenticate_header returns generic error for invalid credentials", {
   cfg <- auth_config(
     issuer = "https://accounts.google.com",
@@ -575,6 +585,22 @@ test_that("discover_jwks_uri errors on failed request", {
   )
 })
 
+test_that("discover_jwks_uri errors on non-200 status", {
+  local_mocked_bindings(
+    ncurl = function(...) list(
+      data = charToRaw("Not Found"),
+      status = 404L
+    ),
+    is_error_value = function(x) FALSE,
+    .package = "nanonext"
+  )
+
+  expect_error(
+    discover_jwks_uri("https://bad-issuer.com"),
+    "Failed to fetch OIDC configuration"
+  )
+})
+
 test_that("discover_jwks_uri errors on missing jwks_uri", {
   local_mocked_bindings(
     ncurl = function(...) list(
@@ -656,6 +682,31 @@ test_that("get_signing_key refreshes on unknown kid", {
   result2 <- get_signing_key("https://example.com", "kid-2")
   expect_false(is.null(result2))
   expect_equal(call_count, 2L)
+
+  # Clean up
+  rm(list = ls(oidc_cache), envir = oidc_cache)
+})
+
+test_that("get_signing_key returns NULL for unknown kid after refresh", {
+  key <- openssl::rsa_keygen(2048)
+  pubkey <- as.list(key)$pubkey
+
+  # Clear cache
+  rm(list = ls(oidc_cache), envir = oidc_cache)
+
+  local_mocked_bindings(
+    discover_jwks_uri = function(issuer) "https://example.com/jwks",
+    fetch_jwks = function(jwks_uri) {
+      list(
+        keys = list("kid-1" = pubkey),
+        expiry = Sys.time() + 3600
+      )
+    }
+  )
+
+  # Request a kid that doesn't exist even after fetch
+  result <- get_signing_key("https://example.com", "nonexistent-kid")
+  expect_null(result)
 
   # Clean up
   rm(list = ls(oidc_cache), envir = oidc_cache)
@@ -751,6 +802,19 @@ test_that("fetch_jwks errors on failed request", {
   expect_error(fetch_jwks("https://example.com/jwks"), "Failed to fetch JWKS")
 })
 
+test_that("fetch_jwks errors on non-200 status", {
+  local_mocked_bindings(
+    ncurl = function(...) list(
+      data = charToRaw("Server Error"),
+      status = 500L
+    ),
+    is_error_value = function(x) FALSE,
+    .package = "nanonext"
+  )
+
+  expect_error(fetch_jwks("https://example.com/jwks"), "Failed to fetch JWKS")
+})
+
 test_that("fetch_jwks errors on empty keys", {
   local_mocked_bindings(
     ncurl = function(...) list(
@@ -828,6 +892,41 @@ test_that("parse_query_params returns empty list without query string", {
   expect_equal(parse_query_params("/"), list())
 })
 
+# ---- validate_token edge cases ----
+
+test_that("validate_token returns error when get_signing_key throws", {
+  key <- openssl::rsa_keygen(2048)
+  claims <- valid_claims()
+  jwt <- create_test_jwt(claims, key)
+
+  local_mocked_bindings(
+    get_signing_key = function(issuer, kid) stop("network error")
+  )
+
+  result <- validate_token(
+    token = jwt,
+    issuer = "https://accounts.google.com",
+    client_id = "test-client-id"
+  )
+  expect_false(result$valid)
+  expect_equal(result$error, "Unable to verify token signature")
+})
+
+test_that("validate_token rejects JWT header without kid", {
+  # Create a JWT-like token with a valid base64url header that has no kid
+  header_json <- '{"alg":"RS256","typ":"JWT"}'
+  header_b64 <- jose::base64url_encode(charToRaw(header_json))
+  token <- paste(header_b64, "payload", "signature", sep = ".")
+
+  result <- validate_token(
+    token = token,
+    issuer = "https://accounts.google.com",
+    client_id = "test-id"
+  )
+  expect_false(result$valid)
+  expect_equal(result$error, "Invalid JWT header")
+})
+
 # ---- validate_token missing exp ----
 
 test_that("validate_token rejects JWT with missing exp claim", {
@@ -848,6 +947,400 @@ test_that("validate_token rejects JWT with missing exp claim", {
   )
   expect_false(result$valid)
   expect_equal(result$error, "Token expired")
+})
+
+# ---- amsync_token tests ----
+
+# Helper: mock functions for the amsync_token OAuth flow.
+# Returns nanonext mock functions that capture the callback and state, and
+# a run_now mock that optionally simulates a callback request.
+#
+# Usage: call this to get mock fns, then call local_mocked_bindings() directly
+# in the test (so mocks scope to the test frame).
+make_token_mocks <- function(
+  ncurl_token_resp = list(
+    data = charToRaw(secretbase::jsonenc(list(id_token = "mock.jwt.token"))),
+    status = 200L
+  ),
+
+  simulate_callback = TRUE,
+  callback_params = NULL
+) {
+  env <- new.env(parent = emptyenv())
+
+  oidc_config <- secretbase::jsonenc(list(
+    authorization_endpoint = "https://auth.example.com/authorize",
+    token_endpoint = "https://auth.example.com/token"
+  ))
+
+  ncurl_call <- 0L
+  env$ncurl <- function(url, ...) {
+    ncurl_call <<- ncurl_call + 1L
+    if (ncurl_call == 1L) {
+      list(data = charToRaw(oidc_config), status = 200L)
+    } else {
+      ncurl_token_resp
+    }
+  }
+
+  env$handler <- function(path, callback) {
+    env$captured_callback <- callback
+    list()
+  }
+
+  env$browseURL <- function(url) {
+    env$captured_state <- sub(".*state=([^&]+).*", "\\1", url)
+  }
+
+  run_count <- 0L
+  env$run_now <- function(secs) {
+    run_count <<- run_count + 1L
+    if (run_count == 1L && simulate_callback &&
+        !is.null(env$captured_callback) && !is.null(env$captured_state)) {
+      params <- callback_params %||%
+        paste0("/?code=test_auth_code&state=", env$captured_state)
+      env$captured_callback(list(uri = params))
+    }
+  }
+
+  env
+}
+
+# Helper: apply all token mocks in the calling test frame.
+mock_token_flow <- function(
+  ncurl_token_resp = list(
+    data = charToRaw(secretbase::jsonenc(list(id_token = "mock.jwt.token"))),
+    status = 200L
+  ),
+  simulate_callback = TRUE,
+  callback_params = NULL
+) {
+  m <- make_token_mocks(ncurl_token_resp, simulate_callback, callback_params)
+  list(
+    nanonext = list(
+      ncurl = m$ncurl,
+      is_error_value = function(x) FALSE,
+      parse_url = function(uri) {
+        list(scheme = "http", hostname = "127.0.0.1", port = "0", path = "/")
+      },
+      handler = m$handler,
+      http_server = function(url, handlers) {
+        list(start = function() NULL, close = function() NULL)
+      }
+    ),
+    autosync = list(
+      is_interactive = function() TRUE,
+      run_now = m$run_now
+    ),
+    utils = list(
+      browseURL = m$browseURL
+    )
+  )
+}
+
+test_that("amsync_token errors in non-interactive session", {
+  local_mocked_bindings(
+    is_interactive = function() FALSE
+  )
+  expect_error(
+    amsync_token(client_id = "test-id"),
+    "requires an interactive session"
+  )
+})
+
+test_that("amsync_token errors with invalid client_id", {
+  local_mocked_bindings(
+    is_interactive = function() TRUE
+  )
+  expect_error(amsync_token(client_id = ""), "'client_id' must be set")
+  expect_error(amsync_token(client_id = 123), "'client_id' must be set")
+})
+
+test_that("amsync_token errors on failed OIDC discovery", {
+  local_mocked_bindings(
+    is_interactive = function() TRUE
+  )
+  local_mocked_bindings(
+    ncurl = function(...) list(
+      data = structure(5L, class = "errorValue"),
+      status = 0L
+    ),
+    is_error_value = function(x) inherits(x, "errorValue"),
+    .package = "nanonext"
+  )
+
+  expect_error(
+    amsync_token(
+      client_id = "test-id",
+      issuer = "https://bad-issuer.com"
+    ),
+    "Failed to fetch OIDC configuration"
+  )
+})
+
+test_that("amsync_token errors on missing OIDC endpoints", {
+  local_mocked_bindings(
+    is_interactive = function() TRUE
+  )
+  local_mocked_bindings(
+    ncurl = function(...) list(
+      data = charToRaw('{"issuer":"https://example.com"}'),
+      status = 200L
+    ),
+    is_error_value = function(x) FALSE,
+    .package = "nanonext"
+  )
+
+  expect_error(
+    amsync_token(client_id = "test-id", issuer = "https://example.com"),
+    "missing authorization_endpoint or token_endpoint"
+  )
+})
+
+test_that("amsync_token succeeds with valid OAuth flow", {
+  m <- mock_token_flow()
+  local_mocked_bindings(
+    ncurl = m$nanonext$ncurl, is_error_value = m$nanonext$is_error_value,
+    parse_url = m$nanonext$parse_url, handler = m$nanonext$handler,
+    http_server = m$nanonext$http_server, .package = "nanonext"
+  )
+  local_mocked_bindings(
+    is_interactive = m$autosync$is_interactive, run_now = m$autosync$run_now
+  )
+  local_mocked_bindings(browseURL = m$utils$browseURL, .package = "utils")
+
+  result <- amsync_token(
+    client_id = "test-client",
+    client_secret = "",
+    issuer = "https://issuer.example.com",
+    timeout = 2
+  )
+
+  expect_equal(result, "mock.jwt.token")
+})
+
+test_that("amsync_token errors on auth provider error", {
+  m <- mock_token_flow(
+    callback_params = "/?error=access_denied&error_description=User%20denied%20access"
+  )
+  local_mocked_bindings(
+    ncurl = m$nanonext$ncurl, is_error_value = m$nanonext$is_error_value,
+    parse_url = m$nanonext$parse_url, handler = m$nanonext$handler,
+    http_server = m$nanonext$http_server, .package = "nanonext"
+  )
+  local_mocked_bindings(
+    is_interactive = m$autosync$is_interactive, run_now = m$autosync$run_now
+  )
+  local_mocked_bindings(browseURL = m$utils$browseURL, .package = "utils")
+
+  expect_error(
+    amsync_token(
+      client_id = "test-client", client_secret = "",
+      issuer = "https://issuer.example.com", timeout = 2
+    ),
+    "Authentication failed: User denied access"
+  )
+})
+
+test_that("amsync_token errors on auth provider error without description", {
+  m <- mock_token_flow(callback_params = "/?error=server_error")
+  local_mocked_bindings(
+    ncurl = m$nanonext$ncurl, is_error_value = m$nanonext$is_error_value,
+    parse_url = m$nanonext$parse_url, handler = m$nanonext$handler,
+    http_server = m$nanonext$http_server, .package = "nanonext"
+  )
+  local_mocked_bindings(
+    is_interactive = m$autosync$is_interactive, run_now = m$autosync$run_now
+  )
+  local_mocked_bindings(browseURL = m$utils$browseURL, .package = "utils")
+
+  expect_error(
+    amsync_token(
+      client_id = "test-client", client_secret = "",
+      issuer = "https://issuer.example.com", timeout = 2
+    ),
+    "Authentication failed: server_error"
+  )
+})
+
+test_that("amsync_token errors on missing authorization code", {
+  m <- mock_token_flow(callback_params = "/?other=value")
+  local_mocked_bindings(
+    ncurl = m$nanonext$ncurl, is_error_value = m$nanonext$is_error_value,
+    parse_url = m$nanonext$parse_url, handler = m$nanonext$handler,
+    http_server = m$nanonext$http_server, .package = "nanonext"
+  )
+  local_mocked_bindings(
+    is_interactive = m$autosync$is_interactive, run_now = m$autosync$run_now
+  )
+  local_mocked_bindings(browseURL = m$utils$browseURL, .package = "utils")
+
+  expect_error(
+    amsync_token(
+      client_id = "test-client", client_secret = "",
+      issuer = "https://issuer.example.com", timeout = 2
+    ),
+    "Authentication failed: No authorization code received"
+  )
+})
+
+test_that("amsync_token errors on state mismatch", {
+  m <- mock_token_flow(callback_params = "/?code=abc&state=wrong_state")
+  local_mocked_bindings(
+    ncurl = m$nanonext$ncurl, is_error_value = m$nanonext$is_error_value,
+    parse_url = m$nanonext$parse_url, handler = m$nanonext$handler,
+    http_server = m$nanonext$http_server, .package = "nanonext"
+  )
+  local_mocked_bindings(
+    is_interactive = m$autosync$is_interactive, run_now = m$autosync$run_now
+  )
+  local_mocked_bindings(browseURL = m$utils$browseURL, .package = "utils")
+
+  expect_error(
+    amsync_token(
+      client_id = "test-client", client_secret = "",
+      issuer = "https://issuer.example.com", timeout = 2
+    ),
+    "Authentication failed: State mismatch"
+  )
+})
+
+test_that("amsync_token errors on timeout", {
+  m <- mock_token_flow(simulate_callback = FALSE)
+  local_mocked_bindings(
+    ncurl = m$nanonext$ncurl, is_error_value = m$nanonext$is_error_value,
+    parse_url = m$nanonext$parse_url, handler = m$nanonext$handler,
+    http_server = m$nanonext$http_server, .package = "nanonext"
+  )
+  local_mocked_bindings(
+    is_interactive = m$autosync$is_interactive, run_now = m$autosync$run_now
+  )
+  local_mocked_bindings(browseURL = m$utils$browseURL, .package = "utils")
+
+  expect_error(
+    amsync_token(
+      client_id = "test-client", client_secret = "",
+      issuer = "https://issuer.example.com", timeout = 0
+    ),
+    "Authentication timed out"
+  )
+})
+
+test_that("amsync_token errors on token exchange failure", {
+  m <- mock_token_flow(ncurl_token_resp = list(
+    data = charToRaw(secretbase::jsonenc(list(
+      error = "invalid_grant", error_description = "Code expired"
+    ))),
+    status = 400L
+  ))
+  local_mocked_bindings(
+    ncurl = m$nanonext$ncurl, is_error_value = m$nanonext$is_error_value,
+    parse_url = m$nanonext$parse_url, handler = m$nanonext$handler,
+    http_server = m$nanonext$http_server, .package = "nanonext"
+  )
+  local_mocked_bindings(
+    is_interactive = m$autosync$is_interactive, run_now = m$autosync$run_now
+  )
+  local_mocked_bindings(browseURL = m$utils$browseURL, .package = "utils")
+
+  expect_error(
+    amsync_token(
+      client_id = "test-client", client_secret = "",
+      issuer = "https://issuer.example.com", timeout = 2
+    ),
+    "Token exchange failed: Code expired"
+  )
+})
+
+test_that("amsync_token errors on token exchange with non-JSON response", {
+  m <- mock_token_flow(ncurl_token_resp = list(
+    data = charToRaw("Internal Server Error"), status = 500L
+  ))
+  local_mocked_bindings(
+    ncurl = m$nanonext$ncurl, is_error_value = m$nanonext$is_error_value,
+    parse_url = m$nanonext$parse_url, handler = m$nanonext$handler,
+    http_server = m$nanonext$http_server, .package = "nanonext"
+  )
+  local_mocked_bindings(
+    is_interactive = m$autosync$is_interactive, run_now = m$autosync$run_now
+  )
+  local_mocked_bindings(browseURL = m$utils$browseURL, .package = "utils")
+
+  expect_error(
+    amsync_token(
+      client_id = "test-client", client_secret = "",
+      issuer = "https://issuer.example.com", timeout = 2
+    ),
+    "Token exchange failed"
+  )
+})
+
+test_that("amsync_token errors when response has no id_token", {
+  m <- mock_token_flow(ncurl_token_resp = list(
+    data = charToRaw(secretbase::jsonenc(list(access_token = "at"))),
+    status = 200L
+  ))
+  local_mocked_bindings(
+    ncurl = m$nanonext$ncurl, is_error_value = m$nanonext$is_error_value,
+    parse_url = m$nanonext$parse_url, handler = m$nanonext$handler,
+    http_server = m$nanonext$http_server, .package = "nanonext"
+  )
+  local_mocked_bindings(
+    is_interactive = m$autosync$is_interactive, run_now = m$autosync$run_now
+  )
+  local_mocked_bindings(browseURL = m$utils$browseURL, .package = "utils")
+
+  expect_error(
+    amsync_token(
+      client_id = "test-client", client_secret = "",
+      issuer = "https://issuer.example.com", timeout = 2
+    ),
+    "No ID token in response"
+  )
+})
+
+test_that("amsync_token includes client_secret when provided", {
+  captured_token_data <- NULL
+  m <- mock_token_flow()
+
+  # Override ncurl to capture token exchange data
+  original_ncurl <- m$nanonext$ncurl
+  ncurl_call <- 0L
+  oidc_config <- secretbase::jsonenc(list(
+    authorization_endpoint = "https://auth.example.com/authorize",
+    token_endpoint = "https://auth.example.com/token"
+  ))
+  local_mocked_bindings(
+    ncurl = function(url, ...) {
+      ncurl_call <<- ncurl_call + 1L
+      if (ncurl_call == 1L) {
+        list(data = charToRaw(oidc_config), status = 200L)
+      } else {
+        args <- list(...)
+        captured_token_data <<- args$data
+        list(
+          data = charToRaw(secretbase::jsonenc(list(id_token = "jwt"))),
+          status = 200L
+        )
+      }
+    },
+    is_error_value = m$nanonext$is_error_value,
+    parse_url = m$nanonext$parse_url, handler = m$nanonext$handler,
+    http_server = m$nanonext$http_server, .package = "nanonext"
+  )
+  local_mocked_bindings(
+    is_interactive = m$autosync$is_interactive, run_now = m$autosync$run_now
+  )
+  local_mocked_bindings(browseURL = m$utils$browseURL, .package = "utils")
+
+  amsync_token(
+    client_id = "test-client",
+    client_secret = "my-secret",
+    issuer = "https://issuer.example.com",
+    timeout = 2
+  )
+
+  expect_true(grepl("client_secret=my-secret", captured_token_data))
 })
 
 # ---- server integration tests ----

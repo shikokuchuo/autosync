@@ -3,6 +3,9 @@
 # Module-level JWKS cache keyed by issuer URL
 oidc_cache <- new.env(parent = emptyenv())
 
+# Wrapper for interactive() to allow mocking in tests
+is_interactive <- function() interactive()
+
 #' Default OIDC issuer URL
 #'
 #' Returns the `OIDC_ISSUER` environment variable if set and non-empty,
@@ -398,7 +401,7 @@ amsync_token <- function(
   redirect_uri = "http://localhost:5173",
   timeout = 120
 ) {
-  if (!interactive()) {
+  if (!is_interactive()) {
     stop("amsync_token() requires an interactive session")
   }
 
