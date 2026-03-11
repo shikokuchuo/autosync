@@ -41,6 +41,35 @@ test_that("auth_config creates valid configuration", {
   expect_equal(cfg$allowed_emails, "test@example.com")
 })
 
+test_that("oidc_issuer reads OIDC_ISSUER env var", {
+  old <- Sys.getenv("OIDC_ISSUER")
+  on.exit(if (nzchar(old)) Sys.setenv(OIDC_ISSUER = old) else Sys.unsetenv("OIDC_ISSUER"))
+  Sys.setenv(OIDC_ISSUER = "https://login.microsoftonline.com/common/v2.0")
+  expect_equal(oidc_issuer(), "https://login.microsoftonline.com/common/v2.0")
+})
+
+test_that("oidc_issuer falls back to Google when OIDC_ISSUER is unset", {
+  old <- Sys.getenv("OIDC_ISSUER")
+  on.exit(if (nzchar(old)) Sys.setenv(OIDC_ISSUER = old) else Sys.unsetenv("OIDC_ISSUER"))
+  Sys.unsetenv("OIDC_ISSUER")
+  expect_equal(oidc_issuer(), "https://accounts.google.com")
+})
+
+test_that("oidc_issuer falls back to Google when OIDC_ISSUER is empty", {
+  old <- Sys.getenv("OIDC_ISSUER")
+  on.exit(if (nzchar(old)) Sys.setenv(OIDC_ISSUER = old) else Sys.unsetenv("OIDC_ISSUER"))
+  Sys.setenv(OIDC_ISSUER = "")
+  expect_equal(oidc_issuer(), "https://accounts.google.com")
+})
+
+test_that("auth_config defaults issuer from OIDC_ISSUER env var", {
+  old <- Sys.getenv("OIDC_ISSUER")
+  on.exit(if (nzchar(old)) Sys.setenv(OIDC_ISSUER = old) else Sys.unsetenv("OIDC_ISSUER"))
+  Sys.setenv(OIDC_ISSUER = "https://login.microsoftonline.com/common/v2.0")
+  cfg <- auth_config(client_id = "test-id")
+  expect_equal(cfg$issuer, "https://login.microsoftonline.com/common/v2.0")
+})
+
 test_that("auth_config validates issuer and client_id", {
   expect_snapshot(auth_config(issuer = 123, client_id = "x"), error = TRUE)
   expect_snapshot(auth_config(issuer = "x", client_id = 123), error = TRUE)

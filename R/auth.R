@@ -3,6 +3,19 @@
 # Module-level JWKS cache keyed by issuer URL
 oidc_cache <- new.env(parent = emptyenv())
 
+#' Default OIDC issuer URL
+#'
+#' Returns the `OIDC_ISSUER` environment variable if set and non-empty,
+#' otherwise falls back to Google (`"https://accounts.google.com"`).
+#'
+#' @return Character string, the OIDC issuer URL.
+#'
+#' @keywords internal
+oidc_issuer <- function() {
+  issuer <- Sys.getenv("OIDC_ISSUER")
+  if (nzchar(issuer)) issuer else "https://accounts.google.com"
+}
+
 #' Discover the JWKS URI for an OIDC issuer
 #'
 #' @param issuer The OIDC issuer URL.
@@ -277,7 +290,8 @@ validate_token <- function(
 #'
 #' @param issuer The OIDC issuer URL. This is used to discover the provider's
 #'   public keys via the `.well-known/openid-configuration` endpoint, and to
-#'   validate the `iss` claim in JWTs. Defaults to Google
+#'   validate the `iss` claim in JWTs. Defaults to the `OIDC_ISSUER`
+#'   environment variable, falling back to Google
 #'   (`"https://accounts.google.com"`).
 #' @param client_id The OIDC client ID (application ID). Validated against the
 #'   `aud` claim in JWTs. Defaults to the `OIDC_CLIENT_ID` environment variable.
@@ -312,7 +326,7 @@ validate_token <- function(
 #'
 #' @export
 auth_config <- function(
-  issuer = "https://accounts.google.com",
+  issuer = oidc_issuer(),
   client_id = Sys.getenv("OIDC_CLIENT_ID"),
   allowed_emails = NULL,
   allowed_domains = NULL,
@@ -349,7 +363,8 @@ auth_config <- function(
 #' @param client_secret The OIDC client secret. Required for "Web application"
 #'   client types. Not needed for "Desktop app" client types (which use PKCE
 #'   only). Defaults to the `OIDC_CLIENT_SECRET` environment variable.
-#' @param issuer The OIDC issuer URL. Defaults to Google
+#' @param issuer The OIDC issuer URL. Defaults to the `OIDC_ISSUER`
+#'   environment variable, falling back to Google
 #'   (`"https://accounts.google.com"`).
 #' @param scopes Space-separated OAuth scopes to request. Default
 #'   `"openid email"`.
@@ -378,7 +393,7 @@ auth_config <- function(
 amsync_token <- function(
   client_id = Sys.getenv("OIDC_CLIENT_ID"),
   client_secret = Sys.getenv("OIDC_CLIENT_SECRET"),
-  issuer = "https://accounts.google.com",
+  issuer = oidc_issuer(),
   scopes = "openid email",
   redirect_uri = "http://localhost:5173",
   timeout = 120

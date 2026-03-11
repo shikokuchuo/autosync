@@ -5,7 +5,7 @@
 \title{Create an authentication configuration}
 \usage{
 auth_config(
-  issuer = "https://accounts.google.com",
+  issuer = oidc_issuer(),
   client_id = Sys.getenv("OIDC_CLIENT_ID"),
   allowed_emails = NULL,
   allowed_domains = NULL,
@@ -15,7 +15,8 @@ auth_config(
 \arguments{
 \item{issuer}{The OIDC issuer URL. This is used to discover the provider's
 public keys via the \code{.well-known/openid-configuration} endpoint, and to
-validate the \code{iss} claim in JWTs. Defaults to Google
+validate the \code{iss} claim in JWTs. Defaults to the \code{OIDC_ISSUER}
+environment variable, falling back to Google
 (\code{"https://accounts.google.com"}).}
 
 \item{client_id}{The OIDC client ID (application ID). Validated against the

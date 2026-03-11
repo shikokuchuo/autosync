@@ -7,7 +7,7 @@
 amsync_token(
   client_id = Sys.getenv("OIDC_CLIENT_ID"),
   client_secret = Sys.getenv("OIDC_CLIENT_SECRET"),
-  issuer = "https://accounts.google.com",
+  issuer = oidc_issuer(),
   scopes = "openid email",
   redirect_uri = "http://localhost:5173",
   timeout = 120
@@ -21,7 +21,8 @@ amsync_token(
 client types. Not needed for "Desktop app" client types (which use PKCE
 only). Defaults to the \code{OIDC_CLIENT_SECRET} environment variable.}
 
-\item{issuer}{The OIDC issuer URL. Defaults to Google
+\item{issuer}{The OIDC issuer URL. Defaults to the \code{OIDC_ISSUER}
+environment variable, falling back to Google
 (\code{"https://accounts.google.com"}).}
 
 \item{scopes}{Space-separated OAuth scopes to request. Default
