@@ -10,7 +10,7 @@ immediately at connection time.
 
 ``` r
 auth_config(
-  issuer = "https://accounts.google.com",
+  issuer = oidc_issuer(),
   client_id = Sys.getenv("OIDC_CLIENT_ID"),
   allowed_emails = NULL,
   allowed_domains = NULL,
@@ -24,7 +24,8 @@ auth_config(
 
   The OIDC issuer URL. This is used to discover the provider's public
   keys via the `.well-known/openid-configuration` endpoint, and to
-  validate the `iss` claim in JWTs. Defaults to Google
+  validate the `iss` claim in JWTs. Defaults to the `OIDC_ISSUER`
+  environment variable, falling back to Google
   (`"https://accounts.google.com"`).
 
 - client_id:
@@ -125,7 +126,7 @@ auth_config(
 #> $custom_validator
 #> function (claims) 
 #> "editors" %in% claims$groups
-#> <environment: 0x5640a942cae0>
+#> <environment: 0x5584e0120dc0>
 #> 
 #> attr(,"class")
 #> [1] "amsync_auth_config"

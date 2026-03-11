@@ -11,7 +11,7 @@ to authenticate, and returns the ID token for use with
 amsync_token(
   client_id = Sys.getenv("OIDC_CLIENT_ID"),
   client_secret = Sys.getenv("OIDC_CLIENT_SECRET"),
-  issuer = "https://accounts.google.com",
+  issuer = oidc_issuer(),
   scopes = "openid email",
   redirect_uri = "http://localhost:5173",
   timeout = 120
@@ -33,8 +33,8 @@ amsync_token(
 
 - issuer:
 
-  The OIDC issuer URL. Defaults to Google
-  (`"https://accounts.google.com"`).
+  The OIDC issuer URL. Defaults to the `OIDC_ISSUER` environment
+  variable, falling back to Google (`"https://accounts.google.com"`).
 
 - scopes:
 

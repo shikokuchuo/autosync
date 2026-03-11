@@ -20,6 +20,7 @@
 <url><loc>http://shikokuchuo.net/autosync/reference/get_signing_key.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/index.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/list_documents.html</loc></url>
+<url><loc>http://shikokuchuo.net/autosync/reference/oidc_issuer.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/parse_query_params.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/print.amsync_server.html</loc></url>
 <url><loc>http://shikokuchuo.net/autosync/reference/validate_token.html</loc></url>
