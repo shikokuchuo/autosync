@@ -52,6 +52,7 @@ Messages are CBOR-encoded and include:
 
 ## Example
 
+
     # Create and start a server
     server <- amsync_server()
     server$start()
@@ -64,9 +65,9 @@ Messages are CBOR-encoded and include:
 
 Useful links:
 
-- <https://github.com/shikokuchuo/autosync>
+- <https://shikokuchuo.net/autosync/>
 
-- <http://shikokuchuo.net/autosync/>
+- <https://github.com/shikokuchuo/autosync>
 
 - Report bugs at <https://github.com/shikokuchuo/autosync/issues>
 
@@ -74,6 +75,11 @@ Useful links:
 
 **Maintainer**: Charlie Gao <charlie.gao@posit.co>
 ([ORCID](https://orcid.org/0000-0002-0750-061X))
+
+Authors:
+
+- Charlie Gao <charlie.gao@posit.co>
+  ([ORCID](https://orcid.org/0000-0002-0750-061X))
 
 Other contributors:
 

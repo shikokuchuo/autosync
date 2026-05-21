@@ -2,6 +2,8 @@
 
 ## All functions
 
+- [`amsync_client()`](http://shikokuchuo.net/autosync/reference/amsync_client.md)
+  : Create a persistent sync client
 - [`amsync_fetch()`](http://shikokuchuo.net/autosync/reference/amsync_fetch.md)
   : Fetch a document from a sync server
 - [`amsync_server()`](http://shikokuchuo.net/autosync/reference/amsync_server.md)

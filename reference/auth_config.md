@@ -126,7 +126,7 @@ auth_config(
 #> $custom_validator
 #> function (claims) 
 #> "editors" %in% claims$groups
-#> <environment: 0x55ebf6ae3d40>
+#> <environment: 0x556f84f6fcf8>
 #> 
 #> attr(,"class")
 #> [1] "amsync_auth_config"

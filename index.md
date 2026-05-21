@@ -20,6 +20,7 @@ DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/shikokuchuo/auto
 ## Installation
 
 ``` r
+
 pak::pak("shikokuchuo/autosync")
 ```
 
@@ -28,6 +29,7 @@ pak::pak("shikokuchuo/autosync")
 Create a WebSocket sync server:
 
 ``` r
+
 library(autosync)
 
 server <- amsync_server()
@@ -42,6 +44,7 @@ server$close()
 With TLS for secure connections:
 
 ``` r
+
 cert <- nanonext::write_cert()
 tls <- nanonext::tls_config(server = cert$server)
 
@@ -59,6 +62,7 @@ etc.) can be used by setting the `issuer` argument. Set the
 `.Renviron`) for your OAuth credentials:
 
 ``` r
+
 cert <- nanonext::write_cert()
 tls <- nanonext::tls_config(server = cert$server)
 
@@ -72,6 +76,7 @@ server$start()
 Clients obtain a token interactively, then pass it when fetching:
 
 ``` r
+
 token <- amsync_token()
 
 tlsclient <- nanonext::tls_config(client = cert$client)
@@ -98,6 +103,7 @@ function returning one of these per client and document:
 Announce all documents to every client that connects:
 
 ``` r
+
 server <- amsync_server(share = TRUE)
 ```
 
@@ -106,6 +112,7 @@ access control. The function receives the `client_id` and `doc_id`, and
 can look up the authenticated email on the connection to decide:
 
 ``` r
+
 # Allow list of emails that can access documents
 allowed <- c("alice@example.com", "bob@example.com")
 
@@ -123,6 +130,7 @@ server <- amsync_server(
 ### Document management
 
 ``` r
+
 # Create a new document
 doc_id <- create_document(server)
 
@@ -149,6 +157,7 @@ const repo = new Repo({
 Fetch documents from any automerge-repo sync server:
 
 ``` r
+
 # Fetch from public sync server
 doc <- amsync_fetch("wss://sync.automerge.org", "your-document-id")
 
@@ -164,6 +173,7 @@ doc <- amsync_fetch("wss://sync.automerge.org", "your-document-id", verbose = TR
 Generate document IDs compatible with automerge-repo:
 
 ``` r
+
 doc_id <- generate_document_id()
 ```
 
