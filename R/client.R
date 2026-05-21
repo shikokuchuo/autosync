@@ -175,11 +175,11 @@ amsync_client <- function(
 
   # --- Blocking initial sync ---
 
+  idle_timeout <- 2000L
   result <- recv_msg(s, timeout = timeout)
-
-  if (!inherits(result, "errorValue")) {
+  while (!inherits(result, "errorValue")) {
     msg <- cbordec(result)
-    if (msg$type == "sync" && length(msg$data)) {
+    if (msg$type == "sync") {
       apply_sync_and_reply(
         s,
         doc,
@@ -196,8 +196,9 @@ amsync_client <- function(
       close(s)
       stop("Document not available on server: ", doc_id)
     }
-    if (verbose) message("[CLIENT] Initial sync complete")
+    result <- recv_msg(s, timeout = idle_timeout)
   }
+  if (verbose) message("[CLIENT] Initial sync complete")
 
   # --- Build client environment ---
 
