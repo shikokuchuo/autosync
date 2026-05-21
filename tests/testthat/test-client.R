@@ -182,6 +182,34 @@ test_that("amsync_fetch warns when no sync messages received", {
 
 # amsync_client() tests
 
+test_that("amsync_client errors when no sync response is received", {
+  recv_count <- 0L
+  local_mocked_bindings(
+    stream = function(...) rawConnection(raw(0)),
+    send = function(...) invisible(NULL),
+    recv_aio = function(...) {
+      recv_count <<- recv_count + 1L
+      if (recv_count == 1L) {
+        fake_peer <- secretbase::cborenc(list(
+          type = "peer",
+          senderId = "server123",
+          selectedProtocolVersion = "1"
+        ))
+        list(data = fake_peer)
+      } else {
+        list(data = structure(5L, class = "errorValue"))
+      }
+    },
+    unresolved = function(...) FALSE,
+    run_now = function(...) invisible(NULL)
+  )
+
+  expect_error(
+    amsync_client("ws://fake:1234", "fake_doc_id", timeout = 100L),
+    "No sync response from server"
+  )
+})
+
 test_that("amsync_client connects and receives document", {
   data_dir <- tempfile()
   dir.create(data_dir)

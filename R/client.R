@@ -95,6 +95,10 @@ join_msg <- function(peer_id) {
 #' loop, and local changes are flushed periodically via a [later::later()]
 #' timer.
 #'
+#' `$close()` does not flush pending local changes. Call `$push()` first if
+#' you have unsynced edits — otherwise any changes made since the last
+#' `sync`-interval tick may be lost.
+#'
 #' @examplesIf interactive()
 #' server <- amsync_server()
 #' server$start()
@@ -135,6 +139,7 @@ amsync_client <- function(
     textframes = FALSE,
     headers = bearer_headers(token)
   )
+  on.exit(close(s))
 
   # --- Synchronous handshake ---
 
@@ -146,17 +151,14 @@ amsync_client <- function(
   peer_raw <- recv_msg(s, timeout = timeout)
 
   if (inherits(peer_raw, "errorValue")) {
-    close(s)
     stop("Failed to receive peer response: ", peer_raw)
   }
 
   peer_msg <- cbordec(peer_raw)
   if (peer_msg$type == "error") {
-    close(s)
     stop("Server error: ", peer_msg$message)
   }
   if (peer_msg$type != "peer") {
-    close(s)
     stop("Expected peer message, got: ", peer_msg$type)
   }
 
@@ -176,10 +178,12 @@ amsync_client <- function(
   # --- Blocking initial sync ---
 
   idle_timeout <- 2000L
+  sync_received <- FALSE
   result <- recv_msg(s, timeout = timeout)
   while (!inherits(result, "errorValue")) {
     msg <- cbordec(result)
     if (msg$type == "sync") {
+      sync_received <- TRUE
       apply_sync_and_reply(
         s,
         doc,
@@ -190,13 +194,14 @@ amsync_client <- function(
         doc_id
       )
     } else if (msg$type == "error") {
-      close(s)
       stop("Server error: ", msg$message)
     } else if (msg$type == "doc-unavailable") {
-      close(s)
       stop("Document not available on server: ", doc_id)
     }
     result <- recv_msg(s, timeout = idle_timeout)
+  }
+  if (!sync_received) {
+    stop("No sync response from server within ", timeout, "ms")
   }
   if (verbose) message("[CLIENT] Initial sync complete")
 
@@ -269,7 +274,12 @@ amsync_client <- function(
     promises::then(
       aio,
       onFulfilled = function(value) {
-        process_message(value)
+        tryCatch(
+          process_message(value),
+          error = function(e) {
+            warning("[CLIENT] Receive error: ", conditionMessage(e))
+          }
+        )
         recv_loop()
       },
       onRejected = function(err) {
@@ -292,6 +302,7 @@ amsync_client <- function(
         }
         tryCatch(send_sync(), error = function(e) {
           client$active <- FALSE
+          close(client$stream)
         })
         sync_loop()
       },
@@ -320,6 +331,7 @@ amsync_client <- function(
   }
 
   class(client) <- "amsync_client"
+  on.exit() # stream now owned by client$close
 
   # Start the async loops
   recv_loop()
