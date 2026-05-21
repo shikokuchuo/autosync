@@ -75,9 +75,10 @@ join_msg <- function(peer_id) {
 #' connected and receives real-time updates from other peers.
 #'
 #' @inheritParams amsync_fetch
-#' @param sync Sync interval in seconds for pushing local changes to the
-#'   server. Default 1. Uses [later::later()] to periodically check for and
-#'   send local changes. This is a cheap no-op when there are no changes.
+#' @param interval Interval in milliseconds for pushing local changes to
+#'   the server. Default 1000. Uses [later::later()] to periodically check
+#'   for and send local changes. This is a cheap no-op when there are no
+#'   changes.
 #'
 #' @return An environment of class `"amsync_client"` with reference semantics,
 #'   containing:
@@ -122,7 +123,7 @@ amsync_client <- function(
   timeout = 5000L,
   tls = NULL,
   token = NULL,
-  sync = 1
+  interval = 1000L
 ) {
   doc <- am_create()
   sync_state <- am_sync_state()
@@ -292,7 +293,7 @@ amsync_client <- function(
         })
         sync_loop()
       },
-      delay = sync
+      delay = interval / 1000
     )
   }
 

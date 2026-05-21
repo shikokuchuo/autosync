@@ -303,7 +303,7 @@ test_that("amsync_client deactivates when periodic sync errors", {
 
   doc_id <- generate_document_id()
 
-  client <- amsync_client(server$url, doc_id, sync = 0.05)
+  client <- amsync_client(server$url, doc_id, interval = 50L)
   on.exit(if (client$active) client$close(), add = TRUE)
 
   # Give the periodic sync something to send, then force send to fail
@@ -327,7 +327,7 @@ test_that("amsync_client async loop survives process_message errors", {
 
   doc_id <- generate_document_id()
 
-  client <- amsync_client(server$url, doc_id, sync = 999)
+  client <- amsync_client(server$url, doc_id, interval = 999000L)
   on.exit(client$close(), add = TRUE)
 
   # Force every subsequent apply_sync_and_reply to throw so the async

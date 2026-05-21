@@ -4,7 +4,14 @@
 \alias{amsync_client}
 \title{Create a persistent sync client}
 \usage{
-amsync_client(url, doc_id, timeout = 5000L, tls = NULL, token = NULL, sync = 1)
+amsync_client(
+  url,
+  doc_id,
+  timeout = 5000L,
+  tls = NULL,
+  token = NULL,
+  interval = 1000L
+)
 }
 \arguments{
 \item{url}{WebSocket URL of the sync server (e.g., "ws://localhost:3030/"
@@ -22,9 +29,10 @@ created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
 Sent as a Bearer token in the Authorization header of the WebSocket
 upgrade request.}
 
-\item{sync}{Sync interval in seconds for pushing local changes to the
-server. Default 1. Uses \code{\link[later:later]{later::later()}} to periodically check for and
-send local changes. This is a cheap no-op when there are no changes.}
+\item{interval}{Interval in milliseconds for pushing local changes to
+the server. Default 1000. Uses \code{\link[later:later]{later::later()}} to periodically check
+for and send local changes. This is a cheap no-op when there are no
+changes.}
 }
 \value{
 An environment of class \code{"amsync_client"} with reference semantics,
