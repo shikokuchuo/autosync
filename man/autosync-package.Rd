@@ -57,14 +57,19 @@ server$close()
 \seealso{
 Useful links:
 \itemize{
+  \item \url{https://shikokuchuo.net/autosync/}
   \item \url{https://github.com/shikokuchuo/autosync}
-  \item \url{http://shikokuchuo.net/autosync/}
   \item Report bugs at \url{https://github.com/shikokuchuo/autosync/issues}
 }
 
 }
 \author{
 \strong{Maintainer}: Charlie Gao \email{charlie.gao@posit.co} (\href{https://orcid.org/0000-0002-0750-061X}{ORCID})
+
+Authors:
+\itemize{
+  \item Charlie Gao \email{charlie.gao@posit.co} (\href{https://orcid.org/0000-0002-0750-061X}{ORCID})
+}
 
 Other contributors:
 \itemize{
