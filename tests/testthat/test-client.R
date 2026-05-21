@@ -17,6 +17,24 @@ test_that("format_hex formats raw bytes as hex", {
   expect_equal(result, "ff")
 })
 
+# Test helpers shared between amsync_fetch() and amsync_client() tests
+
+fake_peer <- secretbase::cborenc(list(
+  type = "peer",
+  senderId = "server123",
+  selectedProtocolVersion = "1"
+))
+
+# Mock recv_aio that returns a scripted sequence of responses, one per call.
+# Each element of `responses` is either an errorValue or raw CBOR bytes.
+scripted_recv <- function(responses) {
+  i <- 0L
+  function(...) {
+    i <<- i + 1L
+    list(data = responses[[min(i, length(responses))]])
+  }
+}
+
 # amsync_fetch() tests
 
 test_that("amsync_fetch retrieves document from server", {
@@ -121,7 +139,7 @@ test_that("amsync_fetch errors when peer response fails", {
   local_mocked_bindings(
     stream = function(...) rawConnection(raw(0)),
     send = function(...) invisible(NULL),
-    recv_aio = function(...) list(data = structure(5L, class = "errorValue")),
+    recv_aio = scripted_recv(list(structure(5L, class = "errorValue"))),
     unresolved = function(...) FALSE,
     run_now = function(...) invisible(NULL)
   )
@@ -132,16 +150,30 @@ test_that("amsync_fetch errors when peer response fails", {
   )
 })
 
+test_that("amsync_fetch errors when server returns error during handshake", {
+  local_mocked_bindings(
+    stream = function(...) rawConnection(raw(0)),
+    send = function(...) invisible(NULL),
+    recv_aio = scripted_recv(list(
+      secretbase::cborenc(list(type = "error", message = "auth failed"))
+    )),
+    unresolved = function(...) FALSE,
+    run_now = function(...) invisible(NULL)
+  )
+
+  expect_error(
+    amsync_fetch("ws://fake:1234", "fake_doc_id"),
+    "Server error: auth failed"
+  )
+})
+
 test_that("amsync_fetch errors on unexpected message type", {
   local_mocked_bindings(
     stream = function(...) rawConnection(raw(0)),
     send = function(...) invisible(NULL),
-    recv_aio = function(...) {
-      fake_msg <- secretbase::cborenc(
-        list(type = "sync", senderId = "server123")
-      )
-      list(data = fake_msg)
-    },
+    recv_aio = scripted_recv(list(
+      secretbase::cborenc(list(type = "sync", senderId = "server123"))
+    )),
     unresolved = function(...) FALSE,
     run_now = function(...) invisible(NULL)
   )
@@ -152,24 +184,50 @@ test_that("amsync_fetch errors on unexpected message type", {
   )
 })
 
-test_that("amsync_fetch warns when no sync messages received", {
-  recv_count <- 0L
+test_that("amsync_fetch errors when server returns error during sync", {
   local_mocked_bindings(
     stream = function(...) rawConnection(raw(0)),
     send = function(...) invisible(NULL),
-    recv_aio = function(...) {
-      recv_count <<- recv_count + 1L
-      if (recv_count == 1L) {
-        fake_peer <- secretbase::cborenc(list(
-          type = "peer",
-          senderId = "server123",
-          selectedProtocolVersion = "1"
-        ))
-        list(data = fake_peer)
-      } else {
-        list(data = structure(5L, class = "errorValue"))
-      }
-    },
+    recv_aio = scripted_recv(list(
+      fake_peer,
+      secretbase::cborenc(list(type = "error", message = "sync failed"))
+    )),
+    unresolved = function(...) FALSE,
+    run_now = function(...) invisible(NULL)
+  )
+
+  expect_error(
+    amsync_fetch("ws://fake:1234", "fake_doc_id"),
+    "Server error: sync failed"
+  )
+})
+
+test_that("amsync_fetch errors when document is unavailable", {
+  local_mocked_bindings(
+    stream = function(...) rawConnection(raw(0)),
+    send = function(...) invisible(NULL),
+    recv_aio = scripted_recv(list(
+      fake_peer,
+      secretbase::cborenc(list(type = "doc-unavailable"))
+    )),
+    unresolved = function(...) FALSE,
+    run_now = function(...) invisible(NULL)
+  )
+
+  expect_error(
+    amsync_fetch("ws://fake:1234", "fake_doc_id"),
+    "Document not available on server: fake_doc_id"
+  )
+})
+
+test_that("amsync_fetch warns when no sync messages received", {
+  local_mocked_bindings(
+    stream = function(...) rawConnection(raw(0)),
+    send = function(...) invisible(NULL),
+    recv_aio = scripted_recv(list(
+      fake_peer,
+      structure(5L, class = "errorValue")
+    )),
     unresolved = function(...) FALSE,
     run_now = function(...) invisible(NULL)
   )
@@ -180,23 +238,77 @@ test_that("amsync_fetch warns when no sync messages received", {
   )
 })
 
+test_that("amsync_fetch verbose mode logs CBOR decode errors", {
+  local_mocked_bindings(
+    stream = function(...) rawConnection(raw(0)),
+    send = function(...) invisible(NULL),
+    recv_aio = scripted_recv(list(
+      fake_peer,
+      as.raw(c(0xFF, 0xFF, 0xFF)),
+      structure(5L, class = "errorValue")
+    )),
+    unresolved = function(...) FALSE,
+    run_now = function(...) invisible(NULL)
+  )
+
+  output <- capture.output(
+    suppressWarnings(
+      amsync_fetch("ws://fake:1234", "fake_doc_id", verbose = TRUE)
+    ),
+    type = "message"
+  )
+  expect_true(any(grepl("CBOR decode error", output)))
+})
+
+test_that("amsync_fetch verbose mode reports skipped foreign sync messages", {
+  local_mocked_bindings(
+    stream = function(...) rawConnection(raw(0)),
+    send = function(...) invisible(NULL),
+    recv_aio = scripted_recv(list(
+      fake_peer,
+      secretbase::cborenc(list(
+        type = "sync",
+        documentId = "different_doc",
+        data = raw(0)
+      )),
+      structure(5L, class = "errorValue")
+    )),
+    unresolved = function(...) FALSE,
+    run_now = function(...) invisible(NULL)
+  )
+
+  output <- capture.output(
+    suppressWarnings(
+      amsync_fetch("ws://fake:1234", "fake_doc_id", verbose = TRUE)
+    ),
+    type = "message"
+  )
+  expect_true(any(grepl("Ignoring sync for different document", output)))
+})
+
+test_that("amsync_fetch verbose mode reports unknown message types", {
+  local_mocked_bindings(
+    stream = function(...) rawConnection(raw(0)),
+    send = function(...) invisible(NULL),
+    recv_aio = scripted_recv(list(
+      fake_peer,
+      secretbase::cborenc(list(type = "ephemeral", data = raw(0))),
+      structure(5L, class = "errorValue")
+    )),
+    unresolved = function(...) FALSE,
+    run_now = function(...) invisible(NULL)
+  )
+
+  output <- capture.output(
+    suppressWarnings(
+      amsync_fetch("ws://fake:1234", "fake_doc_id", verbose = TRUE)
+    ),
+    type = "message"
+  )
+  expect_true(any(grepl("Ignoring message type: ephemeral", output)))
+})
+
 # amsync_client() tests
-
-fake_peer <- secretbase::cborenc(list(
-  type = "peer",
-  senderId = "server123",
-  selectedProtocolVersion = "1"
-))
-
-# Mock recv_aio that returns a scripted sequence of responses, one per call.
-# Each element of `responses` is either an errorValue or raw CBOR bytes.
-scripted_recv <- function(responses) {
-  i <- 0L
-  function(...) {
-    i <<- i + 1L
-    list(data = responses[[min(i, length(responses))]])
-  }
-}
 
 test_that("amsync_client errors when peer response fails", {
   local_mocked_bindings(
@@ -440,6 +552,79 @@ test_that("amsync_client async loop survives process_message errors", {
   while (!later::loop_empty()) later::run_now(1L)
 
   expect_true(active_after_error)
+})
+
+test_that("apply_sync_and_reply warns on decode error", {
+  doc <- automerge::am_create()
+  sync_state <- automerge::am_sync_state()
+
+  local_mocked_bindings(send_msg = function(s, msg) invisible(NULL))
+
+  expect_warning(
+    apply_sync_and_reply(
+      s = NULL,
+      doc = doc,
+      sync_state = sync_state,
+      data = as.raw(c(0xFF, 0xFF, 0xFF)),
+      peer_id = "p",
+      target_id = "t",
+      doc_id = "d"
+    ),
+    "am_sync_decode error"
+  )
+})
+
+test_that("amsync_client process_message handles non-sync server messages", {
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  server <- amsync_server(data_dir = data_dir)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  doc_id <- generate_document_id()
+
+  client <- amsync_client(server$url, doc_id, interval = 999000L)
+  on.exit(client$close(), add = TRUE)
+
+  process_message <- environment(client$push)$process_message
+
+  expect_warning(
+    process_message(secretbase::cborenc(list(type = "error", message = "boom"))),
+    "Server error: boom"
+  )
+  expect_warning(
+    process_message(secretbase::cborenc(list(type = "doc-unavailable"))),
+    "Document not available"
+  )
+  # Malformed CBOR is swallowed (process_message returns silently)
+  expect_silent(process_message(as.raw(c(0xFF, 0xFF))))
+})
+
+test_that("amsync_client periodic timer is a no-op when client becomes inactive", {
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  server <- amsync_server(data_dir = data_dir)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  doc_id <- generate_document_id()
+
+  client <- amsync_client(server$url, doc_id, interval = 100L)
+  on.exit(if (client$active) client$close(), add = TRUE)
+
+  # Close the stream externally; the pending recv promise will reject,
+  # flipping active to FALSE without cancelling the still-scheduled timer.
+  # The next timer tick must hit the !active early return.
+  close(client$stream)
+
+  deadline <- Sys.time() + 1
+  while (Sys.time() < deadline) later::run_now(0.05)
+
+  expect_false(client$active)
 })
 
 test_that("amsync_client $close() stops the client", {
