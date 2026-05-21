@@ -414,6 +414,7 @@ test_that("amsync_client errors when no sync response is received", {
 })
 
 test_that("amsync_client connects and receives document", {
+  drain_later()
   data_dir <- tempfile()
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
