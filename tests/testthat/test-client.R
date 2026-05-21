@@ -292,6 +292,65 @@ test_that("amsync_client receives server-side changes", {
   )
 })
 
+test_that("amsync_client deactivates when periodic sync errors", {
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  server <- amsync_server(data_dir = data_dir)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  doc_id <- generate_document_id()
+
+  client <- amsync_client(server$url, doc_id, sync = 0.05)
+  on.exit(if (client$active) client$close(), add = TRUE)
+
+  # Give the periodic sync something to send, then force send to fail
+  # to trigger the timer's error handler.
+  automerge::am_put(client$doc, automerge::AM_ROOT, "k", "v")
+  local_mocked_bindings(send_msg = function(s, msg) stop("simulated"))
+
+  while (!later::loop_empty()) later::run_now(1L)
+
+  expect_false(client$active)
+})
+
+test_that("amsync_client async loop survives process_message errors", {
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  server <- amsync_server(data_dir = data_dir)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  doc_id <- generate_document_id()
+
+  client <- amsync_client(server$url, doc_id, sync = 999)
+  on.exit(client$close(), add = TRUE)
+
+  # Force every subsequent apply_sync_and_reply to throw so the async
+  # receive loop has to recover.
+  local_mocked_bindings(
+    apply_sync_and_reply = function(...) stop("synthetic")
+  )
+
+  # Trigger a server-side broadcast to push a sync at our client
+  server_doc <- get_document(server, doc_id)
+  automerge::am_put(server_doc, automerge::AM_ROOT, "trigger", "v")
+  amsync_fetch(server$url, doc_id, timeout = 2000L)
+
+  # Wait for the recv to fire, snapshot, then close so the loop can drain
+  # (sync_loop reschedules itself, so loop_empty() never goes true while active).
+  later::run_now(2L)
+  active_after_error <- client$active
+  client$close()
+  while (!later::loop_empty()) later::run_now(1L)
+
+  expect_true(active_after_error)
+})
+
 test_that("amsync_client $close() stops the client", {
   data_dir <- tempfile()
   dir.create(data_dir)
