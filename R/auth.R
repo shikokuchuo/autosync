@@ -372,8 +372,11 @@ auth_config <- function(
 #' @param scopes Space-separated OAuth scopes to request. Default
 #'   `"openid email"`.
 #' @param redirect_uri Local redirect URI for the OAuth callback. Default
-#'   `"http://localhost:5173"`. Must match the redirect URI registered with the
-#'   OIDC provider.
+#'   `"http://localhost:0"` binds to an OS-assigned ephemeral port (as
+#'   recommended by RFC 8252 for native apps), which works with OIDC clients
+#'   registered as "Desktop app" / loopback-IP types that accept any port.
+#'   Supply an explicit port (e.g. `"http://localhost:8080"`) when your OIDC
+#'   provider requires the redirect URI to match a pre-registered value.
 #' @param timeout Seconds to wait for the user to complete authentication.
 #'   Default 120.
 #'
@@ -398,7 +401,7 @@ amsync_token <- function(
   client_secret = Sys.getenv("OIDC_CLIENT_SECRET"),
   issuer = oidc_issuer(),
   scopes = "openid email",
-  redirect_uri = "http://localhost:5173",
+  redirect_uri = "http://localhost:0",
   timeout = 120
 ) {
   if (!is_interactive()) {
@@ -442,6 +445,7 @@ amsync_token <- function(
   parts <- nanonext::parse_url(redirect_uri)
   server_url <- paste0(parts[["scheme"]], "://", parts[["hostname"]], ":", parts[["port"]])
   handler_path <- if (nzchar(parts[["path"]])) parts[["path"]] else "/"
+  ephemeral_port <- parts[["port"]] == "0"
 
   # Start local callback server
   auth_result <- new.env(parent = emptyenv())
@@ -482,6 +486,16 @@ amsync_token <- function(
   )
   server$start()
   on.exit(server$close())
+
+  # When an ephemeral port was requested, splice the actual bound port back
+  # into redirect_uri so the value sent to the OIDC provider (and echoed in
+  # the token exchange) matches the port the callback server is listening on.
+  if (ephemeral_port) {
+    bound <- nanonext::parse_url(server$url)
+    redirect_uri <- sub(
+      ":0", paste0(":", bound[["port"]]), redirect_uri, fixed = TRUE
+    )
+  }
 
   # Build authorization URL
   auth_url <- paste0(
