@@ -1021,11 +1021,16 @@ mock_token_flow <- function(
       ncurl = m$ncurl,
       is_error_value = function(x) FALSE,
       parse_url = function(uri) {
-        list(scheme = "http", hostname = "127.0.0.1", port = "0", path = "/")
+        port <- sub("^[^:]+://[^:/]+:(\\d+).*$", "\\1", uri)
+        list(scheme = "http", hostname = "127.0.0.1", port = port, path = "/")
       },
       handler = m$handler,
       http_server = function(url, handlers) {
-        list(start = function() NULL, close = function() NULL)
+        list(
+          start = function() NULL,
+          close = function() NULL,
+          url = "http://127.0.0.1:54321"
+        )
       }
     ),
     autosync = list(
@@ -1341,6 +1346,66 @@ test_that("amsync_token includes client_secret when provided", {
   )
 
   expect_true(grepl("client_secret=my-secret", captured_token_data))
+})
+
+test_that("amsync_token splices ephemeral port into redirect_uri", {
+  captured_auth_url <- NULL
+  captured_token_data <- NULL
+  m <- mock_token_flow()
+
+  oidc_config <- secretbase::jsonenc(list(
+    authorization_endpoint = "https://auth.example.com/authorize",
+    token_endpoint = "https://auth.example.com/token"
+  ))
+  ncurl_call <- 0L
+  local_mocked_bindings(
+    ncurl = function(url, ...) {
+      ncurl_call <<- ncurl_call + 1L
+      if (ncurl_call == 1L) {
+        list(data = charToRaw(oidc_config), status = 200L)
+      } else {
+        args <- list(...)
+        captured_token_data <<- args$data
+        list(
+          data = charToRaw(secretbase::jsonenc(list(id_token = "jwt"))),
+          status = 200L
+        )
+      }
+    },
+    is_error_value = m$nanonext$is_error_value,
+    parse_url = m$nanonext$parse_url, handler = m$nanonext$handler,
+    http_server = m$nanonext$http_server, .package = "nanonext"
+  )
+  local_mocked_bindings(
+    is_interactive = m$autosync$is_interactive, run_now = m$autosync$run_now
+  )
+  local_mocked_bindings(
+    browseURL = function(url) {
+      captured_auth_url <<- url
+      m$utils$browseURL(url)
+    },
+    .package = "utils"
+  )
+
+  amsync_token(
+    client_id = "test-client", client_secret = "",
+    issuer = "https://issuer.example.com", timeout = 2
+  )
+
+  # Mock http_server returns "http://127.0.0.1:54321"; default redirect_uri is
+  # "http://localhost:0", so the ":0" should be replaced with ":54321" while
+  # preserving the "localhost" hostname.
+  expect_match(
+    captured_auth_url,
+    "redirect_uri=http%3A%2F%2Flocalhost%3A54321",
+    fixed = TRUE
+  )
+  expect_match(
+    captured_token_data,
+    "redirect_uri=http%3A%2F%2Flocalhost%3A54321",
+    fixed = TRUE
+  )
+  expect_false(grepl(":0", captured_auth_url, fixed = TRUE))
 })
 
 # ---- server integration tests ----
