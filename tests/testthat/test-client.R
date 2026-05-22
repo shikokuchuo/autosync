@@ -543,7 +543,10 @@ test_that("amsync_client async loop survives process_message errors", {
   # Trigger a server-side broadcast to push a sync at our client
   server_doc <- get_document(server, doc_id)
   automerge::am_put(server_doc, automerge::AM_ROOT, "trigger", "v")
-  amsync_fetch(server$url, doc_id, timeout = 2000L)
+  expect_warning(
+    amsync_fetch(server$url, doc_id, timeout = 2000L),
+    "Receive error: synthetic"
+  )
 
   # Wait for the recv to fire, snapshot, then close so the loop can drain
   # (sync_loop reschedules itself, so loop_empty() never goes true while active).
