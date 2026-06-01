@@ -24,7 +24,9 @@ Imports:
     later,
     nanonext (>= 1.8.1),
     promises,
-    secretbase (>= 1.2.0)
+    secretbase (>= 1.2.0),
+    tools,
+    utils
 Suggests:
     openssl,
     testthat (>= 3.0.0)

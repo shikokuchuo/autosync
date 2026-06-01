@@ -29,6 +29,14 @@ clients in collaborative applications.
 }
 }
 
+\section{Browsing and Editing}{
+
+\describe{
+\item{\code{\link[=amsync_project]{amsync_project()}}}{Browse and edit the files in a project document}
+\item{\code{\link[=amsync_edit]{amsync_edit()}}}{Edit a synced text object in your editor}
+}
+}
+
 \section{Protocol}{
 
 The server implements the automerge-repo sync protocol over WebSockets.

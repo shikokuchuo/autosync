@@ -19,6 +19,12 @@
 #'   \item{[generate_document_id()]}{Generate a new document ID}
 #' }
 #'
+#' @section Browsing and Editing:
+#' \describe{
+#'   \item{[amsync_project()]}{Browse and edit the files in a project document}
+#'   \item{[amsync_edit()]}{Edit a synced text object in your editor}
+#' }
+#'
 #' @section Protocol:
 #' The server implements the automerge-repo sync protocol over WebSockets.
 #' Messages are CBOR-encoded and include:
