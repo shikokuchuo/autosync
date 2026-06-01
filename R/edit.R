@@ -138,7 +138,9 @@ resolve_editor <- function(editor = NULL) {
     Sys.getenv("EDITOR", unset = NA_character_)
   )
   for (cand in candidates) {
-    if (!is.null(cand) && length(cand) && !is.na(cand) && nzchar(cand)) {
+    # `getOption("editor")` may be a function (e.g. in RStudio); only a
+    # single, non-empty string is usable as a shell command here.
+    if (is.character(cand) && length(cand) == 1L && !is.na(cand) && nzchar(cand)) {
       return(cand)
     }
   }

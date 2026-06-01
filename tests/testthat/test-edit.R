@@ -196,6 +196,23 @@ test_that("resolve_editor follows the documented precedence", {
   expect_equal(resolve_editor(NULL), "editor-ed")
 })
 
+test_that("resolve_editor skips a non-string getOption('editor')", {
+  old_opt <- options(editor = utils::file.edit)
+  old_visual <- Sys.getenv("VISUAL", unset = NA)
+  old_editor <- Sys.getenv("EDITOR", unset = NA)
+  on.exit({
+    options(old_opt)
+    if (is.na(old_visual)) Sys.unsetenv("VISUAL") else Sys.setenv(VISUAL = old_visual)
+    if (is.na(old_editor)) Sys.unsetenv("EDITOR") else Sys.setenv(EDITOR = old_editor)
+  })
+
+  # A closure editor (as RStudio sets) must be skipped, not coerced.
+  Sys.unsetenv("VISUAL")
+  Sys.setenv(EDITOR = "editor-ed")
+  expect_silent(ed <- resolve_editor(NULL))
+  expect_equal(ed, "editor-ed")
+})
+
 test_that("launch_editor surfaces a non-zero editor exit status", {
   skip_on_os("windows")
   tmp <- tempfile()
