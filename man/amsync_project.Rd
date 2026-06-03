@@ -2,7 +2,7 @@
 % Please edit documentation in R/project.R
 \name{amsync_project}
 \alias{amsync_project}
-\title{Browse and edit files in a project document}
+\title{Open files from a project document}
 \usage{
 amsync_project(
   url,
@@ -43,11 +43,6 @@ with the following fields and methods:
 \item{\code{open(path)}}{Open the file's document over the project connection
 and return its \code{amsync_doc} handle. Reuses the connection and any
 already-open document.}
-\item{\code{edit(path = NULL)}}{Open the file's document and run
-\code{\link[=amsync_edit]{amsync_edit()}} with the extension inferred from the path. If \code{path}
-is \code{NULL} and interactive, shows a Shiny file picker first.}
-\item{\code{browse()}}{Interactive loop: pick a file from a Shiny file
-picker, edit it, then return to the picker; repeat until \strong{Done}.}
 \item{\code{refresh()}}{Re-resolve the file tree to pick up added or removed
 files (the project document syncs live, so this just settles pending
 updates).}
@@ -57,21 +52,23 @@ updates).}
 \description{
 Given a sync server URL and a project document ID, opens a persistent
 connection to the server, syncs the project document over it, and exposes
-its file tree for browsing and editing. A project is an Automerge document
-with a \code{files} map whose keys are file paths and whose values are text
-objects holding each file's own document ID.
+its file tree for opening individual files. A project is an Automerge
+document with a \code{files} map whose keys are file paths and whose values are
+text objects holding each file's own document ID.
 }
 \details{
-Opening or editing a file syncs that file's document over the \strong{same}
-connection rather than dialing the server again, so a browse session reuses
-a single WebSocket throughout. Call \verb{$close()} when finished to disconnect.
+Opening a file syncs that file's document over the \strong{same} connection
+rather than dialing the server again, so a session reuses a single WebSocket
+throughout. Pass an opened file to \code{\link[=amsync_edit]{amsync_edit()}} to edit it live, or use
+\code{\link[=amsync_app]{amsync_app()}} for an interactive browser. Call \verb{$close()} when finished to
+disconnect.
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 proj <- amsync_project("wss://quarto-hub.com/ws", proj_id, token = amsync_token())
 proj                                   # prints the file tree
-proj$browse()                          # pick a file, edit it, repeat
-proj$edit("/charlie/index.qmd")        # edit a known path directly
+doc <- proj$open("/charlie/index.qmd") # open a file over the connection
+amsync_edit(doc, at = "text", ext = ".qmd")  # edit it live
 proj$close()                           # disconnect when finished
 \dontshow{\}) # examplesIf}
 }

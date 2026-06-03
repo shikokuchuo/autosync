@@ -327,9 +327,9 @@ build_amsync_app <- function(
 
     # --- Connect screen: exit and end the app ---
 
-    # Show a brief closing message, then stop the gadget. The short delay lets
-    # the message render (and unblocks the calling R session), mirroring the
-    # "Finished" screen in pick_path_shiny().
+    # Show a brief closing message (the "Session ended" screen), then stop the
+    # gadget. The short delay lets the message render and unblocks the calling
+    # R session.
     shiny::observeEvent(input$exit, {
       cleanup_project(st)
       rv$view <- "closed"
