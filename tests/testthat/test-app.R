@@ -166,7 +166,7 @@ test_that("the app connects, browses, and edits over a live server", {
   files[["/notes.md"]] <- automerge::am_text(fid)
 
   app <- build_amsync_app(
-    url = server$url,
+    server = server$url,
     proj_id = pid,
     token = NULL,
     tls = NULL,

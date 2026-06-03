@@ -23,7 +23,8 @@
 #' reuses it for every file opened during the session.
 #'
 #' @inheritParams amsync_project
-#' @param url Initial server URL to prefill in the connect form. Default `""`.
+#' @param server Initial sync-server URL to prefill in the connect form.
+#'   Default `""`.
 #' @param proj_id Initial project document ID to prefill. Default `""`.
 #' @param token (optional) A JWT obtained earlier from [amsync_token()]. When
 #'   supplied, the app starts already signed in; you can still re-authenticate
@@ -51,7 +52,7 @@
 #' @importFrom automerge am_text_content
 #' @export
 amsync_app <- function(
-  url = "",
+  server = "",
   proj_id = "",
   token = NULL,
   tls = NULL,
@@ -79,7 +80,7 @@ amsync_app <- function(
     stop("`token` must be a single non-empty string (from `amsync_token()`), or NULL")
   }
 
-  app <- build_amsync_app(url, proj_id, token, tls, timeout, files_key, debounce)
+  app <- build_amsync_app(server, proj_id, token, tls, timeout, files_key, debounce)
   shiny::runGadget(app, stopOnCancel = FALSE)
   invisible(NULL)
 }
@@ -94,7 +95,7 @@ amsync_app <- function(
 #'
 #' @noRd
 build_amsync_app <- function(
-  url,
+  server,
   proj_id,
   token,
   tls,
@@ -143,7 +144,7 @@ build_amsync_app <- function(
             "d-flex h-100 w-100 justify-content-center",
             "align-items-start overflow-auto p-3"
           ),
-          connect_screen_ui(url, proj_id)
+          connect_screen_ui(server, proj_id)
         )
       } else {
         browse_screen_ui()
@@ -361,12 +362,13 @@ cleanup_project <- function(st) {
 
 #' Build the connect-screen form card
 #'
-#' @param url,proj_id Initial values for the server URL and project ID fields.
+#' @param server,proj_id Initial values for the server URL and project ID
+#'   fields.
 #'
 #' @return A bslib card.
 #'
 #' @noRd
-connect_screen_ui <- function(url, proj_id) {
+connect_screen_ui <- function(server, proj_id) {
   bslib::card(
     style = "max-width: 520px; width: 100%;",
     bslib::card_header("Connect to a project"),
@@ -374,7 +376,7 @@ connect_screen_ui <- function(url, proj_id) {
       shiny::textInput(
         "url",
         "Server URL",
-        value = url,
+        value = server,
         placeholder = "Sync server wss://",
         width = "100%"
       ),

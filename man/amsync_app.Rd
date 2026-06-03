@@ -5,7 +5,7 @@
 \title{Launch the autosync browser app}
 \usage{
 amsync_app(
-  url = "",
+  server = "",
   proj_id = "",
   token = NULL,
   tls = NULL,
@@ -15,7 +15,8 @@ amsync_app(
 )
 }
 \arguments{
-\item{url}{Initial server URL to prefill in the connect form. Default \code{""}.}
+\item{server}{Initial sync-server URL to prefill in the connect form.
+Default \code{""}.}
 
 \item{proj_id}{Initial project document ID to prefill. Default \code{""}.}
 
