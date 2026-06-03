@@ -2,22 +2,13 @@
 % Please edit documentation in R/client.R
 \name{amsync_client}
 \alias{amsync_client}
-\title{Create a persistent sync client}
+\title{Open a persistent sync connection}
 \usage{
-amsync_client(
-  url,
-  doc_id,
-  timeout = 5000L,
-  tls = NULL,
-  token = NULL,
-  interval = 1000L
-)
+amsync_client(url, timeout = 5000L, tls = NULL, token = NULL, interval = 1000L)
 }
 \arguments{
 \item{url}{WebSocket URL of the sync server (e.g., "ws://localhost:3030/"
 or "wss://sync.automerge.org/"). Note: trailing slash may be required.}
-
-\item{doc_id}{Document ID (base58check encoded string)}
 
 \item{timeout}{Timeout in milliseconds for each receive operation. Default 5000.}
 
@@ -31,34 +22,52 @@ upgrade request.}
 
 \item{interval}{Interval in milliseconds for pushing local changes to
 the server. Default 1000. Uses \code{\link[later:later]{later::later()}} to periodically check
-for and send local changes. This is a cheap no-op when there are no
-changes.}
+for and send local changes for every open document. This is a cheap no-op
+when there are no changes.}
 }
 \value{
 An environment of class \code{"amsync_client"} with reference semantics,
-containing:
+representing the connection:
+\describe{
+\item{\code{open_doc(doc_id, timeout)}}{Open a live document over this
+connection and return an \code{amsync_doc} handle for it (see below).
+Repeated calls for the same \code{doc_id} reuse the document already open
+on the connection rather than requesting it again.}
+\item{\code{close()}}{Disconnect and stop syncing all open documents.}
+\item{\code{active}}{Logical, whether the connection is active.}
+}
+
+An \code{amsync_doc} handle returned by \verb{$open_doc()} is itself an environment
+with:
 \describe{
 \item{\code{doc}}{The live automerge document, kept in sync with the server.}
-\item{\code{push()}}{Push local changes to the server immediately.}
-\item{\code{close()}}{Disconnect and stop syncing.}
-\item{\code{active}}{Logical, whether the connection is active.}
+\item{\code{push()}}{Push this document's local changes to the server
+immediately.}
+\item{\code{close()}}{Stop syncing this one document (detach it from the
+connection); the connection and its other documents are unaffected.}
+\item{\code{active}}{Logical, whether the document is still open on an active
+connection.}
 }
 }
 \description{
 Connects to an automerge-repo sync server and maintains a persistent
-WebSocket connection for continuous document synchronization. Unlike
-\code{\link[=amsync_fetch]{amsync_fetch()}}, which performs a one-off retrieval, this client stays
-connected and receives real-time updates from other peers.
+WebSocket connection. The connection performs the protocol handshake but
+holds no documents on its own; open one or more live documents over it with
+the \verb{$open_doc()} method. Each document stays synced — receiving real-time
+updates from other peers and flushing local changes — for as long as the
+connection is open. Unlike \code{\link[=amsync_fetch]{amsync_fetch()}}, which performs a one-off
+retrieval over a throwaway connection, several documents can share a single
+connection here.
 }
 \details{
-The client performs a synchronous handshake and initial sync before
-returning, so \verb{$doc} has meaningful content immediately. After that,
-incoming changes are received asynchronously via a self-chaining promise
-loop, and local changes are flushed periodically via a \code{\link[later:later]{later::later()}}
-timer.
+Opening the connection performs a synchronous handshake before returning.
+\verb{$open_doc()} then performs a synchronous initial sync, so the returned
+handle's \verb{$doc} has meaningful content immediately. After that, incoming
+changes are received asynchronously via a self-chaining promise loop, and
+local changes are flushed periodically via a \code{\link[later:later]{later::later()}} timer.
 
-\verb{$close()} does not flush pending local changes. Call \verb{$push()} first if
-you have unsynced edits — otherwise any changes made since the last
+Neither \code{close()} flushes pending local changes. Call \verb{$push()} first if you
+have unsynced edits — otherwise any changes made since the last
 \code{sync}-interval tick may be lost.
 }
 \examples{
@@ -67,15 +76,19 @@ server <- amsync_server()
 server$start()
 doc_id <- create_document(server)
 
-client <- amsync_client(server$url, doc_id)
-automerge::am_keys(client$doc)
+conn <- amsync_client(server$url)
+doc <- conn$open_doc(doc_id)
+automerge::am_keys(doc$doc)
 
 # Make local changes and push
-automerge::am_put(client$doc, automerge::AM_ROOT, "key", "value")
-client$push()
+automerge::am_put(doc$doc, automerge::AM_ROOT, "key", "value")
+doc$push()
 
-# Disconnect
-client$close()
+# Open another document over the same connection
+other <- conn$open_doc(create_document(server))
+
+# Disconnect (closes every document on the connection)
+conn$close()
 server$close()
 \dontshow{\}) # examplesIf}
 }

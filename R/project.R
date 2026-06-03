@@ -2,10 +2,15 @@
 
 #' Browse and edit files in a project document
 #'
-#' Given a sync server URL and a project document ID, fetches the project and
-#' exposes its file tree for browsing and editing. A project is an Automerge
-#' document with a `files` map whose keys are file paths and whose values are
-#' text objects holding each file's own document ID.
+#' Given a sync server URL and a project document ID, opens a persistent
+#' connection to the server, syncs the project document over it, and exposes
+#' its file tree for browsing and editing. A project is an Automerge document
+#' with a `files` map whose keys are file paths and whose values are text
+#' objects holding each file's own document ID.
+#'
+#' Opening or editing a file syncs that file's document over the **same**
+#' connection rather than dialing the server again, so a browse session reuses
+#' a single WebSocket throughout. Call `$close()` when finished to disconnect.
 #'
 #' @inheritParams amsync_fetch
 #' @param proj_id Document ID of the project.
@@ -15,18 +20,22 @@
 #' @return An environment of class `"amsync_project"` (reference semantics)
 #'   with the following fields and methods:
 #'   \describe{
-#'     \item{`doc`}{The fetched project document.}
+#'     \item{`doc`}{The live project document, kept in sync with the server.}
+#'     \item{`conn`}{The underlying [amsync_client()] connection.}
 #'     \item{`paths()`}{Current sorted file paths.}
 #'     \item{`doc_id(path)`}{Resolve a path to its document ID.}
-#'     \item{`open(path)`}{Return a live [amsync_client()] for the file's
-#'       document (the caller owns it and must `$close()` it).}
-#'     \item{`edit(path = NULL)`}{Open the file's client, run [amsync_edit()]
-#'       with the extension inferred from the path, then close the client. If
-#'       `path` is `NULL` and interactive, shows a Shiny file picker first.}
+#'     \item{`open(path)`}{Open the file's document over the project connection
+#'       and return its `amsync_doc` handle. Reuses the connection and any
+#'       already-open document.}
+#'     \item{`edit(path = NULL)`}{Open the file's document and run
+#'       [amsync_edit()] with the extension inferred from the path. If `path`
+#'       is `NULL` and interactive, shows a Shiny file picker first.}
 #'     \item{`browse()`}{Interactive loop: pick a file from a Shiny file
 #'       picker, edit it, then return to the picker; repeat until **Done**.}
-#'     \item{`refresh()`}{Re-fetch the project document to pick up added or
-#'       removed files.}
+#'     \item{`refresh()`}{Re-resolve the file tree to pick up added or removed
+#'       files (the project document syncs live, so this just settles pending
+#'       updates).}
+#'     \item{`close()`}{Disconnect the project connection.}
 #'   }
 #'
 #' @examplesIf interactive()
@@ -34,6 +43,7 @@
 #' proj                                   # prints the file tree
 #' proj$browse()                          # pick a file, edit it, repeat
 #' proj$edit("/charlie/index.qmd")        # edit a known path directly
+#' proj$close()                           # disconnect when finished
 #'
 #' @importFrom automerge am_keys am_text_content
 #' @importFrom tools file_ext
@@ -46,17 +56,32 @@ amsync_project <- function(
   timeout = 5000L,
   files_key = "files"
 ) {
-  doc <- amsync_fetch(url, proj_id, timeout = timeout, tls = tls, token = token)
+  conn <- amsync_client(url, timeout = timeout, tls = tls, token = token)
+
+  # Sync the project document over the connection, then validate its files map.
+  # Tear the connection down if either step fails so we never leak a socket.
+  proj_doc <- tryCatch(
+    conn$open_doc(proj_id),
+    error = function(e) {
+      conn$close()
+      stop(e)
+    }
+  )
+  files_map <- tryCatch(
+    resolve_files_map(proj_doc$doc, files_key),
+    error = function(e) {
+      conn$close()
+      stop(e)
+    }
+  )
 
   proj <- new.env(parent = emptyenv())
-  proj$doc <- doc
+  proj$conn <- conn
+  proj$doc <- proj_doc$doc
   proj$url <- url
   proj$proj_id <- proj_id
-  proj$token <- token
-  proj$tls <- tls
-  proj$timeout <- timeout
   proj$files_key <- files_key
-  proj$files_map <- resolve_files_map(doc, files_key)
+  proj$files_map <- files_map
 
   proj$paths <- function() {
     sort(am_keys(proj$doc, proj$files_map))
@@ -77,13 +102,7 @@ amsync_project <- function(
   }
 
   proj$open <- function(path) {
-    amsync_client(
-      proj$url,
-      proj$doc_id(path),
-      timeout = proj$timeout,
-      tls = proj$tls,
-      token = proj$token
-    )
+    proj$conn$open_doc(proj$doc_id(path))
   }
 
   proj$edit <- function(path = NULL) {
@@ -97,9 +116,7 @@ amsync_project <- function(
       }
     }
     ext <- file_ext_dot(path)
-    client <- proj$open(path)
-    on.exit(client$close())
-    amsync_edit(client, at = "text", ext = ext)
+    amsync_edit(proj$open(path), at = "text", ext = ext)
     invisible(proj)
   }
 
@@ -118,14 +135,17 @@ amsync_project <- function(
   }
 
   proj$refresh <- function() {
-    proj$doc <- amsync_fetch(
-      proj$url,
-      proj$proj_id,
-      timeout = proj$timeout,
-      tls = proj$tls,
-      token = proj$token
-    )
+    # The project document syncs live over the connection; settle any pending
+    # updates, then re-resolve the files map to reflect added/removed files.
+    for (i in seq_len(5L)) {
+      run_now(0.05)
+    }
     proj$files_map <- resolve_files_map(proj$doc, proj$files_key)
+    invisible(proj)
+  }
+
+  proj$close <- function() {
+    proj$conn$close()
     invisible(proj)
   }
 
@@ -141,7 +161,7 @@ print.amsync_project <- function(x, ...) {
   cat("  Server:", x$url, "\n")
   cat("  Files:", length(paths), "\n\n")
   cat(format_file_tree(paths))
-  cat("\nCall $browse() to pick a file and edit it.\n")
+  cat("\nCall $browse() to pick a file and edit it, $close() when done.\n")
   invisible(x)
 }
 

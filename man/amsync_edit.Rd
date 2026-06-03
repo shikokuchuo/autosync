@@ -4,11 +4,11 @@
 \alias{amsync_edit}
 \title{Edit a synced text object in a Shiny editor}
 \usage{
-amsync_edit(client, at = "text", ext = NULL)
+amsync_edit(doc, at = "text", ext = NULL)
 }
 \arguments{
-\item{client}{An \code{amsync_client} object (see \code{\link[=amsync_client]{amsync_client()}}) with an
-active connection.}
+\item{doc}{An \code{amsync_doc} handle (open one with \code{amsync_client()$open_doc()})
+backed by an active connection.}
 
 \item{at}{Character path to the text object within the document. A single
 string (e.g. \code{"text"}) addresses a top-level key; a character vector
@@ -20,7 +20,7 @@ used to pick the editor's syntax-highlighting language. \code{NULL} (default)
 uses plain text.}
 }
 \value{
-Invisibly returns \code{client}.
+Invisibly returns \code{doc}.
 }
 \description{
 Opens a synced Automerge text object in a Shiny app featuring a
@@ -47,13 +47,14 @@ it did, the saved content is left as-is.
 server <- amsync_server()
 server$start()
 doc_id <- create_document(server)
-doc <- get_document(server, doc_id)
-doc$text <- automerge::am_text("edit me")
+sdoc <- get_document(server, doc_id)
+sdoc$text <- automerge::am_text("edit me")
 
-client <- amsync_client(server$url, doc_id)
-amsync_edit(client, at = "text", ext = ".md")
+conn <- amsync_client(server$url)
+doc <- conn$open_doc(doc_id)
+amsync_edit(doc, at = "text", ext = ".md")
 
-client$close()
+conn$close()
 server$close()
 \dontshow{\}) # examplesIf}
 }

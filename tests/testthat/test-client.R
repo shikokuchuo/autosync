@@ -320,7 +320,7 @@ test_that("amsync_client errors when peer response fails", {
   )
 
   expect_error(
-    amsync_client("ws://fake:1234", "fake_doc_id"),
+    amsync_client("ws://fake:1234"),
     "Failed to receive peer response"
   )
 })
@@ -337,7 +337,7 @@ test_that("amsync_client errors when server returns error during handshake", {
   )
 
   expect_error(
-    amsync_client("ws://fake:1234", "fake_doc_id"),
+    amsync_client("ws://fake:1234"),
     "Server error: auth failed"
   )
 })
@@ -354,66 +354,77 @@ test_that("amsync_client errors on unexpected message type during handshake", {
   )
 
   expect_error(
-    amsync_client("ws://fake:1234", "fake_doc_id"),
+    amsync_client("ws://fake:1234"),
     "Expected peer message, got: sync"
   )
 })
 
-test_that("amsync_client errors when server returns error during sync", {
-  local_mocked_bindings(
-    stream = function(...) rawConnection(raw(0)),
-    send = function(...) invisible(NULL),
-    recv_aio = scripted_recv(list(
-      fake_peer,
-      secretbase::cborenc(list(type = "error", message = "sync failed"))
-    )),
-    unresolved = function(...) FALSE,
-    run_now = function(...) invisible(NULL)
-  )
+test_that("open_doc errors when the server reports an error", {
+  skip_on_cran()
+  drain_later()
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
 
+  server <- amsync_server(data_dir = data_dir)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  conn <- amsync_client(server$url)
+  on.exit(if (conn$active) conn$close(), add = TRUE)
+
+  # An unparseable document ID makes the server send an error and disconnect.
   expect_error(
-    amsync_client("ws://fake:1234", "fake_doc_id"),
-    "Server error: sync failed"
+    suppressWarnings(conn$open_doc("not a valid id!")),
+    "Server error"
   )
 })
 
-test_that("amsync_client errors when document is unavailable", {
-  local_mocked_bindings(
-    stream = function(...) rawConnection(raw(0)),
-    send = function(...) invisible(NULL),
-    recv_aio = scripted_recv(list(
-      fake_peer,
-      secretbase::cborenc(list(type = "doc-unavailable"))
-    )),
-    unresolved = function(...) FALSE,
-    run_now = function(...) invisible(NULL)
-  )
+test_that("open_doc errors when the document is unavailable", {
+  skip_on_cran()
+  drain_later()
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  # share = FALSE denies all document requests (sends doc-unavailable).
+  server <- amsync_server(data_dir = data_dir, share = FALSE)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  conn <- amsync_client(server$url)
+  on.exit(if (conn$active) conn$close(), add = TRUE)
 
   expect_error(
-    amsync_client("ws://fake:1234", "fake_doc_id"),
-    "Document not available on server: fake_doc_id"
+    suppressWarnings(conn$open_doc(generate_document_id())),
+    "Document not available on server"
   )
 })
 
-test_that("amsync_client errors when no sync response is received", {
-  local_mocked_bindings(
-    stream = function(...) rawConnection(raw(0)),
-    send = function(...) invisible(NULL),
-    recv_aio = scripted_recv(list(
-      fake_peer,
-      structure(5L, class = "errorValue")
-    )),
-    unresolved = function(...) FALSE,
-    run_now = function(...) invisible(NULL)
-  )
+test_that("open_doc times out without a sync response", {
+  skip_on_cran()
+  drain_later()
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  server <- amsync_server(data_dir = data_dir)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  conn <- amsync_client(server$url)
+  on.exit(if (conn$active) conn$close(), add = TRUE)
+
+  # Drop the outgoing request so the server never replies.
+  local_mocked_bindings(send_msg = function(s, msg) invisible(NULL))
 
   expect_error(
-    amsync_client("ws://fake:1234", "fake_doc_id", timeout = 100L),
+    conn$open_doc(generate_document_id(), timeout = 200L),
     "No sync response from server"
   )
 })
 
-test_that("amsync_client connects and receives document", {
+test_that("amsync_client connects and open_doc receives document", {
   drain_later()
   data_dir <- tempfile()
   dir.create(data_dir)
@@ -427,18 +438,55 @@ test_that("amsync_client connects and receives document", {
   doc <- get_document(server, doc_id)
   automerge::am_put(doc, automerge::AM_ROOT, "greeting", "hello")
 
-  client <- amsync_client(server$url, doc_id)
-  on.exit(client$close(), add = TRUE)
+  conn <- amsync_client(server$url)
+  on.exit(conn$close(), add = TRUE)
 
-  expect_s3_class(client, "amsync_client")
-  expect_true(client$active)
+  expect_s3_class(conn, "amsync_client")
+  expect_true(conn$active)
+
+  handle <- conn$open_doc(doc_id)
+  expect_s3_class(handle, "amsync_doc")
+  expect_true(handle$active)
+  expect_equal(handle$doc_id, doc_id)
   expect_equal(
-    automerge::am_get(client$doc, automerge::AM_ROOT, "greeting"),
+    automerge::am_get(handle$doc, automerge::AM_ROOT, "greeting"),
     "hello"
   )
 })
 
-test_that("amsync_client $push() pushes local changes to server", {
+test_that("open_doc reuses one connection across documents", {
+  skip_on_cran()
+  drain_later()
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  server <- amsync_server(data_dir = data_dir)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  id1 <- create_document(server)
+  id2 <- create_document(server)
+
+  conn <- amsync_client(server$url)
+  on.exit(conn$close(), add = TRUE)
+
+  conns_before <- length(ls(attr(server, "sync")$connections))
+  h1 <- conn$open_doc(id1)
+  h2 <- conn$open_doc(id2)
+  for (i in seq_len(10)) later::run_now(0.05)
+
+  # Opening documents reuses the same WebSocket, not a new server connection.
+  expect_equal(length(ls(attr(server, "sync")$connections)), conns_before)
+  expect_identical(h1$stream, conn$stream)
+  expect_identical(h2$stream, conn$stream)
+  expect_identical(h1$connection, conn)
+
+  # Re-opening the same document returns a handle backed by the same live doc.
+  expect_identical(conn$open_doc(id1)$doc, h1$doc)
+})
+
+test_that("open_doc handle $push() pushes local changes to server", {
   data_dir <- tempfile()
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
@@ -449,12 +497,13 @@ test_that("amsync_client $push() pushes local changes to server", {
 
   doc_id <- create_document(server)
 
-  client <- amsync_client(server$url, doc_id)
-  on.exit(client$close(), add = TRUE)
+  conn <- amsync_client(server$url)
+  on.exit(conn$close(), add = TRUE)
+  handle <- conn$open_doc(doc_id)
 
   # Make a local change and push
-  automerge::am_put(client$doc, automerge::AM_ROOT, "from_client", "value1")
-  client$push()
+  automerge::am_put(handle$doc, automerge::AM_ROOT, "from_client", "value1")
+  handle$push()
 
   # Give server time to process
   for (i in seq_len(20)) later::run_now(0.1)
@@ -466,7 +515,7 @@ test_that("amsync_client $push() pushes local changes to server", {
   )
 })
 
-test_that("amsync_client receives server-side changes", {
+test_that("open_doc handle receives server-side changes", {
   data_dir <- tempfile()
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
@@ -477,8 +526,9 @@ test_that("amsync_client receives server-side changes", {
 
   doc_id <- create_document(server)
 
-  client <- amsync_client(server$url, doc_id)
-  on.exit(client$close(), add = TRUE)
+  conn <- amsync_client(server$url)
+  on.exit(conn$close(), add = TRUE)
+  handle <- conn$open_doc(doc_id)
 
   # Make a change on the server side and sync to client via a second client
   server_doc <- get_document(server, doc_id)
@@ -491,7 +541,7 @@ test_that("amsync_client receives server-side changes", {
   for (i in seq_len(30)) later::run_now(0.1)
 
   expect_equal(
-    automerge::am_get(client$doc, automerge::AM_ROOT, "server_key"),
+    automerge::am_get(handle$doc, automerge::AM_ROOT, "server_key"),
     "server_val"
   )
 })
@@ -507,17 +557,18 @@ test_that("amsync_client deactivates when periodic sync errors", {
 
   doc_id <- generate_document_id()
 
-  client <- amsync_client(server$url, doc_id, interval = 50L)
-  on.exit(if (client$active) client$close(), add = TRUE)
+  conn <- amsync_client(server$url, interval = 50L)
+  on.exit(if (conn$active) conn$close(), add = TRUE)
+  handle <- conn$open_doc(doc_id)
 
   # Give the periodic sync something to send, then force send to fail
   # to trigger the timer's error handler.
-  automerge::am_put(client$doc, automerge::AM_ROOT, "k", "v")
+  automerge::am_put(handle$doc, automerge::AM_ROOT, "k", "v")
   local_mocked_bindings(send_msg = function(s, msg) stop("simulated"))
 
   while (!later::loop_empty()) later::run_now(1L)
 
-  expect_false(client$active)
+  expect_false(conn$active)
 })
 
 test_that("amsync_client async loop survives process_message errors", {
@@ -531,8 +582,9 @@ test_that("amsync_client async loop survives process_message errors", {
 
   doc_id <- generate_document_id()
 
-  client <- amsync_client(server$url, doc_id, interval = 999000L)
-  on.exit(client$close(), add = TRUE)
+  conn <- amsync_client(server$url, interval = 999000L)
+  on.exit(conn$close(), add = TRUE)
+  handle <- conn$open_doc(doc_id)
 
   # Force every subsequent apply_sync_and_reply to throw so the async
   # receive loop has to recover.
@@ -551,8 +603,8 @@ test_that("amsync_client async loop survives process_message errors", {
   # Wait for the recv to fire, snapshot, then close so the loop can drain
   # (sync_loop reschedules itself, so loop_empty() never goes true while active).
   later::run_now(2L)
-  active_after_error <- client$active
-  client$close()
+  active_after_error <- conn$active
+  conn$close()
   while (!later::loop_empty()) later::run_now(1L)
 
   expect_true(active_after_error)
@@ -578,7 +630,7 @@ test_that("apply_sync_and_reply warns on decode error", {
   )
 })
 
-test_that("amsync_client process_message handles non-sync server messages", {
+test_that("process_message handles non-sync server messages", {
   data_dir <- tempfile()
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
@@ -587,12 +639,10 @@ test_that("amsync_client process_message handles non-sync server messages", {
   server$start()
   on.exit(server$close(), add = TRUE)
 
-  doc_id <- generate_document_id()
+  conn <- amsync_client(server$url, interval = 999000L)
+  on.exit(conn$close(), add = TRUE)
 
-  client <- amsync_client(server$url, doc_id, interval = 999000L)
-  on.exit(client$close(), add = TRUE)
-
-  process_message <- environment(client$push)$process_message
+  process_message <- environment(conn$open_doc)$process_message
 
   expect_warning(
     process_message(secretbase::cborenc(list(type = "error", message = "boom"))),
@@ -606,7 +656,7 @@ test_that("amsync_client process_message handles non-sync server messages", {
   expect_silent(process_message(as.raw(c(0xFF, 0xFF))))
 })
 
-test_that("amsync_client periodic timer is a no-op when client becomes inactive", {
+test_that("amsync_client periodic timer is a no-op when connection becomes inactive", {
   data_dir <- tempfile()
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
@@ -615,23 +665,21 @@ test_that("amsync_client periodic timer is a no-op when client becomes inactive"
   server$start()
   on.exit(server$close(), add = TRUE)
 
-  doc_id <- generate_document_id()
-
-  client <- amsync_client(server$url, doc_id, interval = 100L)
-  on.exit(if (client$active) client$close(), add = TRUE)
+  conn <- amsync_client(server$url, interval = 100L)
+  on.exit(if (conn$active) conn$close(), add = TRUE)
 
   # Close the stream externally; the pending recv promise will reject,
   # flipping active to FALSE without cancelling the still-scheduled timer.
   # The next timer tick must hit the !active early return.
-  close(client$stream)
+  close(conn$stream)
 
   deadline <- Sys.time() + 1
   while (Sys.time() < deadline) later::run_now(0.05)
 
-  expect_false(client$active)
+  expect_false(conn$active)
 })
 
-test_that("amsync_client $close() stops the client", {
+test_that("amsync_client $close() stops the connection", {
   data_dir <- tempfile()
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
@@ -640,19 +688,17 @@ test_that("amsync_client $close() stops the client", {
   server$start()
   on.exit(server$close(), add = TRUE)
 
-  doc_id <- create_document(server)
+  conn <- amsync_client(server$url)
+  expect_true(conn$active)
 
-  client <- amsync_client(server$url, doc_id)
-  expect_true(client$active)
-
-  client$close()
-  expect_false(client$active)
+  conn$close()
+  expect_false(conn$active)
 
   # Calling close again is a no-op
-  expect_silent(client$close())
+  expect_silent(conn$close())
 })
 
-test_that("print.amsync_client displays info", {
+test_that("print methods display connection and document info", {
   data_dir <- tempfile()
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
@@ -663,13 +709,17 @@ test_that("print.amsync_client displays info", {
 
   doc_id <- create_document(server)
 
-  client <- amsync_client(server$url, doc_id)
-  on.exit(client$close(), add = TRUE)
+  conn <- amsync_client(server$url)
+  on.exit(conn$close(), add = TRUE)
 
-  output <- capture.output(print(client))
-  expect_true(any(grepl("Automerge Sync Client", output)))
-  expect_true(any(grepl(doc_id, output, fixed = TRUE)))
-  expect_true(any(grepl("Active: TRUE", output)))
+  conn_out <- capture.output(print(conn))
+  expect_true(any(grepl("Automerge Sync Connection", conn_out)))
+  expect_true(any(grepl("Active: TRUE", conn_out)))
+
+  doc_out <- capture.output(print(conn$open_doc(doc_id)))
+  expect_true(any(grepl("Automerge Document", doc_out)))
+  expect_true(any(grepl(doc_id, doc_out, fixed = TRUE)))
+  expect_true(any(grepl("Active: TRUE", doc_out)))
 })
 
 test_that("amsync_fetch returns empty document for new document ID", {

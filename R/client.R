@@ -67,37 +67,55 @@ join_msg <- function(peer_id) {
   )
 }
 
-#' Create a persistent sync client
+#' Open a persistent sync connection
 #'
 #' Connects to an automerge-repo sync server and maintains a persistent
-#' WebSocket connection for continuous document synchronization. Unlike
-#' [amsync_fetch()], which performs a one-off retrieval, this client stays
-#' connected and receives real-time updates from other peers.
+#' WebSocket connection. The connection performs the protocol handshake but
+#' holds no documents on its own; open one or more live documents over it with
+#' the `$open_doc()` method. Each document stays synced — receiving real-time
+#' updates from other peers and flushing local changes — for as long as the
+#' connection is open. Unlike [amsync_fetch()], which performs a one-off
+#' retrieval over a throwaway connection, several documents can share a single
+#' connection here.
 #'
 #' @inheritParams amsync_fetch
 #' @param interval Interval in milliseconds for pushing local changes to
 #'   the server. Default 1000. Uses [later::later()] to periodically check
-#'   for and send local changes. This is a cheap no-op when there are no
-#'   changes.
+#'   for and send local changes for every open document. This is a cheap no-op
+#'   when there are no changes.
 #'
 #' @return An environment of class `"amsync_client"` with reference semantics,
-#'   containing:
+#'   representing the connection:
 #'   \describe{
-#'     \item{`doc`}{The live automerge document, kept in sync with the server.}
-#'     \item{`push()`}{Push local changes to the server immediately.}
-#'     \item{`close()`}{Disconnect and stop syncing.}
+#'     \item{`open_doc(doc_id, timeout)`}{Open a live document over this
+#'       connection and return an `amsync_doc` handle for it (see below).
+#'       Repeated calls for the same `doc_id` reuse the document already open
+#'       on the connection rather than requesting it again.}
+#'     \item{`close()`}{Disconnect and stop syncing all open documents.}
 #'     \item{`active`}{Logical, whether the connection is active.}
 #'   }
 #'
-#' @details
-#' The client performs a synchronous handshake and initial sync before
-#' returning, so `$doc` has meaningful content immediately. After that,
-#' incoming changes are received asynchronously via a self-chaining promise
-#' loop, and local changes are flushed periodically via a [later::later()]
-#' timer.
+#'   An `amsync_doc` handle returned by `$open_doc()` is itself an environment
+#'   with:
+#'   \describe{
+#'     \item{`doc`}{The live automerge document, kept in sync with the server.}
+#'     \item{`push()`}{Push this document's local changes to the server
+#'       immediately.}
+#'     \item{`close()`}{Stop syncing this one document (detach it from the
+#'       connection); the connection and its other documents are unaffected.}
+#'     \item{`active`}{Logical, whether the document is still open on an active
+#'       connection.}
+#'   }
 #'
-#' `$close()` does not flush pending local changes. Call `$push()` first if
-#' you have unsynced edits — otherwise any changes made since the last
+#' @details
+#' Opening the connection performs a synchronous handshake before returning.
+#' `$open_doc()` then performs a synchronous initial sync, so the returned
+#' handle's `$doc` has meaningful content immediately. After that, incoming
+#' changes are received asynchronously via a self-chaining promise loop, and
+#' local changes are flushed periodically via a [later::later()] timer.
+#'
+#' Neither `close()` flushes pending local changes. Call `$push()` first if you
+#' have unsynced edits — otherwise any changes made since the last
 #' `sync`-interval tick may be lost.
 #'
 #' @examplesIf interactive()
@@ -105,28 +123,29 @@ join_msg <- function(peer_id) {
 #' server$start()
 #' doc_id <- create_document(server)
 #'
-#' client <- amsync_client(server$url, doc_id)
-#' automerge::am_keys(client$doc)
+#' conn <- amsync_client(server$url)
+#' doc <- conn$open_doc(doc_id)
+#' automerge::am_keys(doc$doc)
 #'
 #' # Make local changes and push
-#' automerge::am_put(client$doc, automerge::AM_ROOT, "key", "value")
-#' client$push()
+#' automerge::am_put(doc$doc, automerge::AM_ROOT, "key", "value")
+#' doc$push()
 #'
-#' # Disconnect
-#' client$close()
+#' # Open another document over the same connection
+#' other <- conn$open_doc(create_document(server))
+#'
+#' # Disconnect (closes every document on the connection)
+#' conn$close()
 #' server$close()
 #'
 #' @export
 amsync_client <- function(
   url,
-  doc_id,
   timeout = 5000L,
   tls = NULL,
   token = NULL,
   interval = 1000L
 ) {
-  doc <- am_create()
-  sync_state <- am_sync_state()
   peer_id <- generate_peer_id()
 
   s <- stream(
@@ -157,58 +176,38 @@ amsync_client <- function(
 
   server_peer_id <- peer_msg$senderId
 
-  # --- Send initial request ---
-
-  sync_data <- am_sync_encode(doc, sync_state)
-  send_msg(
-    s,
-    sync_msg("request", peer_id, server_peer_id, doc_id, sync_data %||% raw(0))
-  )
-
-  # --- Blocking initial sync ---
-
-  idle_timeout <- 2000L
-  sync_received <- FALSE
-  result <- recv_msg(s, timeout = timeout)
-  while (!inherits(result, "errorValue")) {
-    msg <- cbordec(result)
-    if (msg$type == "sync") {
-      sync_received <- TRUE
-      apply_sync_and_reply(
-        s,
-        doc,
-        sync_state,
-        msg$data,
-        peer_id,
-        server_peer_id,
-        doc_id
-      )
-    } else if (msg$type == "error") {
-      stop("Server error: ", msg$message)
-    } else if (msg$type == "doc-unavailable") {
-      stop("Document not available on server: ", doc_id)
-    }
-    result <- recv_msg(s, timeout = idle_timeout)
-  }
-  if (!sync_received) {
-    stop("No sync response from server within ", timeout, "ms")
-  }
-
-  # --- Build client environment ---
+  # --- Connection state ---
 
   client <- new.env(parent = emptyenv())
-  client$doc <- doc
   client$active <- TRUE
   client$stream <- s
+  client$url <- url
   client$peer_id <- peer_id
   client$server_peer_id <- server_peer_id
-  client$doc_id <- doc_id
-  client$sync_state <- sync_state
+  client$interval <- interval
+  client$timeout <- timeout
   client$sync_timer <- NULL
+  client$last_error <- NULL
+  # Per-document registry: doc_id -> environment holding the live document, its
+  # sync state, and open-sync bookkeeping. Documents are added by open_doc().
+  client$documents <- new.env(parent = emptyenv())
 
-  # Helper: send a sync message for local changes
-  send_sync <- function() {
-    sync_data <- am_sync_encode(client$doc, client$sync_state)
+  # Register a document on the connection, returning its registry entry.
+  register_doc <- function(doc_id, doc, sync_state) {
+    entry <- new.env(parent = emptyenv())
+    entry$doc_id <- doc_id
+    entry$doc <- doc
+    entry$sync_state <- sync_state
+    entry$received <- 0L
+    entry$last_activity <- Sys.time()
+    entry$unavailable <- FALSE
+    client$documents[[doc_id]] <- entry
+    entry
+  }
+
+  # Send a sync message for one document's local changes.
+  send_sync_for <- function(entry) {
+    sync_data <- am_sync_encode(entry$doc, entry$sync_state)
     if (!is.null(sync_data)) {
       send_msg(
         client$stream,
@@ -216,38 +215,47 @@ amsync_client <- function(
           "sync",
           client$peer_id,
           client$server_peer_id,
-          client$doc_id,
+          entry$doc_id,
           sync_data
         )
       )
     }
   }
 
-  # Helper: process an incoming message
+  # Process an incoming message, routing sync/doc-unavailable to the matching
+  # document by its id. Messages for unknown documents are ignored.
   process_message <- function(raw_data) {
     msg <- tryCatch(cbordec(raw_data), error = function(e) NULL)
     if (is.null(msg)) {
       return()
     }
 
-    if (
-      msg$type == "sync" &&
-        !is.null(msg$documentId) &&
-        msg$documentId == client$doc_id
-    ) {
-      apply_sync_and_reply(
-        client$stream,
-        client$doc,
-        client$sync_state,
-        msg$data,
-        client$peer_id,
-        client$server_peer_id,
-        client$doc_id
-      )
-    } else if (msg$type == "error") {
-      warning("Server error: ", msg$message)
+    if (msg$type == "sync" && !is.null(msg$documentId)) {
+      entry <- client$documents[[msg$documentId]]
+      if (!is.null(entry)) {
+        entry$received <- entry$received + 1L
+        entry$last_activity <- Sys.time()
+        apply_sync_and_reply(
+          client$stream,
+          entry$doc,
+          entry$sync_state,
+          msg$data,
+          client$peer_id,
+          client$server_peer_id,
+          entry$doc_id
+        )
+      }
     } else if (msg$type == "doc-unavailable") {
-      warning("Document not available on server: ", client$doc_id)
+      if (!is.null(msg$documentId)) {
+        entry <- client$documents[[msg$documentId]]
+        if (!is.null(entry)) {
+          entry$unavailable <- TRUE
+        }
+      }
+      warning("Document not available on server: ", msg$documentId %||% "unknown")
+    } else if (msg$type == "error") {
+      client$last_error <- msg$message
+      warning("Server error: ", msg$message)
     }
   }
 
@@ -258,6 +266,9 @@ amsync_client <- function(
       return()
     }
     aio <- recv_aio(client$stream, mode = "raw")
+    # Track the pending aio so close() can settle it before tearing down the
+    # stream, leaving no stale promise continuation for a later run_now to hit.
+    client$recv_aio <- aio
     promises::then(
       aio,
       onFulfilled = function(value) {
@@ -276,7 +287,7 @@ amsync_client <- function(
     invisible()
   }
 
-  # --- Periodic sync loop (outgoing local changes) ---
+  # --- Periodic sync loop (outgoing local changes for every open document) ---
 
   sync_loop <- function() {
     if (!client$active) {
@@ -287,19 +298,115 @@ amsync_client <- function(
         if (!client$active) {
           return()
         }
-        tryCatch(send_sync(), error = function(e) {
-          client$active <- FALSE
-          close(client$stream)
-        })
+        tryCatch(
+          for (id in ls(client$documents)) {
+            send_sync_for(client$documents[[id]])
+          },
+          error = function(e) {
+            client$active <- FALSE
+            close(client$stream)
+          }
+        )
         sync_loop()
       },
       delay = interval / 1000
     )
   }
 
+  # Build the public handle for a document registry entry.
+  make_doc_handle <- function(entry) {
+    handle <- new.env(parent = emptyenv())
+    handle$doc_id <- entry$doc_id
+    handle$doc <- entry$doc
+    handle$sync_state <- entry$sync_state
+    handle$stream <- client$stream
+    handle$connection <- client
+    handle$push <- function() send_sync_for(entry)
+    handle$close <- function() {
+      if (exists(entry$doc_id, envir = client$documents, inherits = FALSE)) {
+        rm(list = entry$doc_id, envir = client$documents)
+      }
+      invisible()
+    }
+    # `active` tracks both the connection and whether this document is still
+    # attached, so a handle whose document was closed reports inactive.
+    makeActiveBinding(
+      "active",
+      function() {
+        isTRUE(client$active) && !is.null(client$documents[[entry$doc_id]])
+      },
+      handle
+    )
+    class(handle) <- "amsync_doc"
+    handle
+  }
+
+  # --- Open a live document over the connection ---
+
+  open_doc <- function(doc_id, timeout = client$timeout) {
+    if (!isTRUE(client$active)) {
+      stop("Connection is not active; reconnect with amsync_client()")
+    }
+    existing <- client$documents[[doc_id]]
+    if (!is.null(existing)) {
+      return(make_doc_handle(existing))
+    }
+
+    entry <- register_doc(doc_id, am_create(), am_sync_state())
+    client$last_error <- NULL
+
+    sync_data <- am_sync_encode(entry$doc, entry$sync_state)
+    send_msg(
+      client$stream,
+      sync_msg(
+        "request",
+        client$peer_id,
+        client$server_peer_id,
+        doc_id,
+        sync_data %||% raw(0)
+      )
+    )
+
+    # Drive the shared event loop until the initial sync settles. Completion is
+    # detected per-document: at least one sync received, then a short idle.
+    deadline <- Sys.time() + timeout / 1000
+    idle_secs <- 0.5
+    repeat {
+      run_now(0.05)
+
+      if (!is.null(client$last_error)) {
+        rm(list = doc_id, envir = client$documents)
+        stop("Server error: ", client$last_error)
+      }
+      if (entry$unavailable) {
+        rm(list = doc_id, envir = client$documents)
+        stop("Document not available on server: ", doc_id)
+      }
+      if (!isTRUE(client$active)) {
+        rm(list = doc_id, envir = client$documents)
+        stop("Connection closed before document sync completed")
+      }
+
+      now <- Sys.time()
+      idle <- as.numeric(now - entry$last_activity, units = "secs")
+      if (entry$received > 0L && idle > idle_secs) {
+        break
+      }
+      if (now > deadline) {
+        if (entry$received == 0L) {
+          rm(list = doc_id, envir = client$documents)
+          stop("No sync response from server within ", timeout, "ms")
+        }
+        break
+      }
+    }
+
+    make_doc_handle(entry)
+  }
+
   # --- Methods ---
 
-  client$push <- send_sync
+  client$open_doc <- open_doc
 
   client$close <- function() {
     if (!client$active) {
@@ -309,6 +416,15 @@ amsync_client <- function(
     if (!is.null(client$sync_timer)) {
       client$sync_timer()
       client$sync_timer <- NULL
+    }
+    # Settle the pending receive aio and flush its (now active == FALSE, so
+    # non-rescheduling) continuation before closing the stream. This prevents a
+    # stale aio external pointer from lingering in the event loop and being
+    # tripped over by a later run_now after garbage collection.
+    if (!is.null(client$recv_aio)) {
+      stop_aio(client$recv_aio)
+      for (i in seq_len(3L)) run_now()
+      client$recv_aio <- NULL
     }
     close(client$stream)
     invisible()
@@ -326,7 +442,16 @@ amsync_client <- function(
 
 #' @export
 print.amsync_client <- function(x, ...) {
-  cat("Automerge Sync Client\n")
+  cat("Automerge Sync Connection\n")
+  cat("  Server:", x$url, "\n")
+  cat("  Documents:", length(x$documents), "\n")
+  cat("  Active:", x$active, "\n")
+  invisible(x)
+}
+
+#' @export
+print.amsync_doc <- function(x, ...) {
+  cat("Automerge Document\n")
   cat("  Document:", x$doc_id, "\n")
   cat("  Active:", x$active, "\n")
   invisible(x)

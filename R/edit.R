@@ -7,8 +7,8 @@
 #' the edited text is then merged back into the live document and pushed to the
 #' server, preserving any concurrent remote edits that arrived while editing.
 #'
-#' @param client An `amsync_client` object (see [amsync_client()]) with an
-#'   active connection.
+#' @param doc An `amsync_doc` handle (open one with `amsync_client()$open_doc()`)
+#'   backed by an active connection.
 #' @param at Character path to the text object within the document. A single
 #'   string (e.g. `"text"`) addresses a top-level key; a character vector
 #'   (e.g. `c("files", "x")`) navigates nested objects with `[[`. Default
@@ -17,7 +17,7 @@
 #'   used to pick the editor's syntax-highlighting language. `NULL` (default)
 #'   uses plain text.
 #'
-#' @return Invisibly returns `client`.
+#' @return Invisibly returns `doc`.
 #'
 #' @details
 #' Requires the \pkg{shiny} and \pkg{bslib} packages.
@@ -37,23 +37,24 @@
 #' server <- amsync_server()
 #' server$start()
 #' doc_id <- create_document(server)
-#' doc <- get_document(server, doc_id)
-#' doc$text <- automerge::am_text("edit me")
+#' sdoc <- get_document(server, doc_id)
+#' sdoc$text <- automerge::am_text("edit me")
 #'
-#' client <- amsync_client(server$url, doc_id)
-#' amsync_edit(client, at = "text", ext = ".md")
+#' conn <- amsync_client(server$url)
+#' doc <- conn$open_doc(doc_id)
+#' amsync_edit(doc, at = "text", ext = ".md")
 #'
-#' client$close()
+#' conn$close()
 #' server$close()
 #'
 #' @importFrom automerge am_fork am_merge am_text_content am_text_update
 #' @export
-amsync_edit <- function(client, at = "text", ext = NULL) {
-  if (!inherits(client, "amsync_client")) {
-    stop("`client` must be an `amsync_client` object")
+amsync_edit <- function(doc, at = "text", ext = NULL) {
+  if (!inherits(doc, "amsync_doc")) {
+    stop("`doc` must be an `amsync_doc` object (see `amsync_client()$open_doc()`)")
   }
-  if (!isTRUE(client$active)) {
-    stop("`client` is not active; reconnect with amsync_client()")
+  if (!isTRUE(doc$active)) {
+    stop("`doc` is not active; reopen it with `$open_doc()`")
   }
   if (!is.character(at) || !length(at) || anyNA(at) || any(!nzchar(at))) {
     stop("`at` must be a non-empty character path")
@@ -61,31 +62,31 @@ amsync_edit <- function(client, at = "text", ext = NULL) {
 
   # Fork at the current snapshot (shares history) and resolve the text object
   # inside the fork.
-  fork <- am_fork(client$doc)
+  fork <- am_fork(doc$doc)
   target <- navigate_to_text(fork, at)
   base <- am_text_content(target)
 
-  # Edit in the Shiny app. While it runs the client's async loops keep firing,
-  # so concurrent remote edits land on the live doc; the merge below folds them
-  # in. `NULL` means the user closed the app without saving.
+  # Edit in the Shiny app. While it runs the connection's async loops keep
+  # firing, so concurrent remote edits land on the live doc; the merge below
+  # folds them in. `NULL` means the user closed the app without saving.
   edited <- edit_in_shiny(base, ext)
   if (is.null(edited)) {
     message("Edit cancelled.")
-    return(invisible(client))
+    return(invisible(doc))
   }
   edited <- match_trailing_newline(enc2utf8(edited), base)
 
   if (identical(edited, base)) {
     message("No changes.")
-    return(invisible(client))
+    return(invisible(doc))
   }
 
   # Apply the minimal diff to the FORK, then drain any buffered remote
   # messages before merging so concurrent edits are part of the live doc.
   am_text_update(target, edited)
   for (i in seq_len(3L)) run_now()
-  am_merge(client$doc, fork)
-  client$push()
+  am_merge(doc$doc, fork)
+  doc$push()
 
   message(sprintf(
     "Updated %s: %d -> %d chars; pushed.",
@@ -93,7 +94,7 @@ amsync_edit <- function(client, at = "text", ext = NULL) {
     nchar(base, type = "bytes"),
     nchar(edited, type = "bytes")
   ))
-  invisible(client)
+  invisible(doc)
 }
 
 #' Navigate a document to a text object via a character path

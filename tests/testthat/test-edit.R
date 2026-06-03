@@ -28,18 +28,19 @@ test_that("amsync_edit round-trips edits and pushes to the server", {
   on.exit(server$close(), add = TRUE)
 
   doc_id <- seed_text_doc(server, "hello world")
-  client <- amsync_client(server$url, doc_id)
-  on.exit(client$close(), add = TRUE)
+  conn <- amsync_client(server$url)
+  on.exit(conn$close(), add = TRUE)
+  doc <- conn$open_doc(doc_id)
 
   local_mocked_bindings(edit_in_shiny = mock_editor_returns("hello brave world"))
 
   expect_message(
-    amsync_edit(client, at = "text"),
+    amsync_edit(doc, at = "text"),
     "Updated text: 11 -> 17 chars; pushed."
   )
 
   expect_equal(
-    automerge::am_text_content(client$doc[["text"]]),
+    automerge::am_text_content(doc$doc[["text"]]),
     "hello brave world"
   )
 
@@ -64,21 +65,22 @@ test_that("amsync_edit preserves a concurrent remote edit", {
   on.exit(server$close(), add = TRUE)
 
   doc_id <- seed_text_doc(server, "hello world")
-  client <- amsync_client(server$url, doc_id)
-  on.exit(client$close(), add = TRUE)
+  conn <- amsync_client(server$url)
+  on.exit(conn$close(), add = TRUE)
+  doc <- conn$open_doc(doc_id)
 
   # While "editing", a remote edit lands on the live doc (the fork was taken
   # at "hello world"). The merge must keep both edits.
   remote_edit <- function() {
-    automerge::am_text_splice(client$doc[["text"]], 0L, 0L, ">> ")
+    automerge::am_text_splice(doc$doc[["text"]], 0L, 0L, ">> ")
   }
   local_mocked_bindings(
     edit_in_shiny = mock_editor_returns("hello brave world", remote_edit)
   )
 
-  amsync_edit(client, at = "text")
+  amsync_edit(doc, at = "text")
 
-  result <- automerge::am_text_content(client$doc[["text"]])
+  result <- automerge::am_text_content(doc$doc[["text"]])
   expect_match(result, "brave")
   expect_match(result, ">>", fixed = TRUE)
 })
@@ -95,19 +97,20 @@ test_that("amsync_edit is a no-op when the content is unchanged", {
   on.exit(server$close(), add = TRUE)
 
   doc_id <- seed_text_doc(server, "unchanged")
-  client <- amsync_client(server$url, doc_id)
-  on.exit(client$close(), add = TRUE)
+  conn <- amsync_client(server$url)
+  on.exit(conn$close(), add = TRUE)
+  doc <- conn$open_doc(doc_id)
 
   # Editor returns the content unchanged.
   local_mocked_bindings(edit_in_shiny = function(text, ext = NULL) text)
 
   expect_message(
-    res <- amsync_edit(client, at = "text"),
+    res <- amsync_edit(doc, at = "text"),
     "No changes."
   )
-  expect_identical(res, client)
+  expect_identical(res, doc)
   expect_equal(
-    automerge::am_text_content(client$doc[["text"]]),
+    automerge::am_text_content(doc$doc[["text"]]),
     "unchanged"
   )
 })
@@ -124,19 +127,20 @@ test_that("amsync_edit is a no-op when the editor is cancelled", {
   on.exit(server$close(), add = TRUE)
 
   doc_id <- seed_text_doc(server, "unchanged")
-  client <- amsync_client(server$url, doc_id)
-  on.exit(client$close(), add = TRUE)
+  conn <- amsync_client(server$url)
+  on.exit(conn$close(), add = TRUE)
+  doc <- conn$open_doc(doc_id)
 
   # The editor was closed without saving.
   local_mocked_bindings(edit_in_shiny = mock_editor_returns(NULL))
 
   expect_message(
-    res <- amsync_edit(client, at = "text"),
+    res <- amsync_edit(doc, at = "text"),
     "Edit cancelled."
   )
-  expect_identical(res, client)
+  expect_identical(res, doc)
   expect_equal(
-    automerge::am_text_content(client$doc[["text"]]),
+    automerge::am_text_content(doc$doc[["text"]]),
     "unchanged"
   )
 })
@@ -154,14 +158,15 @@ test_that("amsync_edit preserves the original trailing-newline state", {
 
   # Original has no trailing newline; editor appends one -> result has none.
   doc_id <- seed_text_doc(server, "line one")
-  client <- amsync_client(server$url, doc_id)
-  on.exit(client$close(), add = TRUE)
+  conn <- amsync_client(server$url)
+  on.exit(conn$close(), add = TRUE)
+  doc <- conn$open_doc(doc_id)
 
   local_mocked_bindings(edit_in_shiny = mock_editor_returns("line one\nline two\n"))
-  amsync_edit(client, at = "text")
+  amsync_edit(doc, at = "text")
 
   expect_equal(
-    automerge::am_text_content(client$doc[["text"]]),
+    automerge::am_text_content(doc$doc[["text"]]),
     "line one\nline two"
   )
 })
@@ -181,19 +186,20 @@ test_that("amsync_edit errors when the target is not a text object", {
   doc <- get_document(server, doc_id)
   doc[["num"]] <- 42L
 
-  client <- amsync_client(server$url, doc_id)
-  on.exit(client$close(), add = TRUE)
+  conn <- amsync_client(server$url)
+  on.exit(conn$close(), add = TRUE)
+  handle <- conn$open_doc(doc_id)
 
   expect_error(
-    amsync_edit(client, at = "num"),
+    amsync_edit(handle, at = "num"),
     "not a text object"
   )
 })
 
-test_that("amsync_edit validates its client argument", {
-  expect_error(amsync_edit(list()), "must be an `amsync_client`")
+test_that("amsync_edit validates its doc argument", {
+  expect_error(amsync_edit(list()), "must be an `amsync_doc`")
 
-  fake <- structure(new.env(parent = emptyenv()), class = "amsync_client")
+  fake <- structure(new.env(parent = emptyenv()), class = "amsync_doc")
   fake$active <- FALSE
   expect_error(amsync_edit(fake), "not active")
 })

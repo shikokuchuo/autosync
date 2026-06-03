@@ -38,11 +38,46 @@ test_that("amsync_project lists paths and resolves doc-ids", {
   ))
 
   proj <- amsync_project(server$url, proj_id)
+  on.exit(proj$close(), add = TRUE)
 
   expect_s3_class(proj, "amsync_project")
   expect_equal(proj$paths(), c("/charlie/index.qmd", "/notes/todo.md"))
   expect_equal(proj$doc_id("/charlie/index.qmd"), id1)
   expect_equal(proj$doc_id("/notes/todo.md"), id2)
+})
+
+test_that("amsync_project opens files over a single reused connection", {
+  skip_on_cran()
+  drain_later()
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  server <- amsync_server(data_dir = data_dir)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  id1 <- make_file_doc(server, "# Index")
+  id2 <- make_file_doc(server, "todo items")
+  proj_id <- make_project_doc(server, list(
+    "/charlie/index.qmd" = id1,
+    "/notes/todo.md" = id2
+  ))
+
+  proj <- amsync_project(server$url, proj_id)
+  on.exit(proj$close(), add = TRUE)
+
+  conns_before <- length(ls(attr(server, "sync")$connections))
+  h1 <- proj$open("/charlie/index.qmd")
+  h2 <- proj$open("/notes/todo.md")
+  for (i in seq_len(10)) later::run_now(0.05)
+
+  # Browsing files reuses the project's connection rather than dialing again.
+  expect_equal(length(ls(attr(server, "sync")$connections)), conns_before)
+  expect_identical(h1$stream, proj$conn$stream)
+  expect_identical(h2$stream, proj$conn$stream)
+  expect_equal(h1$doc_id, id1)
+  expect_equal(h2$doc_id, id2)
 })
 
 test_that("amsync_project$edit opens the right file and infers the extension", {
@@ -64,13 +99,14 @@ test_that("amsync_project$edit opens the right file and infers the extension", {
   ))
 
   proj <- amsync_project(server$url, proj_id)
+  on.exit(proj$close(), add = TRUE)
 
   captured <- new.env()
   local_mocked_bindings(
-    amsync_edit = function(client, at = "text", ext = NULL) {
+    amsync_edit = function(doc, at = "text", ext = NULL) {
       captured$ext <- ext
-      captured$doc_id <- client$doc_id
-      invisible(client)
+      captured$doc_id <- doc$doc_id
+      invisible(doc)
     }
   )
 
@@ -98,6 +134,7 @@ test_that("amsync_project$edit performs a real edit and pushes", {
   proj_id <- make_project_doc(server, list("/a/b.md" = id1))
 
   proj <- amsync_project(server$url, proj_id)
+  on.exit(proj$close(), add = TRUE)
 
   local_mocked_bindings(
     edit_in_shiny = function(text, ext = NULL) "new content"
@@ -150,6 +187,7 @@ test_that("amsync_project$doc_id errors on an unknown path", {
   proj_id <- make_project_doc(server, list("/a/b.md" = id1))
 
   proj <- amsync_project(server$url, proj_id)
+  on.exit(proj$close(), add = TRUE)
 
   expect_error(
     proj$doc_id("/does/not/exist"),
@@ -171,6 +209,7 @@ test_that("print.amsync_project shows the tree and metadata", {
   id1 <- make_file_doc(server, "x")
   proj_id <- make_project_doc(server, list("/a/b.md" = id1))
   proj <- amsync_project(server$url, proj_id)
+  on.exit(proj$close(), add = TRUE)
 
   out <- capture.output(print(proj))
   expect_true(any(grepl("Automerge Project", out)))

@@ -36,25 +36,35 @@ created by \code{\link[nanonext:tls_config]{nanonext::tls_config()}}.}
 An environment of class \code{"amsync_project"} (reference semantics)
 with the following fields and methods:
 \describe{
-\item{\code{doc}}{The fetched project document.}
+\item{\code{doc}}{The live project document, kept in sync with the server.}
+\item{\code{conn}}{The underlying \code{\link[=amsync_client]{amsync_client()}} connection.}
 \item{\code{paths()}}{Current sorted file paths.}
 \item{\code{doc_id(path)}}{Resolve a path to its document ID.}
-\item{\code{open(path)}}{Return a live \code{\link[=amsync_client]{amsync_client()}} for the file's
-document (the caller owns it and must \verb{$close()} it).}
-\item{\code{edit(path = NULL)}}{Open the file's client, run \code{\link[=amsync_edit]{amsync_edit()}}
-with the extension inferred from the path, then close the client. If
-\code{path} is \code{NULL} and interactive, shows a Shiny file picker first.}
+\item{\code{open(path)}}{Open the file's document over the project connection
+and return its \code{amsync_doc} handle. Reuses the connection and any
+already-open document.}
+\item{\code{edit(path = NULL)}}{Open the file's document and run
+\code{\link[=amsync_edit]{amsync_edit()}} with the extension inferred from the path. If \code{path}
+is \code{NULL} and interactive, shows a Shiny file picker first.}
 \item{\code{browse()}}{Interactive loop: pick a file from a Shiny file
 picker, edit it, then return to the picker; repeat until \strong{Done}.}
-\item{\code{refresh()}}{Re-fetch the project document to pick up added or
-removed files.}
+\item{\code{refresh()}}{Re-resolve the file tree to pick up added or removed
+files (the project document syncs live, so this just settles pending
+updates).}
+\item{\code{close()}}{Disconnect the project connection.}
 }
 }
 \description{
-Given a sync server URL and a project document ID, fetches the project and
-exposes its file tree for browsing and editing. A project is an Automerge
-document with a \code{files} map whose keys are file paths and whose values are
-text objects holding each file's own document ID.
+Given a sync server URL and a project document ID, opens a persistent
+connection to the server, syncs the project document over it, and exposes
+its file tree for browsing and editing. A project is an Automerge document
+with a \code{files} map whose keys are file paths and whose values are text
+objects holding each file's own document ID.
+}
+\details{
+Opening or editing a file syncs that file's document over the \strong{same}
+connection rather than dialing the server again, so a browse session reuses
+a single WebSocket throughout. Call \verb{$close()} when finished to disconnect.
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
@@ -62,5 +72,6 @@ proj <- amsync_project("wss://quarto-hub.com/ws", proj_id, token = amsync_token(
 proj                                   # prints the file tree
 proj$browse()                          # pick a file, edit it, repeat
 proj$edit("/charlie/index.qmd")        # edit a known path directly
+proj$close()                           # disconnect when finished
 \dontshow{\}) # examplesIf}
 }
