@@ -112,7 +112,9 @@ build_amsync_app <- function(
     shiny::uiOutput("screen", fill = TRUE)
   )
 
-  server <- function(input, output, session) {
+  # Named `app_server` rather than `server` so it does not shadow the `server`
+  # argument (the prefill URL), which the connect screen reads when rendering.
+  app_server <- function(input, output, session) {
     # Connection and editor state lives in a plain environment, not a reactive
     # one, so the sync observers can read the live document without taking a
     # reactive dependency on it (which would re-fire them on every edit). Only
@@ -341,7 +343,7 @@ build_amsync_app <- function(
     session$onSessionEnded(function() cleanup_project(st))
   }
 
-  shiny::shinyApp(ui, server)
+  shiny::shinyApp(ui, app_server)
 }
 
 #' Close a project connection held in app state, if any

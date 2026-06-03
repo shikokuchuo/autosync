@@ -66,6 +66,22 @@ test_that("a token passed to the app starts it signed in", {
   })
 })
 
+test_that("the connect screen renders with the prefilled server URL", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+
+  # Regression: the `server` argument must not be shadowed by the app's server
+  # function. Rendering output$screen on the connect view runs
+  # connect_screen_ui(server, ...) and would error ("cannot coerce type
+  # 'closure'") if `server` resolved to the server function instead of the URL.
+  app <- build_amsync_app("wss://x/ws", "DOC123", NULL, NULL, 5000L, "files", 300L)
+  shiny::testServer(app, {
+    html <- paste(unlist(output$screen), collapse = " ")
+    expect_match(html, "Connect to a project", fixed = TRUE)
+    expect_match(html, "wss://x/ws", fixed = TRUE)
+  })
+})
+
 test_that("amsync_app rejects a malformed token", {
   skip_if_not_installed("shiny")
   skip_if_not_installed("bslib")
