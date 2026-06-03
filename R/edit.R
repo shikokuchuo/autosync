@@ -38,7 +38,7 @@ edit_doc <- function(doc, at = "text", ext = NULL, debounce = 300L) {
   # Validate the target is a text object before launching the editor.
   navigate_to_text(doc$doc, at)
 
-  final <- edit_in_shiny(doc, at, doc$push, ext = ext, debounce = debounce)
+  final <- edit_in_shiny(doc, at, ext = ext, debounce = debounce)
 
   message(sprintf(
     "Closed editor for %s (%d chars).",
@@ -111,6 +111,99 @@ poll_doc_to_editor <- function(target, shown) {
   if (identical(current, shown)) NULL else current
 }
 
+#' Wire the bidirectional editor <-> live-document sync onto a Shiny session
+#'
+#' Installs the two observers shared by [edit_in_shiny()] and [amsync_app()]'s
+#' browse screen: an outgoing one that writes debounced editor changes into the
+#' live document and pushes them, and an incoming one that polls the document
+#' and reflects remote changes back into the editor. Both read the open
+#' document and its tracking state from `st` -- a plain environment, not a
+#' reactive one, so editing never re-fires the observers through a reactive
+#' dependency on the document.
+#'
+#' `st$shown` is the content the editor and document last agreed on; it lets
+#' each side ignore the echo of its own write: an outgoing edit sets it to what
+#' we wrote, and the poll skips while the document still matches it.
+#'
+#' @param input The Shiny session's `input`.
+#' @param st An environment exposing `$doc` (an `amsync_doc` handle or `NULL`
+#'   when nothing is open), `$at` (the text object's path), `$base` (the open
+#'   content, for trailing-newline state), and a mutable `$shown`.
+#' @param poll_ms How often (ms) to poll the live document for remote changes.
+#'
+#' @return Invisibly `NULL`.
+#'
+#' @importFrom automerge am_text_content am_text_update
+#' @noRd
+install_editor_sync <- function(input, st, poll_ms = 250L) {
+  # Outgoing: debounced editor changes -> minimal diff -> push.
+  shiny::observeEvent(
+    input$content,
+    {
+      if (is.null(st$doc) || !isTRUE(st$doc$active)) {
+        return()
+      }
+      target <- navigate_to_text(st$doc$doc, st$at)
+      st$shown <- sync_editor_to_doc(
+        target,
+        input$content %||% "",
+        st$base,
+        st$doc$push
+      )
+    },
+    ignoreInit = TRUE
+  )
+
+  # Incoming: poll the live document; reflect remote changes into the editor.
+  shiny::observe({
+    shiny::invalidateLater(poll_ms)
+    if (is.null(st$doc) || !isTRUE(st$doc$active)) {
+      return()
+    }
+    target <- navigate_to_text(st$doc$doc, st$at)
+    current <- poll_doc_to_editor(target, st$shown)
+    if (!is.null(current)) {
+      st$shown <- current
+      bslib::update_code_editor("content", value = current)
+    }
+  })
+
+  invisible()
+}
+
+#' Build the live code editor body shared by both editors
+#'
+#' The [bslib::input_code_editor()] (id `"content"`) plus the streaming shim
+#' that flushes its value to R on a debounce, used by both [edit_in_shiny()]
+#' and [amsync_app()]'s editor card. Returned as a tag list to drop inside a
+#' [bslib::card()].
+#'
+#' @param value The editor's initial content.
+#' @param ext File extension (dotted) for syntax highlighting, or `NULL`.
+#' @param debounce Milliseconds to debounce outgoing editor changes.
+#'
+#' @return A shiny tag list.
+#'
+#' @noRd
+editor_body_ui <- function(value, ext, debounce) {
+  shiny::tagList(
+    bslib::card_body(
+      padding = 0,
+      bslib::input_code_editor(
+        "content",
+        value = value,
+        language = ext_to_language(ext),
+        fill = TRUE
+      )
+    ),
+    # input_code_editor() only flushes its value to R on blur / Ctrl+Enter.
+    # This shim hooks the underlying Prism editor's per-change "update" event
+    # and flushes the value (via the binding's onChangeCallback) on a debounce,
+    # giving real-time outgoing sync without losing syntax highlighting.
+    shiny::tags$script(shiny::HTML(editor_stream_js(debounce)))
+  )
+}
+
 #' Edit text live in a Shiny app with a bslib code editor
 #'
 #' Spins up a single-purpose Shiny app whose only control is a
@@ -122,14 +215,13 @@ poll_doc_to_editor <- function(target, shown) {
 #'
 #' @param doc An `amsync_doc` handle.
 #' @param at Character path to the text object.
-#' @param push A zero-argument function that pushes local changes.
 #' @param ext File extension used to choose the syntax-highlighting language.
 #' @param debounce Milliseconds to debounce outgoing editor changes.
 #'
 #' @return The document's final text content (character scalar).
 #'
 #' @noRd
-edit_in_shiny <- function(doc, at, push, ext = NULL, debounce = 300L) {
+edit_in_shiny <- function(doc, at, ext = NULL, debounce = 300L) {
   if (
     !requireNamespace("shiny", quietly = TRUE) ||
       !requireNamespace("bslib", quietly = TRUE)
@@ -140,8 +232,6 @@ edit_in_shiny <- function(doc, at, push, ext = NULL, debounce = 300L) {
     )
   }
 
-  # How often (ms) to poll the live document for remote changes.
-  poll_ms <- 250L
   base <- am_text_content(navigate_to_text(doc$doc, at))
 
   ui <- bslib::page_fillable(
@@ -157,55 +247,20 @@ edit_in_shiny <- function(doc, at, push, ext = NULL, debounce = 300L) {
           class = "btn-sm btn-outline-secondary"
         )
       ),
-      bslib::card_body(
-        padding = 0,
-        bslib::input_code_editor(
-          "content",
-          value = base,
-          language = ext_to_language(ext),
-          fill = TRUE
-        )
-      )
-    ),
-    # input_code_editor() only flushes its value to R on blur / Ctrl+Enter.
-    # This shim hooks the underlying Prism editor's per-change "update" event
-    # and flushes the value (via the binding's onChangeCallback) on a debounce,
-    # giving real-time outgoing sync without losing syntax highlighting.
-    shiny::tags$script(shiny::HTML(editor_stream_js(debounce)))
+      editor_body_ui(base, ext, debounce)
+    )
   )
 
   server <- function(input, output, session) {
-    # `shown` is the content both the editor and document last agreed on. It
-    # lets each side ignore the echo of its own write: an outgoing edit sets it
-    # to what we wrote, the poll skips while the document still matches it.
-    state <- new.env(parent = emptyenv())
-    state$shown <- base
-
-    # Outgoing: debounced editor changes -> minimal diff -> push.
-    shiny::observeEvent(
-      input$content,
-      {
-        target <- navigate_to_text(doc$doc, at)
-        state$shown <- sync_editor_to_doc(
-          target,
-          input$content %||% "",
-          base,
-          push
-        )
-      },
-      ignoreInit = TRUE
-    )
-
-    # Incoming: poll the live document; reflect remote changes into the editor.
-    shiny::observe({
-      shiny::invalidateLater(poll_ms)
-      target <- navigate_to_text(doc$doc, at)
-      current <- poll_doc_to_editor(target, state$shown)
-      if (!is.null(current)) {
-        state$shown <- current
-        bslib::update_code_editor("content", value = current)
-      }
-    })
+    # Editor state lives in a plain environment read by the sync observers
+    # without a reactive dependency on the document; install_editor_sync() wires
+    # the bidirectional editor <-> document sync onto it (and explains `shown`).
+    st <- new.env(parent = emptyenv())
+    st$doc <- doc
+    st$at <- at
+    st$base <- base
+    st$shown <- base
+    install_editor_sync(input, st)
 
     # Stop exactly once; the Close button or window-close ends the session.
     # Closing the editor returns to the file picker (in a browse loop), so it

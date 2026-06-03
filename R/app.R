@@ -103,9 +103,6 @@ build_amsync_app <- function(
   files_key,
   debounce
 ) {
-  # How often (ms) to poll the live document for remote changes.
-  poll_ms <- 250L
-
   ui <- bslib::page_fillable(
     title = "amsync",
     padding = 0,
@@ -118,8 +115,8 @@ build_amsync_app <- function(
     # Connection and editor state lives in a plain environment, not a reactive
     # one, so the sync observers can read the live document without taking a
     # reactive dependency on it (which would re-fire them on every edit). Only
-    # the screen and the currently-open path are reactive. This mirrors the
-    # `state` environment used by edit_in_shiny().
+    # the screen and the currently-open path are reactive. install_editor_sync()
+    # reads $doc/$at/$base/$shown from here, just as it does in edit_in_shiny().
     st <- new.env(parent = emptyenv())
     st$proj <- NULL # the amsync_project connection, once connected
     st$token <- token # JWT, pre-supplied or from the Authenticate flow
@@ -272,37 +269,9 @@ build_amsync_app <- function(
       editor_card_ui(sel, st$base, file_ext_dot(sel), debounce)
     })
 
-    # Outgoing: debounced editor changes -> minimal diff -> push.
-    shiny::observeEvent(
-      input$content,
-      {
-        if (is.null(st$doc) || !isTRUE(st$doc$active)) {
-          return()
-        }
-        target <- navigate_to_text(st$doc$doc, st$at)
-        st$shown <- sync_editor_to_doc(
-          target,
-          input$content %||% "",
-          st$base,
-          st$doc$push
-        )
-      },
-      ignoreInit = TRUE
-    )
-
-    # Incoming: poll the live document; reflect remote changes into the editor.
-    shiny::observe({
-      shiny::invalidateLater(poll_ms)
-      if (is.null(st$doc) || !isTRUE(st$doc$active)) {
-        return()
-      }
-      target <- navigate_to_text(st$doc$doc, st$at)
-      current <- poll_doc_to_editor(target, st$shown)
-      if (!is.null(current)) {
-        st$shown <- current
-        bslib::update_code_editor("content", value = current)
-      }
-    })
+    # Bidirectional editor <-> document sync, shared with the $edit() gadget;
+    # reads the open document and tracking state from `st`.
+    install_editor_sync(input, st)
 
     # --- Browse screen: refresh the file tree (picks up added/removed files) ---
 
@@ -713,18 +682,7 @@ editor_card_ui <- function(path, base, ext, debounce) {
       shiny::span(path),
       shiny::span(class = "text-muted small", "live")
     ),
-    bslib::card_body(
-      padding = 0,
-      bslib::input_code_editor(
-        "content",
-        value = base,
-        language = ext_to_language(ext),
-        fill = TRUE
-      )
-    ),
-    # See edit_in_shiny(): stream the editor's contents to R on a debounce so
-    # outgoing sync is real-time rather than only on blur / Ctrl+Enter.
-    shiny::tags$script(shiny::HTML(editor_stream_js(debounce)))
+    editor_body_ui(base, ext, debounce)
   )
 }
 
