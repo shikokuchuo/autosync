@@ -56,8 +56,8 @@ without a token, for open servers.
 \item \strong{Browse & edit} -- once connected, the project's file tree appears in a
 sidebar; selecting a file opens its document in a live
 \code{\link[bslib:input_code_editor]{bslib::input_code_editor()}} that stays in sync with the server in both
-directions, exactly as \code{\link[=amsync_edit]{amsync_edit()}} does. \strong{Disconnect} returns to the
-connect screen; closing the window ends the session.
+directions, just like a document handle's \verb{$edit()} method. \strong{Disconnect}
+returns to the connect screen; closing the window ends the session.
 }
 
 This is a front door to \code{\link[=amsync_project]{amsync_project()}}: it builds the same connection and

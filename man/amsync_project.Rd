@@ -59,7 +59,7 @@ text objects holding each file's own document ID.
 \details{
 Opening a file syncs that file's document over the \strong{same} connection
 rather than dialing the server again, so a session reuses a single WebSocket
-throughout. Pass an opened file to \code{\link[=amsync_edit]{amsync_edit()}} to edit it live, or use
+throughout. Call the opened file's \verb{$edit()} method to edit it live, or use
 \code{\link[=amsync_app]{amsync_app()}} for an interactive browser. Call \verb{$close()} when finished to
 disconnect.
 }
@@ -68,7 +68,7 @@ disconnect.
 proj <- amsync_project("wss://quarto-hub.com/ws", proj_id, token = amsync_token())
 proj                                   # prints the file tree
 doc <- proj$open("/charlie/index.qmd") # open a file over the connection
-amsync_edit(doc, at = "text", ext = ".qmd")  # edit it live
+doc$edit(at = "text", ext = ".qmd")    # edit it live
 proj$close()                           # disconnect when finished
 \dontshow{\}) # examplesIf}
 }

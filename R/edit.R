@@ -1,75 +1,27 @@
 # Edit a synced Automerge text object in a live Shiny code editor
 
-#' Edit a synced text object in a live Shiny editor
+#' Run the live editor for an open document handle
 #'
-#' Opens a synced Automerge text object in a Shiny app featuring a
-#' [bslib::input_code_editor()] component that stays in sync with the
-#' collaborative document in both directions:
+#' Implements the `$edit()` method on the `amsync_doc` handle returned by
+#' [amsync_client()]'s `$open_doc()`: opens the document's text object at `at`
+#' in a Shiny [bslib::input_code_editor()] that stays in sync with the live
+#' document in both directions, blocks until the editor closes, then prints a
+#' one-line summary. The user-facing description and caveats live on
+#' [amsync_client()].
 #'
-#' * **Outgoing** -- as you type, the editor's contents are written back into
-#'   the live document and pushed to the server, debounced so that a burst of
-#'   keystrokes coalesces into one update.
-#' * **Incoming** -- when the document's text changes remotely (another peer
-#'   edits it), the editor updates automatically to show the merged result.
-#'
-#' There is no **Save** button: every edit is applied live. Closing the app
-#' (the **Close** button or closing the window) simply stops syncing through the
-#' editor; the document and its connection are otherwise untouched.
-#'
-#' @param doc An `amsync_doc` handle (open one with `amsync_client()$open_doc()`)
-#'   backed by an active connection.
+#' @param doc An `amsync_doc` handle backed by an active connection.
 #' @param at Character path to the text object within the document. A single
-#'   string (e.g. `"text"`) addresses a top-level key; a character vector
-#'   (e.g. `c("files", "x")`) navigates nested objects with `[[`. Default
-#'   `"text"`.
-#' @param ext File extension (e.g. `".md"`, with or without the leading dot)
-#'   used to pick the editor's syntax-highlighting language. `NULL` (default)
-#'   uses plain text.
-#' @param debounce Milliseconds to wait after the last keystroke before pushing
-#'   the editor's contents to the document. Default 300. Lower values feel more
-#'   immediate but push more often; `0` pushes on every change.
+#'   string addresses a top-level key; a character vector navigates nested
+#'   objects with `[[`. Default `"text"`.
+#' @param ext File extension used to pick the editor's syntax-highlighting
+#'   language, or `NULL` for plain text.
+#' @param debounce Milliseconds to wait after the last keystroke before pushing.
 #'
 #' @return Invisibly returns `doc`.
 #'
-#' @details
-#' Requires the \pkg{shiny} and \pkg{bslib} packages.
-#'
-#' Edits are applied directly to the live document rather than to a fork.
-#' [automerge::am_text_update()] writes only the minimal diff between the
-#' editor's contents and the document, so local and remote edits in disjoint
-#' regions are preserved. While the app runs the connection keeps syncing, so
-#' remote changes land on the live document and the poll loop reflects them
-#' back into the editor shortly after they arrive.
-#'
-#' The editor syncs whole-text snapshots, not granular operations, so it is not
-#' a conflict-free collaborative editor: a remote edit that arrives in the brief
-#' window between a keystroke and its debounced push can be overwritten by the
-#' next push. A small `debounce` narrows this window.
-#'
-#' The original's trailing-newline state is preserved: if the text did not end
-#' in a newline, any trailing newline(s) the editor appends are stripped before
-#' the diff is computed.
-#'
-#' @examplesIf interactive()
-#' server <- amsync_server()
-#' server$start()
-#' doc_id <- create_document(server)
-#' sdoc <- get_document(server, doc_id)
-#' sdoc$text <- automerge::am_text("edit me")
-#'
-#' conn <- amsync_client(server$url)
-#' doc <- conn$open_doc(doc_id)
-#' amsync_edit(doc, at = "text", ext = ".md")
-#'
-#' conn$close()
-#' server$close()
-#'
 #' @importFrom automerge am_text_content am_text_update
-#' @export
-amsync_edit <- function(doc, at = "text", ext = NULL, debounce = 300L) {
-  if (!inherits(doc, "amsync_doc")) {
-    stop("`doc` must be an `amsync_doc` object (see `amsync_client()$open_doc()`)")
-  }
+#' @noRd
+edit_doc <- function(doc, at = "text", ext = NULL, debounce = 300L) {
   if (!isTRUE(doc$active)) {
     stop("`doc` is not active; reopen it with `$open_doc()`")
   }
@@ -183,7 +135,7 @@ edit_in_shiny <- function(doc, at, push, ext = NULL, debounce = 300L) {
       !requireNamespace("bslib", quietly = TRUE)
   ) {
     stop(
-      "amsync_edit() requires the 'shiny' and 'bslib' packages.\n",
+      "Editing a document requires the 'shiny' and 'bslib' packages.\n",
       'Install them with install.packages(c("shiny", "bslib")).'
     )
   }
@@ -193,7 +145,7 @@ edit_in_shiny <- function(doc, at, push, ext = NULL, debounce = 300L) {
   base <- am_text_content(navigate_to_text(doc$doc, at))
 
   ui <- bslib::page_fillable(
-    title = "amsync_edit",
+    title = "amsync",
     padding = 0,
     bslib::card(
       bslib::card_header(

@@ -23,8 +23,9 @@
 #' \describe{
 #'   \item{[amsync_app()]}{Launch a single-window Shiny app to connect to a
 #'     project, browse its file tree, and edit files in a live code editor}
-#'   \item{[amsync_project()]}{Browse and edit the files in a project document}
-#'   \item{[amsync_edit()]}{Edit a synced text object in a Shiny code editor}
+#'   \item{[amsync_project()]}{Open the files in a project document}
+#'   \item{`$edit()`}{The document handle from [amsync_client()]'s `$open_doc()`
+#'     edits a synced text object in a live Shiny code editor}
 #' }
 #'
 #' @section Protocol:

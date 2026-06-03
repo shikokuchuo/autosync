@@ -138,7 +138,7 @@ test_that("editor_stream_js embeds the debounce and streams via the binding", {
   expect_match(editor_stream_js(300L), "var DEBOUNCE = 300;", fixed = TRUE)
 })
 
-test_that("amsync_edit errors when the target is not a text object", {
+test_that("doc$edit errors when the target is not a text object", {
   skip_on_cran()
   drain_later()
   data_dir <- tempfile()
@@ -157,26 +157,26 @@ test_that("amsync_edit errors when the target is not a text object", {
   on.exit(conn$close(), add = TRUE)
   handle <- conn$open_doc(doc_id)
 
+  # The handle exposes the editor as a method.
+  expect_true(is.function(handle$edit))
   expect_error(
-    amsync_edit(handle, at = "num"),
+    handle$edit(at = "num"),
     "not a text object"
   )
 })
 
-test_that("amsync_edit validates its arguments", {
-  expect_error(amsync_edit(list()), "must be an `amsync_doc`")
-
+test_that("edit_doc validates its arguments", {
   fake <- structure(new.env(parent = emptyenv()), class = "amsync_doc")
   fake$active <- FALSE
-  expect_error(amsync_edit(fake), "not active")
+  expect_error(edit_doc(fake), "not active")
 
   # An active handle reaches the `at` / `debounce` checks (which error before
   # the editor would launch).
   fake$active <- TRUE
   fake$doc <- local_text_doc("hi")
-  expect_error(amsync_edit(fake, at = character()), "non-empty character path")
-  expect_error(amsync_edit(fake, debounce = -1), "non-negative")
-  expect_error(amsync_edit(fake, debounce = c(1, 2)), "single non-negative")
+  expect_error(edit_doc(fake, at = character()), "non-empty character path")
+  expect_error(edit_doc(fake, debounce = -1), "non-negative")
+  expect_error(edit_doc(fake, debounce = c(1, 2)), "single non-negative")
 })
 
 test_that("ext_to_language maps extensions to editor languages", {

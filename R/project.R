@@ -10,7 +10,7 @@
 #'
 #' Opening a file syncs that file's document over the **same** connection
 #' rather than dialing the server again, so a session reuses a single WebSocket
-#' throughout. Pass an opened file to [amsync_edit()] to edit it live, or use
+#' throughout. Call the opened file's `$edit()` method to edit it live, or use
 #' [amsync_app()] for an interactive browser. Call `$close()` when finished to
 #' disconnect.
 #'
@@ -39,7 +39,7 @@
 #' proj <- amsync_project("wss://quarto-hub.com/ws", proj_id, token = amsync_token())
 #' proj                                   # prints the file tree
 #' doc <- proj$open("/charlie/index.qmd") # open a file over the connection
-#' amsync_edit(doc, at = "text", ext = ".qmd")  # edit it live
+#' doc$edit(at = "text", ext = ".qmd")    # edit it live
 #' proj$close()                           # disconnect when finished
 #'
 #' @importFrom automerge am_keys am_text_content
