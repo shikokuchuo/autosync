@@ -136,8 +136,18 @@ test_that("amsync_project$edit performs a real edit and pushes", {
   proj <- amsync_project(server$url, proj_id)
   on.exit(proj$close(), add = TRUE)
 
+  # Stand in for the live editor: simulate one keystroke that sets the file's
+  # text to "new content" and pushes, the same path the real gadget takes.
   local_mocked_bindings(
-    edit_in_shiny = function(text, ext = NULL) "new content"
+    edit_in_shiny = function(doc, at, push, ext = NULL, debounce = 300L) {
+      target <- navigate_to_text(doc$doc, at)
+      sync_editor_to_doc(
+        target,
+        "new content",
+        automerge::am_text_content(target),
+        push
+      )
+    }
   )
 
   proj$edit("/a/b.md")

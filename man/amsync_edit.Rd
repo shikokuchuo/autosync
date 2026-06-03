@@ -2,9 +2,9 @@
 % Please edit documentation in R/edit.R
 \name{amsync_edit}
 \alias{amsync_edit}
-\title{Edit a synced text object in a Shiny editor}
+\title{Edit a synced text object in a live Shiny editor}
 \usage{
-amsync_edit(doc, at = "text", ext = NULL)
+amsync_edit(doc, at = "text", ext = NULL, debounce = 300L)
 }
 \arguments{
 \item{doc}{An \code{amsync_doc} handle (open one with \code{amsync_client()$open_doc()})
@@ -18,29 +18,49 @@ string (e.g. \code{"text"}) addresses a top-level key; a character vector
 \item{ext}{File extension (e.g. \code{".md"}, with or without the leading dot)
 used to pick the editor's syntax-highlighting language. \code{NULL} (default)
 uses plain text.}
+
+\item{debounce}{Milliseconds to wait after the last keystroke before pushing
+the editor's contents to the document. Default 300. Lower values feel more
+immediate but push more often; \code{0} pushes on every change.}
 }
 \value{
 Invisibly returns \code{doc}.
 }
 \description{
 Opens a synced Automerge text object in a Shiny app featuring a
-\code{\link[bslib:input_code_editor]{bslib::input_code_editor()}} component. Clicking \strong{Save} closes the app;
-the edited text is then merged back into the live document and pushed to the
-server, preserving any concurrent remote edits that arrived while editing.
+\code{\link[bslib:input_code_editor]{bslib::input_code_editor()}} component that stays in sync with the
+collaborative document in both directions:
 }
 \details{
+\itemize{
+\item \strong{Outgoing} -- as you type, the editor's contents are written back into
+the live document and pushed to the server, debounced so that a burst of
+keystrokes coalesces into one update.
+\item \strong{Incoming} -- when the document's text changes remotely (another peer
+edits it), the editor updates automatically to show the merged result.
+}
+
+There is no \strong{Save} button: every edit is applied live. Closing the app
+(the \strong{Close} button or closing the window) simply stops syncing through the
+editor; the document and its connection are otherwise untouched.
+
 Requires the \pkg{shiny} and \pkg{bslib} packages.
 
-The document is forked at its current snapshot, the text object inside the
-fork is opened in the editor, and on \strong{Save} the fork is merged back into
-the live document. Because Automerge resolves the merge, edits made remotely
-while you were editing are preserved rather than overwritten. Closing the
-app without saving (the \strong{Cancel} button or closing the window) leaves the
-document untouched.
+Edits are applied directly to the live document rather than to a fork.
+\code{\link[automerge:am_text_update]{automerge::am_text_update()}} writes only the minimal diff between the
+editor's contents and the document, so local and remote edits in disjoint
+regions are preserved. While the app runs the connection keeps syncing, so
+remote changes land on the live document and the poll loop reflects them
+back into the editor shortly after they arrive.
+
+The editor syncs whole-text snapshots, not granular operations, so it is not
+a conflict-free collaborative editor: a remote edit that arrives in the brief
+window between a keystroke and its debounced push can be overwritten by the
+next push. A small \code{debounce} narrows this window.
 
 The original's trailing-newline state is preserved: if the text did not end
-in a newline, any trailing newline(s) the editor appended are stripped; if
-it did, the saved content is left as-is.
+in a newline, any trailing newline(s) the editor appends are stripped before
+the diff is computed.
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}

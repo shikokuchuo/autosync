@@ -6,17 +6,15 @@ seed_text_doc <- function(server, content, key = "text") {
   doc_id
 }
 
-# Helper: an edit_in_shiny mock that returns `new_content` (optionally running
-# a side effect first, e.g. a concurrent remote edit). `NULL` content models a
-# cancelled / closed editor.
-mock_editor_returns <- function(new_content, side_effect = NULL) {
-  function(text, ext = NULL) {
-    if (!is.null(side_effect)) side_effect()
-    new_content
-  }
+# Helper: a standalone (server-less) Automerge document with a text object,
+# for exercising the sync helpers without a connection.
+local_text_doc <- function(content, key = "text") {
+  doc <- automerge::am_create()
+  doc[[key]] <- automerge::am_text(content)
+  doc
 }
 
-test_that("amsync_edit round-trips edits and pushes to the server", {
+test_that("sync_editor_to_doc applies edits and pushes to the server", {
   skip_on_cran()
   drain_later()
   data_dir <- tempfile()
@@ -32,13 +30,14 @@ test_that("amsync_edit round-trips edits and pushes to the server", {
   on.exit(conn$close(), add = TRUE)
   doc <- conn$open_doc(doc_id)
 
-  local_mocked_bindings(edit_in_shiny = mock_editor_returns("hello brave world"))
-
-  expect_message(
-    amsync_edit(doc, at = "text"),
-    "Updated text: 11 -> 17 chars; pushed."
+  shown <- sync_editor_to_doc(
+    doc$doc[["text"]],
+    "hello brave world",
+    "hello world",
+    doc$push
   )
 
+  expect_equal(shown, "hello brave world")
   expect_equal(
     automerge::am_text_content(doc$doc[["text"]]),
     "hello brave world"
@@ -53,122 +52,90 @@ test_that("amsync_edit round-trips edits and pushes to the server", {
   )
 })
 
-test_that("amsync_edit preserves a concurrent remote edit", {
-  skip_on_cran()
-  drain_later()
-  data_dir <- tempfile()
-  dir.create(data_dir)
-  on.exit(unlink(data_dir, recursive = TRUE))
+test_that("sync_editor_to_doc writes the minimal diff and is a no-op unchanged", {
+  doc <- local_text_doc("unchanged")
+  pushes <- 0L
+  push <- function() pushes <<- pushes + 1L
 
-  server <- amsync_server(data_dir = data_dir)
-  server$start()
-  on.exit(server$close(), add = TRUE)
+  # Unchanged content: no write, no push.
+  shown <- sync_editor_to_doc(doc[["text"]], "unchanged", "unchanged", push)
+  expect_equal(shown, "unchanged")
+  expect_equal(pushes, 0L)
+  expect_equal(automerge::am_text_content(doc[["text"]]), "unchanged")
 
-  doc_id <- seed_text_doc(server, "hello world")
-  conn <- amsync_client(server$url)
-  on.exit(conn$close(), add = TRUE)
-  doc <- conn$open_doc(doc_id)
-
-  # While "editing", a remote edit lands on the live doc (the fork was taken
-  # at "hello world"). The merge must keep both edits.
-  remote_edit <- function() {
-    automerge::am_text_splice(doc$doc[["text"]], 0L, 0L, ">> ")
-  }
-  local_mocked_bindings(
-    edit_in_shiny = mock_editor_returns("hello brave world", remote_edit)
-  )
-
-  amsync_edit(doc, at = "text")
-
-  result <- automerge::am_text_content(doc$doc[["text"]])
-  expect_match(result, "brave")
-  expect_match(result, ">>", fixed = TRUE)
+  # A real edit: written and pushed once.
+  shown <- sync_editor_to_doc(doc[["text"]], "changed", "unchanged", push)
+  expect_equal(shown, "changed")
+  expect_equal(pushes, 1L)
+  expect_equal(automerge::am_text_content(doc[["text"]]), "changed")
 })
 
-test_that("amsync_edit is a no-op when the content is unchanged", {
-  skip_on_cran()
-  drain_later()
-  data_dir <- tempfile()
-  dir.create(data_dir)
-  on.exit(unlink(data_dir, recursive = TRUE))
+test_that("sync_editor_to_doc preserves the original trailing-newline state", {
+  doc <- local_text_doc("line one")
+  push <- function() invisible()
 
-  server <- amsync_server(data_dir = data_dir)
-  server$start()
-  on.exit(server$close(), add = TRUE)
-
-  doc_id <- seed_text_doc(server, "unchanged")
-  conn <- amsync_client(server$url)
-  on.exit(conn$close(), add = TRUE)
-  doc <- conn$open_doc(doc_id)
-
-  # Editor returns the content unchanged.
-  local_mocked_bindings(edit_in_shiny = function(text, ext = NULL) text)
-
-  expect_message(
-    res <- amsync_edit(doc, at = "text"),
-    "No changes."
+  # Original has no trailing newline; editor appends one -> stripped.
+  shown <- sync_editor_to_doc(
+    doc[["text"]],
+    "line one\nline two\n",
+    "line one",
+    push
   )
-  expect_identical(res, doc)
+  expect_equal(shown, "line one\nline two")
+  expect_equal(automerge::am_text_content(doc[["text"]]), "line one\nline two")
+})
+
+test_that("poll_doc_to_editor reports remote changes to reflect in the editor", {
+  doc <- local_text_doc("hello world")
+
+  # Document matches what the editor shows: nothing to reflect back.
+  expect_null(poll_doc_to_editor(doc[["text"]], "hello world"))
+
+  # A change arrives on the live document (e.g. from a remote peer).
+  automerge::am_text_splice(doc[["text"]], 0L, 0L, ">> ")
   expect_equal(
-    automerge::am_text_content(doc$doc[["text"]]),
-    "unchanged"
+    poll_doc_to_editor(doc[["text"]], "hello world"),
+    ">> hello world"
   )
 })
 
-test_that("amsync_edit is a no-op when the editor is cancelled", {
-  skip_on_cran()
-  drain_later()
-  data_dir <- tempfile()
-  dir.create(data_dir)
-  on.exit(unlink(data_dir, recursive = TRUE))
+test_that("the editor and document converge without echoing", {
+  doc <- local_text_doc("hello world")
+  pushes <- 0L
+  push <- function() pushes <<- pushes + 1L
 
-  server <- amsync_server(data_dir = data_dir)
-  server$start()
-  on.exit(server$close(), add = TRUE)
-
-  doc_id <- seed_text_doc(server, "unchanged")
-  conn <- amsync_client(server$url)
-  on.exit(conn$close(), add = TRUE)
-  doc <- conn$open_doc(doc_id)
-
-  # The editor was closed without saving.
-  local_mocked_bindings(edit_in_shiny = mock_editor_returns(NULL))
-
-  expect_message(
-    res <- amsync_edit(doc, at = "text"),
-    "Edit cancelled."
+  # User types: the outgoing sync writes the diff and pushes once.
+  shown <- sync_editor_to_doc(
+    doc[["text"]],
+    "hello there world",
+    "hello world",
+    push
   )
-  expect_identical(res, doc)
-  expect_equal(
-    automerge::am_text_content(doc$doc[["text"]]),
-    "unchanged"
-  )
+  expect_equal(pushes, 1L)
+
+  # The poll sees the document matches the editor -> nothing to reflect back.
+  expect_null(poll_doc_to_editor(doc[["text"]], shown))
+
+  # A remote edit arrives; the poll reports it and the editor adopts it.
+  automerge::am_text_splice(doc[["text"]], 0L, 0L, ">> ")
+  current <- poll_doc_to_editor(doc[["text"]], shown)
+  expect_equal(current, ">> hello there world")
+  shown <- current
+
+  # Re-sending the adopted content is a no-op: no echo push, no spurious diff.
+  shown <- sync_editor_to_doc(doc[["text"]], shown, "hello world", push)
+  expect_equal(pushes, 1L)
+  expect_equal(automerge::am_text_content(doc[["text"]]), ">> hello there world")
 })
 
-test_that("amsync_edit preserves the original trailing-newline state", {
-  skip_on_cran()
-  drain_later()
-  data_dir <- tempfile()
-  dir.create(data_dir)
-  on.exit(unlink(data_dir, recursive = TRUE))
+test_that("editor_stream_js embeds the debounce and streams via the binding", {
+  js <- editor_stream_js(450)
+  expect_match(js, "var DEBOUNCE = 450;", fixed = TRUE)
+  expect_match(js, "el.prismEditor.on('update'", fixed = TRUE)
+  expect_match(js, "el.onChangeCallback(false)", fixed = TRUE)
 
-  server <- amsync_server(data_dir = data_dir)
-  server$start()
-  on.exit(server$close(), add = TRUE)
-
-  # Original has no trailing newline; editor appends one -> result has none.
-  doc_id <- seed_text_doc(server, "line one")
-  conn <- amsync_client(server$url)
-  on.exit(conn$close(), add = TRUE)
-  doc <- conn$open_doc(doc_id)
-
-  local_mocked_bindings(edit_in_shiny = mock_editor_returns("line one\nline two\n"))
-  amsync_edit(doc, at = "text")
-
-  expect_equal(
-    automerge::am_text_content(doc$doc[["text"]]),
-    "line one\nline two"
-  )
+  # Coerced to an integer literal (no decimals leak into the JS).
+  expect_match(editor_stream_js(300L), "var DEBOUNCE = 300;", fixed = TRUE)
 })
 
 test_that("amsync_edit errors when the target is not a text object", {
@@ -196,12 +163,20 @@ test_that("amsync_edit errors when the target is not a text object", {
   )
 })
 
-test_that("amsync_edit validates its doc argument", {
+test_that("amsync_edit validates its arguments", {
   expect_error(amsync_edit(list()), "must be an `amsync_doc`")
 
   fake <- structure(new.env(parent = emptyenv()), class = "amsync_doc")
   fake$active <- FALSE
   expect_error(amsync_edit(fake), "not active")
+
+  # An active handle reaches the `at` / `debounce` checks (which error before
+  # the editor would launch).
+  fake$active <- TRUE
+  fake$doc <- local_text_doc("hi")
+  expect_error(amsync_edit(fake, at = character()), "non-empty character path")
+  expect_error(amsync_edit(fake, debounce = -1), "non-negative")
+  expect_error(amsync_edit(fake, debounce = c(1, 2)), "single non-negative")
 })
 
 test_that("ext_to_language maps extensions to editor languages", {
