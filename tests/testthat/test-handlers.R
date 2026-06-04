@@ -401,6 +401,139 @@ test_that("handle_error logs warning", {
   )
 })
 
+test_that("handle_message dispatches leave, ephemeral, and error messages", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  ws <- create_mock_ws()
+  client_id <- "dispatchClient"
+  state$connections[[client_id]] <- list(
+    ws = ws,
+    client_id = client_id,
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  leave <- secretbase::cborenc(list(type = "leave", senderId = client_id))
+  expect_no_error(autosync:::handle_message(state, client_id, client_id, leave))
+
+  # An ephemeral broadcast to a document with no peers exits quietly.
+  ephemeral <- secretbase::cborenc(list(
+    type = "ephemeral",
+    senderId = client_id,
+    documentId = generate_document_id(),
+    data = raw(0)
+  ))
+  expect_no_error(autosync:::handle_message(state, client_id, client_id, ephemeral))
+
+  error <- secretbase::cborenc(list(
+    type = "error",
+    senderId = client_id,
+    message = "boom"
+  ))
+  expect_warning(
+    autosync:::handle_message(state, client_id, client_id, error),
+    "boom"
+  )
+})
+
+test_that("handle_join loads persisted sync states for a peer with a storageId", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  # Persist a sync state on disk for a storage peer.
+  storage_id <- "joinStoragePeer"
+  doc_id <- generate_document_id()
+  autosync:::save_sync_state(state, storage_id, doc_id, automerge::am_sync_state())
+
+  ws <- create_mock_ws()
+  temp_id <- ws$id
+  state$connections[[temp_id]] <- list(
+    ws = ws,
+    client_id = NULL,
+    metadata = NULL,
+    connected_at = Sys.time()
+  )
+
+  join_msg <- list(
+    type = "join",
+    senderId = "storedClient",
+    peerMetadata = list(storageId = storage_id),
+    supportedProtocolVersions = list("1")
+  )
+  autosync:::handle_join(state, temp_id, join_msg)
+
+  # The persisted sync state is loaded for this client.
+  expect_true(exists("storedClient", envir = state$sync_states))
+  expect_true(exists(doc_id, envir = state$sync_states[["storedClient"]]))
+})
+
+test_that("handle_sync warns on a sync decode error", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  doc_id <- generate_document_id()
+  state$documents[[doc_id]] <- automerge::am_create()
+
+  ws <- create_mock_ws()
+  client_id <- "decodeErrClient"
+  state$connections[[client_id]] <- list(
+    ws = ws,
+    client_id = client_id,
+    metadata = list(),
+    connected_at = Sys.time()
+  )
+
+  sync_msg <- list(
+    type = "request",
+    senderId = client_id,
+    targetId = state$peer_id,
+    documentId = doc_id,
+    data = as.raw(c(0xFF, 0xFF, 0xFF, 0xFF))
+  )
+
+  expect_warning(
+    autosync:::handle_sync(state, client_id, sync_msg, is_request = TRUE),
+    "am_sync_decode error"
+  )
+})
+
+test_that("handle_sync persists sync state for a peer with a storageId", {
+  state <- create_test_state()
+  on.exit(unlink(state$data_dir, recursive = TRUE))
+
+  doc_id <- generate_document_id()
+  state$documents[[doc_id]] <- automerge::am_create()
+
+  ws <- create_mock_ws()
+  client_id <- "storeSyncClient"
+  storage_id <- "syncStore"
+  state$connections[[client_id]] <- list(
+    ws = ws,
+    client_id = client_id,
+    metadata = list(storageId = storage_id),
+    connected_at = Sys.time()
+  )
+
+  # Real sync data from a peer document so the change applies and persists.
+  peer <- automerge::am_create()
+  automerge::am_put(peer, automerge::AM_ROOT, "k", "v")
+  data <- automerge::am_sync_encode(peer, automerge::am_sync_state())
+
+  sync_msg <- list(
+    type = "request",
+    senderId = client_id,
+    targetId = state$peer_id,
+    documentId = doc_id,
+    data = data
+  )
+  autosync:::handle_sync(state, client_id, sync_msg, is_request = TRUE)
+
+  expect_true(file.exists(
+    file.path(state$data_dir, ".sync_states", storage_id, paste0(doc_id, ".sync"))
+  ))
+})
+
 test_that("handle_ephemeral forwards to target peer", {
   state <- create_test_state()
   on.exit(unlink(state$data_dir, recursive = TRUE))

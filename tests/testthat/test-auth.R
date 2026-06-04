@@ -1,5 +1,11 @@
 # Tests for OIDC JWT authentication module
 
+test_that("is_interactive reflects the running session's interactivity", {
+  # The wrapper exists so it can be mocked elsewhere; unmocked it just defers
+  # to base::interactive().
+  expect_identical(autosync:::is_interactive(), interactive())
+})
+
 # Helper: create a test JWT signed with a given RSA key
 create_test_jwt <- function(claims, key, kid = "test-kid-1") {
   claim <- do.call(jose::jwt_claim, claims)

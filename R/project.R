@@ -1,16 +1,18 @@
 # Project browsing: file-tree navigation from a project document ID
 
-#' Browse and edit files in a project document
+#' Open files from a project document
 #'
 #' Given a sync server URL and a project document ID, opens a persistent
 #' connection to the server, syncs the project document over it, and exposes
-#' its file tree for browsing and editing. A project is an Automerge document
-#' with a `files` map whose keys are file paths and whose values are text
-#' objects holding each file's own document ID.
+#' its file tree for opening individual files. A project is an Automerge
+#' document with a `files` map whose keys are file paths and whose values are
+#' text objects holding each file's own document ID.
 #'
-#' Opening or editing a file syncs that file's document over the **same**
-#' connection rather than dialing the server again, so a browse session reuses
-#' a single WebSocket throughout. Call `$close()` when finished to disconnect.
+#' Opening a file syncs that file's document over the **same** connection
+#' rather than dialing the server again, so a session reuses a single WebSocket
+#' throughout. Call the opened file's `$edit()` method to edit it live, or use
+#' [amsync_app()] for an interactive browser. Call `$close()` when finished to
+#' disconnect.
 #'
 #' @inheritParams amsync_fetch
 #' @param proj_id Document ID of the project.
@@ -27,11 +29,6 @@
 #'     \item{`open(path)`}{Open the file's document over the project connection
 #'       and return its `amsync_doc` handle. Reuses the connection and any
 #'       already-open document.}
-#'     \item{`edit(path = NULL)`}{Open the file's document and run
-#'       [amsync_edit()] with the extension inferred from the path. If `path`
-#'       is `NULL` and interactive, shows a Shiny file picker first.}
-#'     \item{`browse()`}{Interactive loop: pick a file from a Shiny file
-#'       picker, edit it, then return to the picker; repeat until **Done**.}
 #'     \item{`refresh()`}{Re-resolve the file tree to pick up added or removed
 #'       files (the project document syncs live, so this just settles pending
 #'       updates).}
@@ -41,8 +38,8 @@
 #' @examplesIf interactive()
 #' proj <- amsync_project("wss://quarto-hub.com/ws", proj_id, token = amsync_token())
 #' proj                                   # prints the file tree
-#' proj$browse()                          # pick a file, edit it, repeat
-#' proj$edit("/charlie/index.qmd")        # edit a known path directly
+#' doc <- proj$open("/charlie/index.qmd") # open a file over the connection
+#' doc$edit(at = "text", ext = ".qmd")    # edit it live
 #' proj$close()                           # disconnect when finished
 #'
 #' @importFrom automerge am_keys am_text_content
@@ -105,35 +102,6 @@ amsync_project <- function(
     proj$conn$open_doc(proj$doc_id(path))
   }
 
-  proj$edit <- function(path = NULL) {
-    if (is.null(path)) {
-      if (!interactive()) {
-        stop("`path` is required in non-interactive sessions")
-      }
-      path <- pick_path_shiny(proj$paths())
-      if (is.null(path)) {
-        return(invisible(proj))
-      }
-    }
-    ext <- file_ext_dot(path)
-    amsync_edit(proj$open(path), at = "text", ext = ext)
-    invisible(proj)
-  }
-
-  proj$browse <- function() {
-    if (!interactive()) {
-      stop("`$browse()` requires an interactive session; pass a path to `$edit()`")
-    }
-    repeat {
-      path <- pick_path_shiny(proj$paths())
-      if (is.null(path)) {
-        break
-      }
-      proj$edit(path)
-    }
-    invisible(proj)
-  }
-
   proj$refresh <- function() {
     # The project document syncs live over the connection; settle any pending
     # updates, then re-resolve the files map to reflect added/removed files.
@@ -161,7 +129,7 @@ print.amsync_project <- function(x, ...) {
   cat("  Server:", x$url, "\n")
   cat("  Files:", length(paths), "\n\n")
   cat(format_file_tree(paths))
-  cat("\nCall $browse() to pick a file and edit it, $close() when done.\n")
+  cat("\nCall $open(path) to open a file, $close() when done.\n")
   invisible(x)
 }
 
@@ -194,107 +162,6 @@ resolve_files_map <- function(doc, files_key) {
 file_ext_dot <- function(path) {
   ext <- tools::file_ext(path)
   if (nzchar(ext)) paste0(".", ext) else ".txt"
-}
-
-#' Pick a file path from a project's tree in a Shiny app
-#'
-#' Spins up a single-purpose Shiny app presenting the project's file paths as a
-#' radio-button list, with **Edit** and **Done** buttons. Blocks until the app
-#' exits, returning the selected path on **Edit** or `NULL` if the user chose
-#' **Done** or closed the window. Choosing **Done** first replaces the picker
-#' with a brief closing message so it is clear the session has ended.
-#'
-#' @param paths Character vector of paths.
-#'
-#' @return The selected path (character scalar), or `NULL` if not selected.
-#'
-#' @noRd
-pick_path_shiny <- function(paths) {
-  if (!length(paths)) {
-    message("No files in project.")
-    return(NULL)
-  }
-  if (
-    !requireNamespace("shiny", quietly = TRUE) ||
-      !requireNamespace("bslib", quietly = TRUE)
-  ) {
-    stop(
-      "Picking a file interactively requires the 'shiny' and 'bslib' packages.\n",
-      'Install them with install.packages(c("shiny", "bslib")).'
-    )
-  }
-
-  ui <- bslib::page_fillable(
-    title = "amsync_project",
-    padding = 0,
-    bslib::card(
-      bslib::card_header(
-        id = "picker-header",
-        class = "d-flex justify-content-between align-items-center",
-        shiny::span("Select a file to edit"),
-        shiny::div(
-          class = "d-flex gap-2",
-          shiny::actionButton(
-            "done",
-            "Done",
-            class = "btn-sm btn-outline-secondary"
-          ),
-          shiny::actionButton("edit", "Edit", class = "btn-sm btn-primary")
-        )
-      ),
-      bslib::card_body(
-        id = "picker-body",
-        shiny::radioButtons("path", label = NULL, choices = paths)
-      )
-    )
-  )
-
-  server <- function(input, output, session) {
-    # Stop exactly once, returning the selected path (Edit) or NULL (Done /
-    # window-close).
-    stopped <- FALSE
-    stop_with <- function(value) {
-      if (stopped) {
-        return()
-      }
-      stopped <<- TRUE
-      shiny::stopApp(returnValue = value)
-    }
-
-    # Edit hands the selection straight to the editor, so close immediately.
-    shiny::observeEvent(input$edit, stop_with(input$path))
-
-    # Done ends the session with nothing else to show, so replace the picker
-    # with a clear message before stopping -- once it has had time to render,
-    # which also unblocks the calling R session.
-    closing <- FALSE
-    shiny::observeEvent(input$done, {
-      if (closing) {
-        return()
-      }
-      closing <<- TRUE
-      shiny::insertUI(
-        "#picker-body",
-        where = "beforeEnd",
-        ui = shiny::div(
-          class = paste(
-            "html-fill-item d-flex flex-column",
-            "justify-content-center align-items-center text-muted p-4"
-          ),
-          shiny::tags$h5(class = "mb-1", "Finished"),
-          shiny::tags$p(class = "mb-0", "You can close this window.")
-        ),
-        immediate = TRUE
-      )
-      shiny::removeUI("#picker-header", immediate = TRUE)
-      shiny::removeUI("#path", immediate = TRUE)
-      later(function() stop_with(NULL), delay = 0.75)
-    })
-
-    session$onSessionEnded(function() stop_with(NULL))
-  }
-
-  shiny::runGadget(shiny::shinyApp(ui, server), stopOnCancel = FALSE)
 }
 
 #' Render a set of file paths as an indented tree

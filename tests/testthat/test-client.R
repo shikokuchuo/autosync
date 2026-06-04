@@ -454,6 +454,52 @@ test_that("amsync_client connects and open_doc receives document", {
   )
 })
 
+test_that("a document handle's $close() detaches it from the connection", {
+  skip_on_cran()
+  drain_later()
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  server <- amsync_server(data_dir = data_dir)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  doc_id <- create_document(server)
+  conn <- amsync_client(server$url)
+  on.exit(conn$close(), add = TRUE)
+
+  handle <- conn$open_doc(doc_id)
+  expect_true(handle$active)
+
+  # Closing the handle drops the document so the handle reports inactive.
+  handle$close()
+  expect_false(handle$active)
+
+  # A second close is an idempotent no-op.
+  expect_no_error(handle$close())
+})
+
+test_that("open_doc errors once the connection is closed", {
+  skip_on_cran()
+  drain_later()
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  server <- amsync_server(data_dir = data_dir)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  conn <- amsync_client(server$url)
+  conn$close()
+
+  expect_error(
+    conn$open_doc(generate_document_id()),
+    "not active"
+  )
+})
+
 test_that("open_doc reuses one connection across documents", {
   skip_on_cran()
   drain_later()

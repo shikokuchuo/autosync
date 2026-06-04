@@ -80,46 +80,26 @@ test_that("amsync_project opens files over a single reused connection", {
   expect_equal(h2$doc_id, id2)
 })
 
-test_that("amsync_project$edit opens the right file and infers the extension", {
+test_that("amsync_project closes the connection when the project fails to open", {
   skip_on_cran()
   drain_later()
   data_dir <- tempfile()
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  # A server that never auto-creates documents reports the project unavailable,
+  # so open_doc() throws and amsync_project() must tear the connection down.
+  server <- amsync_server(data_dir = data_dir, auto_create_docs = FALSE)
   server$start()
   on.exit(server$close(), add = TRUE)
 
-  id1 <- make_file_doc(server, "# Index")
-  id2 <- make_file_doc(server, "todo")
-  proj_id <- make_project_doc(server, list(
-    "/charlie/index.qmd" = id1,
-    "/notes/todo.md" = id2
-  ))
-
-  proj <- amsync_project(server$url, proj_id)
-  on.exit(proj$close(), add = TRUE)
-
-  captured <- new.env()
-  local_mocked_bindings(
-    amsync_edit = function(doc, at = "text", ext = NULL) {
-      captured$ext <- ext
-      captured$doc_id <- doc$doc_id
-      invisible(doc)
-    }
+  expect_error(
+    suppressWarnings(amsync_project(server$url, generate_document_id())),
+    "not available"
   )
-
-  proj$edit("/charlie/index.qmd")
-  expect_equal(captured$ext, ".qmd")
-  expect_equal(captured$doc_id, id1)
-
-  proj$edit("/notes/todo.md")
-  expect_equal(captured$ext, ".md")
-  expect_equal(captured$doc_id, id2)
 })
 
-test_that("amsync_project$edit performs a real edit and pushes", {
+test_that("amsync_project errors when the files key is not a map", {
   skip_on_cran()
   drain_later()
   data_dir <- tempfile()
@@ -130,34 +110,66 @@ test_that("amsync_project$edit performs a real edit and pushes", {
   server$start()
   on.exit(server$close(), add = TRUE)
 
-  id1 <- make_file_doc(server, "old")
-  proj_id <- make_project_doc(server, list("/a/b.md" = id1))
+  # `files` is a string rather than a map.
+  proj_id <- create_document(server)
+  pdoc <- get_document(server, proj_id)
+  automerge::am_put(pdoc, automerge::AM_ROOT, "files", "not a map")
+
+  expect_error(
+    amsync_project(server$url, proj_id),
+    "is not a map"
+  )
+})
+
+test_that("amsync_project$doc_id errors when an entry is not a text object", {
+  skip_on_cran()
+  drain_later()
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  server <- amsync_server(data_dir = data_dir)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  proj_id <- create_document(server)
+  pdoc <- get_document(server, proj_id)
+  pdoc[["files"]] <- automerge::am_map()
+  files <- pdoc[["files"]]
+  # A files entry that is a scalar rather than a text object.
+  files[["/bad"]] <- 42L
 
   proj <- amsync_project(server$url, proj_id)
   on.exit(proj$close(), add = TRUE)
 
-  # Stand in for the live editor: simulate one keystroke that sets the file's
-  # text to "new content" and pushes, the same path the real gadget takes.
-  local_mocked_bindings(
-    edit_in_shiny = function(doc, at, push, ext = NULL, debounce = 300L) {
-      target <- navigate_to_text(doc$doc, at)
-      sync_editor_to_doc(
-        target,
-        "new content",
-        automerge::am_text_content(target),
-        push
-      )
-    }
-  )
+  expect_error(proj$doc_id("/bad"), "not a text object")
+})
 
-  proj$edit("/a/b.md")
-  for (i in seq_len(20)) later::run_now(0.1)
+test_that("amsync_project$refresh re-resolves the file tree", {
+  skip_on_cran()
+  drain_later()
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
 
-  server_file <- get_document(server, id1)
-  expect_equal(
-    automerge::am_text_content(server_file[["text"]]),
-    "new content"
-  )
+  server <- amsync_server(data_dir = data_dir)
+  server$start()
+  on.exit(server$close(), add = TRUE)
+
+  id1 <- make_file_doc(server, "x")
+  proj_id <- make_project_doc(server, list("/a.md" = id1))
+  proj <- amsync_project(server$url, proj_id)
+  on.exit(proj$close(), add = TRUE)
+
+  # Refresh settles pending sync and re-resolves the map, returning the project.
+  expect_identical(proj$refresh(), proj)
+  expect_equal(proj$paths(), "/a.md")
+})
+
+test_that("file_ext_dot returns a dotted extension or .txt", {
+  expect_equal(autosync:::file_ext_dot("/a/b.md"), ".md")
+  expect_equal(autosync:::file_ext_dot("/notes/index.qmd"), ".qmd")
+  expect_equal(autosync:::file_ext_dot("README"), ".txt")
 })
 
 test_that("amsync_project errors on a missing files map", {
@@ -241,10 +253,4 @@ test_that("format_file_tree renders a nested tree", {
 
 test_that("format_file_tree handles the empty case", {
   expect_equal(autosync:::format_file_tree(character(0)), "/\n")
-})
-
-test_that("pick_path_shiny returns NULL for an empty project", {
-  # No files -> short-circuits before launching a Shiny gadget.
-  expect_message(res <- pick_path_shiny(character(0)), "No files in project")
-  expect_null(res)
 })

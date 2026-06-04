@@ -140,3 +140,74 @@ test_that("load_sync_states with no persisted data is a no-op", {
   expect_false(exists("clientX", envir = state$sync_states))
 })
 
+test_that("save_sync_state warns when the file cannot be written", {
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  state <- new.env(hash = TRUE, parent = emptyenv())
+  state$data_dir <- data_dir
+
+  storage_id <- "writeFailPeer"
+  doc_id <- "blockedDoc"
+  # Pre-create a *directory* exactly where the .sync file would be written, so
+  # writeBin() fails on it.
+  blocking_dir <- file.path(
+    data_dir, ".sync_states", storage_id, paste0(doc_id, ".sync")
+  )
+  dir.create(blocking_dir, recursive = TRUE)
+
+  # writeBin() to a directory emits incidental platform warnings before the
+  # connection error that save_sync_state() catches; muffle those so only the
+  # "Failed to save sync state" warning we care about is asserted.
+  expect_warning(
+    withCallingHandlers(
+      autosync:::save_sync_state(state, storage_id, doc_id, automerge::am_sync_state()),
+      warning = function(w) {
+        if (!grepl("Failed to save sync state", conditionMessage(w))) {
+          invokeRestart("muffleWarning")
+        }
+      }
+    ),
+    "Failed to save sync state"
+  )
+})
+
+test_that("load_sync_states ignores a peer directory with no sync files", {
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  state <- new.env(hash = TRUE, parent = emptyenv())
+  state$data_dir <- data_dir
+  state$sync_states <- new.env(hash = TRUE, parent = emptyenv())
+
+  storage_id <- "emptyPeer"
+  dir.create(file.path(data_dir, ".sync_states", storage_id), recursive = TRUE)
+
+  autosync:::load_sync_states(state, storage_id, "clientE")
+
+  expect_false(exists("clientE", envir = state$sync_states))
+})
+
+test_that("load_sync_states warns on a corrupted sync file", {
+  data_dir <- tempfile()
+  dir.create(data_dir)
+  on.exit(unlink(data_dir, recursive = TRUE))
+
+  state <- new.env(hash = TRUE, parent = emptyenv())
+  state$data_dir <- data_dir
+  state$sync_states <- new.env(hash = TRUE, parent = emptyenv())
+
+  storage_id <- "corruptPeer"
+  dir <- file.path(data_dir, ".sync_states", storage_id)
+  dir.create(dir, recursive = TRUE)
+  doc_id <- generate_document_id()
+  writeBin(as.raw(c(0xFF, 0xFF, 0xFF)), file.path(dir, paste0(doc_id, ".sync")))
+
+  expect_warning(
+    autosync:::load_sync_states(state, storage_id, "clientC"),
+    "Failed to load sync state"
+  )
+})
+

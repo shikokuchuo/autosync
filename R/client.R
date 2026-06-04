@@ -101,6 +101,13 @@ join_msg <- function(peer_id) {
 #'     \item{`doc`}{The live automerge document, kept in sync with the server.}
 #'     \item{`push()`}{Push this document's local changes to the server
 #'       immediately.}
+#'     \item{`edit(at = "text", ext = NULL, debounce = 300L)`}{Open this
+#'       document's text object at `at` in a live Shiny code editor that syncs
+#'       both ways, blocking until closed (requires \pkg{shiny} and
+#'       \pkg{bslib}). `at` is a key or character-vector path to an `am_text`
+#'       object, `ext` (e.g. `".md"`) selects syntax highlighting, and
+#'       `debounce` is the millisecond delay before pushing keystrokes. See
+#'       Details.}
 #'     \item{`close()`}{Stop syncing this one document (detach it from the
 #'       connection); the connection and its other documents are unaffected.}
 #'     \item{`active`}{Logical, whether the document is still open on an active
@@ -117,6 +124,16 @@ join_msg <- function(peer_id) {
 #' Neither `close()` flushes pending local changes. Call `$push()` first if you
 #' have unsynced edits — otherwise any changes made since the last
 #' `sync`-interval tick may be lost.
+#'
+#' **Live editing.** A handle's `$edit()` opens its text object in a live
+#' [bslib::input_code_editor()] that syncs both ways: as you type, the minimal
+#' diff is written to the live document and pushed (debounced); when the text
+#' changes remotely, the editor updates to the merged result. There is no
+#' **Save** button — every edit is applied live. It syncs whole-text snapshots,
+#' not granular operations, so a remote edit arriving in the brief window
+#' between a keystroke and its debounced push can be overwritten by that push;
+#' a smaller `debounce` narrows the window. The original's trailing-newline
+#' state is preserved.
 #'
 #' @examplesIf interactive()
 #' server <- amsync_server()
@@ -322,6 +339,9 @@ amsync_client <- function(
     handle$stream <- client$stream
     handle$connection <- client
     handle$push <- function() send_sync_for(entry)
+    handle$edit <- function(at = "text", ext = NULL, debounce = 300L) {
+      edit_doc(handle, at = at, ext = ext, debounce = debounce)
+    }
     handle$close <- function() {
       if (exists(entry$doc_id, envir = client$documents, inherits = FALSE)) {
         rm(list = entry$doc_id, envir = client$documents)
