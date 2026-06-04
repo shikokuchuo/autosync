@@ -40,88 +40,74 @@ export function ConnectScreen() {
 
   return (
     <div className="amsync-connect">
-      <div className="amsync-card">
-        <div className="amsync-card-header">Connect to a project</div>
-        <div className="amsync-card-body">
-          <label className="amsync-field">
-            <span>Server URL</span>
-            <input
-              type="text"
-              value={url}
-              placeholder="Sync server wss://"
-              onChange={(e) => setUrl(e.target.value)}
-            />
-          </label>
-          <label className="amsync-field">
-            <span>Project ID</span>
-            <input
-              type="text"
-              value={projId}
-              placeholder="Base58 document ID"
-              onChange={(e) => setProjId(e.target.value)}
-            />
-          </label>
+      <div className="amsync-signin">
+        <div className="amsync-brand">
+          amsync<span className="amsync-brand-dot">.</span>
+        </div>
+        <p className="amsync-signin-subtitle">Connect to a sync project</p>
 
-          <div className="amsync-auth">
-            <div className="amsync-auth-row">
-              <button
-                type="button"
-                className="amsync-btn amsync-btn-outline"
-                onClick={authenticate}
-              >
-                Authenticate
-              </button>
-              <span className={authed ? "amsync-status ok" : "amsync-status muted"}>
-                {authed ? "✓ signed in" : "not signed in"}
-              </span>
-            </div>
-            <details className="amsync-advanced">
-              <summary>Advanced</summary>
-              <div className="amsync-advanced-body">
-                <label className="amsync-field">
-                  <span>OIDC client ID</span>
-                  <input
-                    type="text"
-                    value={clientId}
-                    onChange={(e) => setClientId(e.target.value)}
-                  />
-                </label>
-                <label className="amsync-field">
-                  <span>OIDC client secret</span>
-                  <input
-                    type="password"
-                    value={clientSecret}
-                    onChange={(e) => setClientSecret(e.target.value)}
-                  />
-                </label>
-                <label className="amsync-field">
-                  <span>OIDC issuer</span>
-                  <input
-                    type="text"
-                    value={issuer}
-                    onChange={(e) => setIssuer(e.target.value)}
-                  />
-                </label>
-              </div>
-            </details>
+        <label className="amsync-field">
+          <span>Server URL</span>
+          <input
+            type="text"
+            value={url}
+            placeholder="wss://…"
+            onChange={(e) => setUrl(e.target.value)}
+          />
+        </label>
+        <label className="amsync-field">
+          <span>Project ID</span>
+          <input
+            type="text"
+            value={projId}
+            placeholder="Base58 document ID"
+            onChange={(e) => setProjId(e.target.value)}
+          />
+        </label>
+
+        <div className="amsync-signin-auth">
+          <button type="button" className="amsync-link-btn" onClick={authenticate}>
+            {authed ? "Re-authenticate" : "Sign in (optional)"}
+          </button>
+          {authed && <span className="amsync-status ok">✓ signed in</span>}
+        </div>
+
+        <details className="amsync-advanced">
+          <summary>Advanced</summary>
+          <div className="amsync-advanced-body">
+            <label className="amsync-field">
+              <span>OIDC client ID</span>
+              <input
+                type="text"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+              />
+            </label>
+            <label className="amsync-field">
+              <span>OIDC client secret</span>
+              <input
+                type="password"
+                value={clientSecret}
+                onChange={(e) => setClientSecret(e.target.value)}
+              />
+            </label>
+            <label className="amsync-field">
+              <span>OIDC issuer</span>
+              <input
+                type="text"
+                value={issuer}
+                onChange={(e) => setIssuer(e.target.value)}
+              />
+            </label>
           </div>
-        </div>
-        <div className="amsync-card-footer">
-          <button
-            type="button"
-            className="amsync-btn amsync-btn-primary amsync-fill"
-            onClick={connect}
-          >
-            Connect
-          </button>
-          <button
-            type="button"
-            className="amsync-btn amsync-btn-outline"
-            onClick={exit}
-          >
-            Exit
-          </button>
-        </div>
+        </details>
+
+        <button type="button" className="amsync-primary-btn" onClick={connect}>
+          Connect
+        </button>
+        <button type="button" className="amsync-ghost-btn" onClick={exit}>
+          Exit
+        </button>
       </div>
     </div>
   );
