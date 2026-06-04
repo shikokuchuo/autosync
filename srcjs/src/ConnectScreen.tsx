@@ -41,7 +41,7 @@ export function ConnectScreen() {
     <div className="amsync-connect">
       <div className="amsync-signin">
         <div className="amsync-brand">
-          amsync<span className="amsync-brand-dot">.</span>
+          autosync<span className="amsync-brand-dot">.</span>
         </div>
         <p className="amsync-signin-subtitle">Connect to a sync project</p>
         {authed && <p className="amsync-signin-authed">✓ signed in</p>}
