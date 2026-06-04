@@ -3,6 +3,32 @@ test_that("amsync_app errors in a non-interactive session", {
   expect_error(amsync_app(), "requires an interactive session")
 })
 
+test_that("amsync_app errors when shiny or bslib is missing", {
+  local_mocked_bindings(is_interactive = function() TRUE)
+  local_mocked_bindings(requireNamespace = function(...) FALSE, .package = "base")
+  expect_error(amsync_app(), "requires the 'shiny' and 'bslib' packages")
+})
+
+test_that("amsync_app builds the app and launches it as a gadget", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+
+  # Mock the interactive check and the gadget launcher so the happy path runs
+  # without opening a window; capture the built app instead.
+  launched <- NULL
+  local_mocked_bindings(is_interactive = function() TRUE)
+  local_mocked_bindings(
+    runGadget = function(app, ...) {
+      launched <<- app
+      NULL
+    },
+    .package = "shiny"
+  )
+
+  expect_null(amsync_app("wss://x/ws", proj_id = "DOC123"))
+  expect_s3_class(launched, "shiny.appobj")
+})
+
 test_that("connect_screen_ui exposes the URL, project, auth, and connect inputs", {
   skip_if_not_installed("shiny")
   skip_if_not_installed("bslib")
@@ -224,6 +250,118 @@ test_that("the app connects, browses, and edits over a live server", {
     expect_equal(rv$view, "connect")
     expect_null(st$proj)
   })
+})
+
+test_that("the Authenticate button signs in via amsync_token()", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+
+  local_mocked_bindings(amsync_token = function(...) "fresh.jwt")
+  app <- build_amsync_app("", "", NULL, NULL, 5000L, "files", 300L)
+  shiny::testServer(app, {
+    expect_false(rv$authed)
+    # A non-empty issuer is used as-is (exercises the issuer branch).
+    session$setInputs(client_id = "cid", client_secret = "sec", issuer = "https://issuer")
+    session$setInputs(authenticate = 1)
+    expect_true(rv$authed)
+    expect_equal(st$token, "fresh.jwt")
+  })
+})
+
+test_that("a failed Authenticate leaves the session signed out", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+
+  local_mocked_bindings(amsync_token = function(...) stop("denied"))
+  app <- build_amsync_app("", "", NULL, NULL, 5000L, "files", 300L)
+  shiny::testServer(app, {
+    # Blank issuer falls back to oidc_issuer() (the other branch).
+    session$setInputs(issuer = "")
+    session$setInputs(authenticate = 1)
+    expect_false(rv$authed)
+    expect_null(st$token)
+  })
+})
+
+test_that("Connect warns and stays put when the URL or project ID is blank", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+
+  app <- build_amsync_app("", "", NULL, NULL, 5000L, "files", 300L)
+  shiny::testServer(app, {
+    session$setInputs(url = "", proj_id = "")
+    session$setInputs(connect = 1)
+    expect_equal(rv$view, "connect")
+    expect_null(st$proj)
+  })
+})
+
+test_that("a failed Connect stays on the connect screen", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+
+  local_mocked_bindings(amsync_project = function(...) stop("cannot connect"))
+  app <- build_amsync_app("", "", NULL, NULL, 5000L, "files", 300L)
+  shiny::testServer(app, {
+    session$setInputs(url = "wss://x/ws", proj_id = "DOC123")
+    session$setInputs(connect = 1)
+    expect_equal(rv$view, "connect")
+    expect_null(st$proj)
+  })
+})
+
+test_that("opening a file ignores a blank path and reports open errors", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+
+  app <- build_amsync_app("", "", NULL, NULL, 5000L, "files", 300L)
+  shiny::testServer(app, {
+    # The observer is ignoreInit, so the first input change is swallowed; prime
+    # it before the cases we want to observe.
+    session$setInputs(file = "/prime.md")
+
+    # A blank path is ignored.
+    session$setInputs(file = "")
+    expect_null(rv$selected)
+
+    # A project whose open() fails: the error is caught and no file opens.
+    st$proj <- list(open = function(path) stop("boom"))
+    session$setInputs(file = "/notes.md")
+    expect_null(rv$selected)
+    expect_null(st$doc)
+  })
+})
+
+test_that("Refresh re-resolves the tree and drops a vanished selection", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+
+  app <- build_amsync_app("", "", NULL, NULL, 5000L, "files", 300L)
+  shiny::testServer(app, {
+    # No project held: refresh is a quiet no-op.
+    session$setInputs(refresh = 1)
+    expect_equal(rv$paths, character(0))
+
+    # With a project, the tree re-resolves and a now-missing selection clears.
+    refreshed <- FALSE
+    st$proj <- list(
+      refresh = function() refreshed <<- TRUE,
+      paths = function() c("/a.md", "/b.md")
+    )
+    rv$selected <- "/gone.md"
+    session$setInputs(refresh = 2)
+    expect_true(refreshed)
+    expect_equal(rv$paths, c("/a.md", "/b.md"))
+    expect_null(rv$selected)
+  })
+})
+
+test_that("build_file_tree_ui skips path entries with no real components", {
+  skip_if_not_installed("shiny")
+
+  # A path of only separators contributes no nodes (the skipped-entry branch).
+  html <- as.character(build_file_tree_ui("/"))
+  expect_false(grepl("data-path", html, fixed = TRUE))
 })
 
 test_that("cleanup_project closes the connection and clears state", {
