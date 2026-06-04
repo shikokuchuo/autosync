@@ -31,13 +31,20 @@ Automerge clients in collaborative applications.
 
 ## Browsing and Editing
 
+- [`amsync_app()`](http://shikokuchuo.net/autosync/reference/amsync_app.md):
+
+  Launch a single-window Shiny app to connect to a project, browse its
+  file tree, and edit files in a live code editor
+
 - [`amsync_project()`](http://shikokuchuo.net/autosync/reference/amsync_project.md):
 
-  Browse and edit the files in a project document
+  Open the files in a project document
 
-- [`amsync_edit()`](http://shikokuchuo.net/autosync/reference/amsync_edit.md):
+- `$edit()`:
 
-  Edit a synced text object in a Shiny code editor
+  The document handle from
+  [`amsync_client()`](http://shikokuchuo.net/autosync/reference/amsync_client.md)'s
+  `$open_doc()` edits a synced text object in a live Shiny code editor
 
 ## Protocol
 

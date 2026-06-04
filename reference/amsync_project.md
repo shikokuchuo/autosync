@@ -1,8 +1,8 @@
-# Browse and edit files in a project document
+# Open files from a project document
 
 Given a sync server URL and a project document ID, opens a persistent
 connection to the server, syncs the project document over it, and
-exposes its file tree for browsing and editing. A project is an
+exposes its file tree for opening individual files. A project is an
 Automerge document with a `files` map whose keys are file paths and
 whose values are text objects holding each file's own document ID.
 
@@ -78,18 +78,6 @@ the following fields and methods:
   `amsync_doc` handle. Reuses the connection and any already-open
   document.
 
-- `edit(path = NULL)`:
-
-  Open the file's document and run
-  [`amsync_edit()`](http://shikokuchuo.net/autosync/reference/amsync_edit.md)
-  with the extension inferred from the path. If `path` is `NULL` and
-  interactive, shows a Shiny file picker first.
-
-- `browse()`:
-
-  Interactive loop: pick a file from a Shiny file picker, edit it, then
-  return to the picker; repeat until **Done**.
-
 - `refresh()`:
 
   Re-resolve the file tree to pick up added or removed files (the
@@ -101,10 +89,12 @@ the following fields and methods:
 
 ## Details
 
-Opening or editing a file syncs that file's document over the **same**
-connection rather than dialing the server again, so a browse session
-reuses a single WebSocket throughout. Call `$close()` when finished to
-disconnect.
+Opening a file syncs that file's document over the **same** connection
+rather than dialing the server again, so a session reuses a single
+WebSocket throughout. Call the opened file's `$edit()` method to edit it
+live, or use
+[`amsync_app()`](http://shikokuchuo.net/autosync/reference/amsync_app.md)
+for an interactive browser. Call `$close()` when finished to disconnect.
 
 ## Examples
 
@@ -112,8 +102,8 @@ disconnect.
 if (FALSE) { # interactive()
 proj <- amsync_project("wss://quarto-hub.com/ws", proj_id, token = amsync_token())
 proj                                   # prints the file tree
-proj$browse()                          # pick a file, edit it, repeat
-proj$edit("/charlie/index.qmd")        # edit a known path directly
+doc <- proj$open("/charlie/index.qmd") # open a file over the connection
+doc$edit(at = "text", ext = ".qmd")    # edit it live
 proj$close()                           # disconnect when finished
 }
 ```

@@ -14,16 +14,13 @@
   every file you `$open()`, `$edit()` or `$browse()` sync over the same
   WebSocket rather than dialing the server again. Call the new
   `$close()` when finished.
-- [`amsync_edit()`](http://shikokuchuo.net/autosync/reference/amsync_edit.md)
-  now operates on an `amsync_doc` handle (from
+- `amsync_edit()` now operates on an `amsync_doc` handle (from
   `amsync_client()$open_doc()`).
 - [`amsync_project()`](http://shikokuchuo.net/autosync/reference/amsync_project.md)
   browses a project document’s file tree from just a server URL and
   project ID, and edits files by path. `$browse()` and `$edit()` pick a
-  file from a Shiny app, then hand off to
-  [`amsync_edit()`](http://shikokuchuo.net/autosync/reference/amsync_edit.md).
-- [`amsync_edit()`](http://shikokuchuo.net/autosync/reference/amsync_edit.md)
-  opens a synced text object in a live Shiny editor (a
+  file from a Shiny app, then hand off to `amsync_edit()`.
+- `amsync_edit()` opens a synced text object in a live Shiny editor (a
   [`bslib::input_code_editor()`](https://rstudio.github.io/bslib/reference/input_code_editor.html)
   component): edits stream into the live document as you type (debounced
   via the `debounce` argument) and remote changes update the editor

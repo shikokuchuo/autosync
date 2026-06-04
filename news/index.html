@@ -39,11 +39,11 @@
 <li>
 <code><a href="../reference/amsync_project.html">amsync_project()</a></code> keeps a persistent connection to the server: the project document and every file you <code>$open()</code>, <code>$edit()</code> or <code>$browse()</code> sync over the same WebSocket rather than dialing the server again. Call the new <code>$close()</code> when finished.</li>
 <li>
-<code><a href="../reference/amsync_edit.html">amsync_edit()</a></code> now operates on an <code>amsync_doc</code> handle (from <code>amsync_client()$open_doc()</code>).</li>
+<code>amsync_edit()</code> now operates on an <code>amsync_doc</code> handle (from <code>amsync_client()$open_doc()</code>).</li>
 <li>
-<code><a href="../reference/amsync_project.html">amsync_project()</a></code> browses a project document’s file tree from just a server URL and project ID, and edits files by path. <code>$browse()</code> and <code>$edit()</code> pick a file from a Shiny app, then hand off to <code><a href="../reference/amsync_edit.html">amsync_edit()</a></code>.</li>
+<code><a href="../reference/amsync_project.html">amsync_project()</a></code> browses a project document’s file tree from just a server URL and project ID, and edits files by path. <code>$browse()</code> and <code>$edit()</code> pick a file from a Shiny app, then hand off to <code>amsync_edit()</code>.</li>
 <li>
-<code><a href="../reference/amsync_edit.html">amsync_edit()</a></code> opens a synced text object in a live Shiny editor (a <code><a href="https://rstudio.github.io/bslib/reference/input_code_editor.html" class="external-link">bslib::input_code_editor()</a></code> component): edits stream into the live document as you type (debounced via the <code>debounce</code> argument) and remote changes update the editor automatically. There is no <strong>Save</strong> button. Requires the <code>shiny</code> and <code>bslib</code> packages.</li>
+<code>amsync_edit()</code> opens a synced text object in a live Shiny editor (a <code><a href="https://rstudio.github.io/bslib/reference/input_code_editor.html" class="external-link">bslib::input_code_editor()</a></code> component): edits stream into the live document as you type (debounced via the <code>debounce</code> argument) and remote changes update the editor automatically. There is no <strong>Save</strong> button. Requires the <code>shiny</code> and <code>bslib</code> packages.</li>
 </ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.0.1" id="autosync-001">autosync 0.0.1<a class="anchor" aria-label="anchor" href="#autosync-001"></a></h2>

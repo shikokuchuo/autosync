@@ -119,6 +119,15 @@ with:</p><dl><dt><code>doc</code></dt>
 <dd><p>Push this document's local changes to the server
 immediately.</p></dd>
 
+<dt><code>edit(at = "text", ext = NULL, debounce = 300L)</code></dt>
+<dd><p>Open this
+document's text object at <code>at</code> in a live Shiny code editor that syncs
+both ways, blocking until closed (requires <span class="pkg">shiny</span> and
+<span class="pkg">bslib</span>). <code>at</code> is a key or character-vector path to an <code>am_text</code>
+object, <code>ext</code> (e.g. <code>".md"</code>) selects syntax highlighting, and
+<code>debounce</code> is the millisecond delay before pushing keystrokes. See
+Details.</p></dd>
+
 <dt><code><a href="https://rdrr.io/r/base/connections.html" class="external-link">close()</a></code></dt>
 <dd><p>Stop syncing this one document (detach it from the
 connection); the connection and its other documents are unaffected.</p></dd>
@@ -139,6 +148,15 @@ local changes are flushed periodically via a <code><a href="https://later.r-lib.
 <p>Neither <code><a href="https://rdrr.io/r/base/connections.html" class="external-link">close()</a></code> flushes pending local changes. Call <code>$push()</code> first if you
 have unsynced edits — otherwise any changes made since the last
 <code>sync</code>-interval tick may be lost.</p>
+<p><strong>Live editing.</strong> A handle's <code>$edit()</code> opens its text object in a live
+<code><a href="https://rstudio.github.io/bslib/reference/input_code_editor.html" class="external-link">bslib::input_code_editor()</a></code> that syncs both ways: as you type, the minimal
+diff is written to the live document and pushed (debounced); when the text
+changes remotely, the editor updates to the merged result. There is no
+<strong>Save</strong> button — every edit is applied live. It syncs whole-text snapshots,
+not granular operations, so a remote edit arriving in the brief window
+between a keystroke and its debounced push can be overwritten by that push;
+a smaller <code>debounce</code> narrows the window. The original's trailing-newline
+state is preserved.</p>
     </div>
 
     <div class="section level2">

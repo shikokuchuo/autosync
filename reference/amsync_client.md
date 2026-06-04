@@ -77,6 +77,14 @@ environment with:
 
   Push this document's local changes to the server immediately.
 
+- `edit(at = "text", ext = NULL, debounce = 300L)`:
+
+  Open this document's text object at `at` in a live Shiny code editor
+  that syncs both ways, blocking until closed (requires shiny and
+  bslib). `at` is a key or character-vector path to an `am_text` object,
+  `ext` (e.g. `".md"`) selects syntax highlighting, and `debounce` is
+  the millisecond delay before pushing keystrokes. See Details.
+
 - [`close()`](https://rdrr.io/r/base/connections.html):
 
   Stop syncing this one document (detach it from the connection); the
@@ -99,6 +107,17 @@ Neither [`close()`](https://rdrr.io/r/base/connections.html) flushes
 pending local changes. Call `$push()` first if you have unsynced edits —
 otherwise any changes made since the last `sync`-interval tick may be
 lost.
+
+**Live editing.** A handle's `$edit()` opens its text object in a live
+[`bslib::input_code_editor()`](https://rstudio.github.io/bslib/reference/input_code_editor.html)
+that syncs both ways: as you type, the minimal diff is written to the
+live document and pushed (debounced); when the text changes remotely,
+the editor updates to the merged result. There is no **Save** button —
+every edit is applied live. It syncs whole-text snapshots, not granular
+operations, so a remote edit arriving in the brief window between a
+keystroke and its debounced push can be overwritten by that push; a
+smaller `debounce` narrows the window. The original's trailing-newline
+state is preserved.
 
 ## Examples
 
