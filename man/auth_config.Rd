@@ -5,22 +5,22 @@
 \title{Create an authentication configuration}
 \usage{
 auth_config(
-  issuer = oidc_issuer(),
   client_id = Sys.getenv("OIDC_CLIENT_ID"),
+  issuer = oidc_issuer(),
   allowed_emails = NULL,
   allowed_domains = NULL,
   custom_validator = NULL
 )
 }
 \arguments{
+\item{client_id}{The OIDC client ID (application ID). Validated against the
+\code{aud} claim in JWTs. Defaults to the \code{OIDC_CLIENT_ID} environment variable.}
+
 \item{issuer}{The OIDC issuer URL. This is used to discover the provider's
 public keys via the \code{.well-known/openid-configuration} endpoint, and to
 validate the \code{iss} claim in JWTs. Defaults to the \code{OIDC_ISSUER}
 environment variable, falling back to Google
 (\code{"https://accounts.google.com"}).}
-
-\item{client_id}{The OIDC client ID (application ID). Validated against the
-\code{aud} claim in JWTs. Defaults to the \code{OIDC_CLIENT_ID} environment variable.}
 
 \item{allowed_emails}{Character vector of allowed email addresses. When set,
 a token is rejected unless it carries an \code{email} claim with
@@ -56,15 +56,15 @@ auth_config(
 
 # Microsoft Entra
 auth_config(
-  issuer = "https://login.microsoftonline.com/common/v2.0",
   client_id = "abcdef-1234-5678",
+  issuer = "https://login.microsoftonline.com/common/v2.0",
   allowed_emails = "alice@mycompany.com"
 )
 
 # Custom validator
 auth_config(
-  issuer = "https://dev-123456.okta.com/oauth2/default",
   client_id = "0oaXXXXXXXX",
+  issuer = "https://dev-123456.okta.com/oauth2/default",
   custom_validator = function(claims) "editors" \%in\% claims$groups
 )
 

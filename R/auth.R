@@ -313,13 +313,13 @@ validate_token <- function(
 #' Works with any OIDC-compliant identity provider: Google, Microsoft Entra,
 #' Okta, Auth0, etc.
 #'
+#' @param client_id The OIDC client ID (application ID). Validated against the
+#'   `aud` claim in JWTs. Defaults to the `OIDC_CLIENT_ID` environment variable.
 #' @param issuer The OIDC issuer URL. This is used to discover the provider's
 #'   public keys via the `.well-known/openid-configuration` endpoint, and to
 #'   validate the `iss` claim in JWTs. Defaults to the `OIDC_ISSUER`
 #'   environment variable, falling back to Google
 #'   (`"https://accounts.google.com"`).
-#' @param client_id The OIDC client ID (application ID). Validated against the
-#'   `aud` claim in JWTs. Defaults to the `OIDC_CLIENT_ID` environment variable.
 #' @param allowed_emails Character vector of allowed email addresses. When set,
 #'   a token is rejected unless it carries an `email` claim with
 #'   `email_verified` explicitly `TRUE`.
@@ -340,22 +340,22 @@ validate_token <- function(
 #'
 #' # Microsoft Entra
 #' auth_config(
-#'   issuer = "https://login.microsoftonline.com/common/v2.0",
 #'   client_id = "abcdef-1234-5678",
+#'   issuer = "https://login.microsoftonline.com/common/v2.0",
 #'   allowed_emails = "alice@mycompany.com"
 #' )
 #'
 #' # Custom validator
 #' auth_config(
-#'   issuer = "https://dev-123456.okta.com/oauth2/default",
 #'   client_id = "0oaXXXXXXXX",
+#'   issuer = "https://dev-123456.okta.com/oauth2/default",
 #'   custom_validator = function(claims) "editors" %in% claims$groups
 #' )
 #'
 #' @export
 auth_config <- function(
-  issuer = oidc_issuer(),
   client_id = Sys.getenv("OIDC_CLIENT_ID"),
+  issuer = oidc_issuer(),
   allowed_emails = NULL,
   allowed_domains = NULL,
   custom_validator = NULL
