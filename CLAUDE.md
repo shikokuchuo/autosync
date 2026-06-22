@@ -28,8 +28,7 @@ devtools::install()
 ## Dependencies
 
 Requires development versions of some packages:
-- `automerge` from posit-dev/automerge-r
-- `nanonext` from r-lib/nanonext@stream branch
+- `httr2` from r-lib/httr2 (for `oauth_server_metadata()`, used by `amsync_token()`)
 
 Install with: `pak::pak("shikokuchuo/autosync")`
 
@@ -49,7 +48,7 @@ Install with: `pak::pak("shikokuchuo/autosync")`
 - `handle_ephemeral` - Transient message forwarding (point-to-point or broadcast)
 - `broadcast_sync` - Propagates changes to all peers subscribed to a document
 
-**Auth (R/auth.R)**: Optional OAuth2 authentication via `auth_config()`. Validates Google OAuth2 tokens, supports email/domain allowlists and custom validators. TLS is mandatory when auth is enabled. Uses `later::later()` for auth timeout enforcement.
+**Auth (R/auth.R)**: Optional OAuth2 authentication via `auth_config()`. Validates Google OAuth2 tokens, supports email/domain allowlists and custom validators. TLS is mandatory when auth is enabled. Uses `later::later()` for auth timeout enforcement. `amsync_token()` obtains an ID token interactively by delegating the Authorization Code + PKCE flow to httr2 (`oauth_server_metadata()` for discovery, `oauth_flow_auth_code()` for the browser handshake and token exchange).
 
 **Client (R/client.R)**: `amsync_fetch()` implements the client-side protocol for fetching documents from any automerge-repo server.
 

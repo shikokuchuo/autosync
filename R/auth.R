@@ -387,8 +387,12 @@ auth_config <- function(
 #' Obtain an OIDC token interactively
 #'
 #' Performs the OAuth 2.0 Authorization Code flow with PKCE to obtain a JWT
-#' (ID token) from an OIDC provider. Opens the system browser for the user to
-#' authenticate, and returns the ID token for use with [amsync_fetch()].
+#' (ID token) from an OIDC provider, delegating the browser handshake and token
+#' exchange to \pkg{httr2}. Endpoints are discovered from the issuer's
+#' `.well-known` metadata via [httr2::oauth_server_metadata()], and the flow is
+#' run by [httr2::oauth_flow_auth_code()]: it opens the system browser, listens
+#' on a loopback redirect for the callback, and returns the ID token for use
+#' with [amsync_fetch()].
 #'
 #' For Google, register the OAuth client as a "Desktop app" and set both
 #' `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`. Google's Desktop app secret is
@@ -400,7 +404,8 @@ auth_config <- function(
 #' (RFC 8252 section 8.5,
 #' <https://datatracker.ietf.org/doc/html/rfc8252#section-8.5>).
 #' Providers that support native / public clients (Microsoft Entra, Okta,
-#' Auth0, etc.) need only `client_id`, authenticating via PKCE alone.
+#' Auth0, etc.) need only `client_id`, authenticating via PKCE alone; leave
+#' `client_secret` unset for these.
 #'
 #' @param client_id The OIDC client ID (application ID). Defaults to the
 #'   `OIDC_CLIENT_ID` environment variable.
@@ -413,16 +418,12 @@ auth_config <- function(
 #'   (`"https://accounts.google.com"`).
 #' @param scopes Space-separated OAuth scopes to request. Default
 #'   `"openid email"`.
-#' @param redirect_uri Local redirect URI for the OAuth callback. Default
-#'   `"http://127.0.0.1:0"` uses the loopback IP literal (recommended over
-#'   `localhost` by RFC 8252 section 8.3, since `localhost` resolution can be
-#'   reconfigured via DNS or the hosts file) with an OS-assigned ephemeral
-#'   port, which works with OIDC clients registered as "Desktop app" /
-#'   loopback-IP types that accept any port. Supply an explicit port (e.g.
-#'   `"http://127.0.0.1:8080"`) when your OIDC provider requires the redirect
+#' @param redirect_uri Local redirect URI for the OAuth callback. Defaults to
+#'   [httr2::oauth_redirect_uri()], i.e. `"http://localhost"` with an
+#'   OS-assigned random port (or the `HTTR2_OAUTH_REDIRECT_URL` environment
+#'   variable on hosted platforms). Supply an explicit port (e.g.
+#'   `"http://localhost:8080"`) when your OIDC provider requires the redirect
 #'   URI to match a pre-registered value.
-#' @param timeout Seconds to wait for the user to complete authentication.
-#'   Default 120.
 #'
 #' @return A JWT (ID token) as a character string.
 #'
@@ -445,8 +446,7 @@ amsync_token <- function(
   client_secret = Sys.getenv("OIDC_CLIENT_SECRET"),
   issuer = oidc_issuer(),
   scopes = "openid email",
-  redirect_uri = "http://127.0.0.1:0",
-  timeout = 120
+  redirect_uri = oauth_redirect_uri()
 ) {
   if (!is_interactive()) {
     stop("amsync_token() requires an interactive session")
@@ -460,202 +460,35 @@ amsync_token <- function(
     )
   }
 
-  # Discover OIDC endpoints
-  config_url <- paste0(issuer, "/.well-known/openid-configuration")
-  resp <- nanonext::ncurl(config_url, timeout = 5000L)
-
-  if (nanonext::is_error_value(resp$data) || resp$status != 200L) {
-    stop("Failed to fetch OIDC configuration from: ", config_url)
-  }
-
-  config <- jsondec(resp$data)
-  auth_endpoint <- config$authorization_endpoint
-  token_endpoint <- config$token_endpoint
-
-  if (is.null(auth_endpoint) || is.null(token_endpoint)) {
-    stop(
-      "OIDC configuration missing authorization_endpoint or token_endpoint"
-    )
-  }
-
-  # PKCE: challenge is the base64url-encoded SHA-256 of the verifier
-  code_verifier <- random(32)
-  code_challenge <- jose::base64url_encode(sha256(
-    code_verifier,
-    convert = FALSE
-  ))
-
-  # CSRF protection
-  state <- random(16)
-
-  # Parse redirect_uri into server URL and handler path
-  parts <- nanonext::parse_url(redirect_uri)
-  server_url <- paste0(
-    parts[["scheme"]],
-    "://",
-    parts[["hostname"]],
-    ":",
-    parts[["port"]]
-  )
-  handler_path <- if (nzchar(parts[["path"]])) parts[["path"]] else "/"
-  ephemeral_port <- parts[["port"]] == "0"
-
-  # Start local callback server
-  auth_result <- new.env(parent = emptyenv())
-
-  callback_handler <- nanonext::handler(
-    path = handler_path,
-    callback = function(req) {
-      params <- parse_query_params(req$uri)
-      if (!is.null(params$error)) {
-        auth_result$error <- params$error_description %||% params$error
-      } else if (is.null(params$code)) {
-        auth_result$error <- "No authorization code received"
-      } else if (is.null(params$state) || params$state != state) {
-        auth_result$error <- "State mismatch"
-      } else {
-        auth_result$code <- params$code
-      }
-      body <- if (is.null(auth_result$error)) {
-        "<html><body><h2>Authentication successful</h2><p>You can close this window.</p></body></html>"
-      } else {
-        paste0(
-          "<html><body><h2>Authentication failed</h2><p>",
-          auth_result$error,
-          "</p></body></html>"
-        )
-      }
-      list(
-        status = 200L,
-        headers = c("Content-Type" = "text/html"),
-        body = body
-      )
-    }
-  )
-
-  server <- nanonext::http_server(
-    server_url,
-    handlers = list(callback_handler)
-  )
-  server$start()
-  on.exit(server$close())
-
-  # Splice the actual bound port into redirect_uri to match the listener.
-  if (ephemeral_port) {
-    bound <- nanonext::parse_url(server$url)
-    redirect_uri <- sub(
-      ":0",
-      paste0(":", bound[["port"]]),
-      redirect_uri,
-      fixed = TRUE
-    )
-  }
-
-  # Build authorization URL
-  auth_url <- paste0(
-    auth_endpoint,
-    "?client_id=",
-    utils::URLencode(client_id, reserved = TRUE),
-    "&response_type=code",
-    "&scope=",
-    utils::URLencode(scopes, reserved = TRUE),
-    "&redirect_uri=",
-    utils::URLencode(redirect_uri, reserved = TRUE),
-    "&state=",
-    state,
-    "&code_challenge=",
-    code_challenge,
-    "&code_challenge_method=S256"
-  )
-
-  message("Opening browser for authentication...")
-  utils::browseURL(auth_url)
-  message("Waiting for authentication (", timeout, "s timeout)...")
-
-  # Wait for callback
-  deadline <- Sys.time() + timeout
-  while (
-    is.null(auth_result$code) &&
-      is.null(auth_result$error) &&
-      Sys.time() < deadline
+  # Discover the provider's OAuth/OIDC endpoints from its well-known metadata.
+  metadata <- oauth_server_metadata(issuer)
+  if (
+    is.null(metadata$authorization_endpoint) ||
+      is.null(metadata$token_endpoint)
   ) {
-    run_now(1L)
+    stop("OIDC configuration missing authorization_endpoint or token_endpoint")
   }
 
-  if (!is.null(auth_result$error)) {
-    stop("Authentication failed: ", auth_result$error)
-  }
-
-  if (is.null(auth_result$code)) {
-    stop("Authentication timed out after ", timeout, " seconds")
-  }
-
-  # Exchange authorization code for tokens
-  token_data <- paste0(
-    "code=",
-    utils::URLencode(auth_result$code, reserved = TRUE),
-    "&client_id=",
-    utils::URLencode(client_id, reserved = TRUE),
-    if (nzchar(client_secret)) {
-      paste0(
-        "&client_secret=",
-        utils::URLencode(client_secret, reserved = TRUE)
-      )
-    },
-    "&redirect_uri=",
-    utils::URLencode(redirect_uri, reserved = TRUE),
-    "&grant_type=authorization_code",
-    "&code_verifier=",
-    utils::URLencode(code_verifier, reserved = TRUE)
+  # An empty secret means a public / native client: authenticate via PKCE alone.
+  client <- oauth_client(
+    id = client_id,
+    secret = if (nzchar(client_secret)) client_secret else NULL,
+    metadata = metadata
   )
 
-  token_resp <- nanonext::ncurl(
-    token_endpoint,
-    method = "POST",
-    headers = c("Content-Type" = "application/x-www-form-urlencoded"),
-    data = token_data,
-    timeout = 10000L
+  # Authorization Code + PKCE: opens the browser, listens on the loopback
+  # redirect for the callback, then exchanges the code for tokens.
+  token <- oauth_flow_auth_code(
+    client,
+    scope = scopes,
+    redirect_uri = redirect_uri
   )
 
-  if (nanonext::is_error_value(token_resp$data) || token_resp$status != 200L) {
-    detail <- tryCatch(
-      jsondec(token_resp$data)$error_description %||%
-        jsondec(token_resp$data)$error,
-      error = function(e) token_resp$data
-    )
-    stop("Token exchange failed: ", detail)
-  }
-
-  tokens <- jsondec(token_resp$data)
-
-  if (is.null(tokens$id_token)) {
+  if (is.null(token$id_token)) {
     stop("No ID token in response (ensure 'openid' scope is requested)")
   }
 
-  tokens$id_token
-}
-
-#' Parse query parameters from a URI
-#'
-#' @param uri Request URI string (e.g., "/callback?code=abc&state=xyz").
-#'
-#' @return Named list of decoded query parameters.
-#'
-#' @keywords internal
-parse_query_params <- function(uri) {
-  query <- sub("^[^?]*\\?", "", uri)
-  if (query == uri) {
-    return(list())
-  }
-  pairs <- strsplit(query, "&", fixed = TRUE)[[1L]]
-  result <- list()
-  for (pair in pairs) {
-    kv <- strsplit(pair, "=", fixed = TRUE)[[1L]]
-    if (length(kv) == 2L) {
-      result[[utils::URLdecode(kv[1L])]] <- utils::URLdecode(kv[2L])
-    }
-  }
-  result
+  token$id_token
 }
 
 #' Authenticate a client from HTTP request headers
