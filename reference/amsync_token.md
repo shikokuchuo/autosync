@@ -1,8 +1,14 @@
 # Obtain an OIDC token interactively
 
 Performs the OAuth 2.0 Authorization Code flow with PKCE to obtain a JWT
-(ID token) from an OIDC provider. Opens the system browser for the user
-to authenticate, and returns the ID token for use with
+(ID token) from an OIDC provider, delegating the browser handshake and
+token exchange to httr2. Endpoints are discovered from the issuer's
+`.well-known` metadata via
+[`httr2::oauth_server_metadata()`](https://httr2.r-lib.org/reference/oauth_server_metadata.html),
+and the flow is run by
+[`httr2::oauth_flow_auth_code()`](https://httr2.r-lib.org/reference/req_oauth_auth_code.html):
+it opens the system browser, listens on a loopback redirect for the
+callback, and returns the ID token for use with
 [`amsync_fetch()`](http://shikokuchuo.net/autosync/reference/amsync_fetch.md).
 
 ## Usage
@@ -13,8 +19,7 @@ amsync_token(
   client_secret = Sys.getenv("OIDC_CLIENT_SECRET"),
   issuer = oidc_issuer(),
   scopes = "openid email",
-  redirect_uri = "http://127.0.0.1:0",
-  timeout = 120
+  redirect_uri = oauth_redirect_uri()
 )
 ```
 
@@ -43,18 +48,13 @@ amsync_token(
 
 - redirect_uri:
 
-  Local redirect URI for the OAuth callback. Default
-  `"http://127.0.0.1:0"` uses the loopback IP literal (recommended over
-  `localhost` by RFC 8252 section 8.3, since `localhost` resolution can
-  be reconfigured via DNS or the hosts file) with an OS-assigned
-  ephemeral port, which works with OIDC clients registered as "Desktop
-  app" / loopback-IP types that accept any port. Supply an explicit port
-  (e.g. `"http://127.0.0.1:8080"`) when your OIDC provider requires the
-  redirect URI to match a pre-registered value.
-
-- timeout:
-
-  Seconds to wait for the user to complete authentication. Default 120.
+  Local redirect URI for the OAuth callback. Defaults to
+  [`httr2::oauth_redirect_uri()`](https://httr2.r-lib.org/reference/oauth_redirect_uri.html),
+  i.e. `"http://localhost"` with an OS-assigned random port (or the
+  `HTTR2_OAUTH_REDIRECT_URL` environment variable on hosted platforms).
+  Supply an explicit port (e.g. `"http://localhost:8080"`) when your
+  OIDC provider requires the redirect URI to match a pre-registered
+  value.
 
 ## Value
 
@@ -71,7 +71,8 @@ apps "the client secret is obviously not treated as a secret"
 consistent with the OAuth 2.0 for Native Apps standard (RFC 8252 section
 8.5, <https://datatracker.ietf.org/doc/html/rfc8252#section-8.5>).
 Providers that support native / public clients (Microsoft Entra, Okta,
-Auth0, etc.) need only `client_id`, authenticating via PKCE alone.
+Auth0, etc.) need only `client_id`, authenticating via PKCE alone; leave
+`client_secret` unset for these.
 
 ## Examples
 

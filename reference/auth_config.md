@@ -129,7 +129,7 @@ auth_config(
 #> $custom_validator
 #> function (claims) 
 #> "editors" %in% claims$groups
-#> <environment: 0x5603dc5ebdd8>
+#> <environment: 0x55dfe3a27ca0>
 #> 
 #> attr(,"class")
 #> [1] "amsync_auth_config"

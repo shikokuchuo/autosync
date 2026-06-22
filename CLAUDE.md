@@ -31,8 +31,9 @@ devtools::install()
 
 ## Dependencies
 
-Requires development versions of some packages: - `automerge` from
-posit-dev/automerge-r - `nanonext` from <r-lib/nanonext@stream> branch
+Requires development versions of some packages: - `httr2` from
+r-lib/httr2 (for `oauth_server_metadata()`, used by
+[`amsync_token()`](http://shikokuchuo.net/autosync/reference/amsync_token.md))
 
 Install with: `pak::pak("shikokuchuo/autosync")`
 
@@ -64,6 +65,10 @@ Validates Google OAuth2 tokens, supports email/domain allowlists and
 custom validators. TLS is mandatory when auth is enabled. Uses
 [`later::later()`](https://later.r-lib.org/reference/later.html) for
 auth timeout enforcement.
+[`amsync_token()`](http://shikokuchuo.net/autosync/reference/amsync_token.md)
+obtains an ID token interactively by delegating the Authorization Code +
+PKCE flow to httr2 (`oauth_server_metadata()` for discovery,
+`oauth_flow_auth_code()` for the browser handshake and token exchange).
 
 **Client (R/client.R)**:
 [`amsync_fetch()`](http://shikokuchuo.net/autosync/reference/amsync_fetch.md)
