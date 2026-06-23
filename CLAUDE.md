@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 autosync is an R package that implements a WebSocket sync server for Automerge CRDT documents. It implements the `automerge-repo` protocol, enabling R to serve as a synchronization hub for Automerge clients in R, JavaScript, Rust, and other languages.
 
+Interactive project browsing and live editing (`project_open()`, `project_app()`, `project_edit()`) live in the sibling `shinysync` package (`../shinysync`), which depends on autosync; autosync itself has no `shiny`/`bslib` dependency.
+
 ## Development Commands
 
 ```bash

@@ -20,15 +20,6 @@
 #'   \item{[generate_document_id()]}{Generate a new document ID}
 #' }
 #'
-#' @section Browsing and Editing:
-#' \describe{
-#'   \item{[amsync_app()]}{Launch a single-window Shiny app to connect to a
-#'     project, browse its file tree, and edit files in a live code editor}
-#'   \item{[amsync_project()]}{Open the files in a project document}
-#'   \item{`$edit()`}{The document handle from [sync_client()]'s `$open_doc()`
-#'     edits a synced text object in a live Shiny code editor}
-#' }
-#'
 #' @section Protocol:
 #' The server implements the automerge-repo sync protocol over WebSockets.
 #' Messages are CBOR-encoded and include:
