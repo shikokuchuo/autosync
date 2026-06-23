@@ -1,9 +1,10 @@
-#' autosync: Automerge Sync Server for R
+#' autosync: 'Automerge' Sync Server and Client for R
 #'
-#' A WebSocket-based synchronization server for Automerge documents,
-#' compatible with the automerge-repo protocol used by sync.automerge.org.
-#' Enables R to serve as a sync hub for JavaScript, Rust, and other Automerge
-#' clients in collaborative applications.
+#' A WebSocket-based implementation of the 'automerge-repo' synchronization
+#' protocol used by 'sync.automerge.org'. Acts as a sync server, enabling R to
+#' serve as a synchronization hub for 'Automerge' clients in 'JavaScript',
+#' 'Rust', and other languages, and as a client for fetching, editing, and
+#' synchronizing documents hosted on remote servers.
 #'
 #' @section Main Functions:
 #' \describe{

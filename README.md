@@ -6,7 +6,7 @@
 [![Codecov test coverage](https://codecov.io/gh/shikokuchuo/autosync/graph/badge.svg)](https://app.codecov.io/gh/shikokuchuo/autosync)
 <!-- badges: end -->
 
-R sync server for [Automerge](https://automerge.org/) CRDT documents. Implements the `automerge-repo` WebSocket protocol, enabling R to serve as a synchronization hub for Automerge clients in R, JavaScript, Rust, and other languages.
+R sync server and client for [Automerge](https://automerge.org/) CRDT documents. Implements the `automerge-repo` WebSocket protocol, enabling R to serve as a synchronization hub for Automerge clients in R, JavaScript, Rust, and other languages, and to act as a client that fetches, edits, and synchronizes documents hosted on remote servers.
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/shikokuchuo/autosync)
 

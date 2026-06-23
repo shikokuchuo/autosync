@@ -113,7 +113,7 @@ poll_doc_to_editor <- function(target, shown) {
 
 #' Wire the bidirectional editor <-> live-document sync onto a Shiny session
 #'
-#' Installs the two observers shared by [edit_in_shiny()] and [amsync_app()]'s
+#' Installs the two observers shared by `edit_in_shiny()` and [amsync_app()]'s
 #' browse screen: an outgoing one that writes debounced editor changes into the
 #' live document and pushes them, and an incoming one that polls the document
 #' and reflects remote changes back into the editor. Both read the open
@@ -174,7 +174,7 @@ install_editor_sync <- function(input, st, poll_ms = 250L) {
 #' Build the live code editor body shared by both editors
 #'
 #' The [bslib::input_code_editor()] (id `"content"`) plus the streaming shim
-#' that flushes its value to R on a debounce, used by both [edit_in_shiny()]
+#' that flushes its value to R on a debounce, used by both `edit_in_shiny()`
 #' and [amsync_app()]'s editor card. Returned as a tag list to drop inside a
 #' [bslib::card()].
 #'

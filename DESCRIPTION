@@ -1,6 +1,6 @@
 Type: Package
 Package: autosync
-Title: Automerge Sync Server for R
+Title: 'Automerge' Sync Server and Client for R
 Version: 0.0.1.9000
 Authors@R: c(
     person("Charlie", "Gao", , "charlie.gao@posit.co", role = c("aut", "cre"),
@@ -8,10 +8,12 @@ Authors@R: c(
     person("Posit Software, PBC", role = c("cph", "fnd"),
            comment = c(ROR = "03wc8by49"))
   )
-Description: A WebSocket-based synchronization server for Automerge
-    documents, compatible with the automerge-repo protocol used by
-    sync.automerge.org.  Enables R to serve as a sync hub for JavaScript,
-    Rust, and other Automerge clients in collaborative applications.
+Description: A WebSocket-based implementation of the 'automerge-repo'
+    synchronization protocol used by 'sync.automerge.org'.  Acts as a sync
+    server, enabling R to serve as a synchronization hub for 'Automerge'
+    clients in 'JavaScript', 'Rust', and other languages, and as a client
+    for fetching, editing, and synchronizing documents hosted on remote
+    servers.
 License: MIT + file LICENSE
 URL: https://shikokuchuo.net/autosync/,
     https://github.com/shikokuchuo/autosync

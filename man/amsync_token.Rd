@@ -43,7 +43,7 @@ Performs the OAuth 2.0 Authorization Code flow with PKCE to obtain a JWT
 (ID token) from an OIDC provider, delegating the browser handshake and token
 exchange to \pkg{httr2}. Endpoints are discovered from the issuer's
 \code{.well-known} metadata via \code{\link[httr2:oauth_server_metadata]{httr2::oauth_server_metadata()}}, and the flow is
-run by \code{\link[httr2:req_oauth_auth_code]{httr2::oauth_flow_auth_code()}}: it opens the system browser, listens
+run by \code{\link[httr2:oauth_flow_auth_code]{httr2::oauth_flow_auth_code()}}: it opens the system browser, listens
 on a loopback redirect for the callback, and returns the ID token for use
 with \code{\link[=amsync_fetch]{amsync_fetch()}}.
 }
