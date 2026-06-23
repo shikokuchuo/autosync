@@ -40,7 +40,7 @@ generate_peer_id <- function() base64enc(random(16L, convert = FALSE))
 #' @param server Server state environment.
 #' @param id Connection ID (temp_id or client_id).
 #'
-#' @keywords internal
+#' @noRd
 close_connection <- function(server, id) {
   conn <- server$connections[[id]]
   if (!is.null(conn) && !is.null(conn$ws)) {

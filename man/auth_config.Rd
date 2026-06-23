@@ -34,7 +34,7 @@ a token is rejected unless it carries an \code{email} claim with
 custom validation logic. Receives the decoded JWT claims as a list.}
 }
 \value{
-An amsync_auth_config object.
+An object of class \code{"sync_auth_config"}.
 }
 \description{
 Creates a configuration object for enabling OIDC JWT authentication
