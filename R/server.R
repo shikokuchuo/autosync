@@ -176,7 +176,7 @@ sync_server <- function(
     }
   }
 
-  ws_handler <- nanonext::handler_ws(
+  ws_handler <- handler_ws(
     path = "/",
     on_message = on_message,
     on_open = on_open,
@@ -184,7 +184,7 @@ sync_server <- function(
     textframes = FALSE
   )
 
-  server <- nanonext::http_server(
+  server <- http_server(
     url = url,
     handlers = list(ws_handler),
     tls = tls
@@ -205,6 +205,12 @@ sync_server <- function(
 #'
 #' @return Automerge document object, or NULL if not found.
 #'
+#' @examplesIf interactive()
+#' server <- sync_server()
+#' doc_id <- create_document(server)
+#' get_document(server, doc_id)
+#' server$close()
+#'
 #' @export
 get_document <- function(server, doc_id) {
   attr(server, "sync")$documents[[doc_id]]
@@ -217,6 +223,12 @@ get_document <- function(server, doc_id) {
 #' @param server A sync_server object.
 #'
 #' @return Character vector of document IDs.
+#'
+#' @examplesIf interactive()
+#' server <- sync_server()
+#' create_document(server)
+#' list_documents(server)
+#' server$close()
 #'
 #' @export
 list_documents <- function(server) {
@@ -231,6 +243,11 @@ list_documents <- function(server) {
 #' @param doc_id Optional document ID. If NULL, generates a new ID.
 #'
 #' @return Document ID string.
+#'
+#' @examplesIf interactive()
+#' server <- sync_server()
+#' doc_id <- create_document(server)
+#' server$close()
 #'
 #' @export
 create_document <- function(server, doc_id = NULL) {

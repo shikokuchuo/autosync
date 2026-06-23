@@ -16,3 +16,4 @@
 ^Meta$
 ^\.automerge$
 ^codecov\.yml$
+^cran-comments\.md$

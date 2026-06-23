@@ -7,6 +7,9 @@
 #'
 #' @return Character string (Base58Check encoded).
 #'
+#' @examples
+#' generate_document_id()
+#'
 #' @export
 generate_document_id <- function() base58enc(random(16L, convert = FALSE))
 

@@ -269,7 +269,7 @@ sync_client <- function(
     # Track the pending aio so close() can settle it before tearing down the
     # stream, leaving no stale promise continuation for a later run_now to hit.
     client$recv_aio <- aio
-    promises::then(
+    then(
       aio,
       onFulfilled = function(value) {
         tryCatch(

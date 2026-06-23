@@ -640,8 +640,7 @@ test_that("discover_jwks_uri fetches from well-known endpoint", {
         status = 200L
       )
     },
-    is_error_value = function(x) FALSE,
-    .package = "nanonext"
+    is_error_value = function(x) FALSE
   )
 
   uri <- discover_jwks_uri("https://accounts.google.com")
@@ -654,8 +653,7 @@ test_that("discover_jwks_uri errors on failed request", {
       data = structure(5L, class = "errorValue"),
       status = 0L
     ),
-    is_error_value = function(x) inherits(x, "errorValue"),
-    .package = "nanonext"
+    is_error_value = function(x) inherits(x, "errorValue")
   )
 
   expect_error(
@@ -670,8 +668,7 @@ test_that("discover_jwks_uri errors on non-200 status", {
       data = charToRaw("Not Found"),
       status = 404L
     ),
-    is_error_value = function(x) FALSE,
-    .package = "nanonext"
+    is_error_value = function(x) FALSE
   )
 
   expect_error(
@@ -686,8 +683,7 @@ test_that("discover_jwks_uri errors on missing jwks_uri", {
       data = charToRaw('{"issuer":"https://accounts.google.com"}'),
       status = 200L
     ),
-    is_error_value = function(x) FALSE,
-    .package = "nanonext"
+    is_error_value = function(x) FALSE
   )
 
   expect_error(
@@ -836,8 +832,7 @@ test_that("fetch_jwks parses keys and cache-control", {
       status = 200L,
       headers = list("Cache-Control" = "public, max-age=7200")
     ),
-    is_error_value = function(x) FALSE,
-    .package = "nanonext"
+    is_error_value = function(x) FALSE
   )
 
   result <- fetch_jwks("https://example.com/jwks")
@@ -858,8 +853,7 @@ test_that("fetch_jwks uses default TTL without cache-control", {
       status = 200L,
       headers = list()
     ),
-    is_error_value = function(x) FALSE,
-    .package = "nanonext"
+    is_error_value = function(x) FALSE
   )
 
   result <- fetch_jwks("https://example.com/jwks")
@@ -874,8 +868,7 @@ test_that("fetch_jwks errors on failed request", {
       data = structure(5L, class = "errorValue"),
       status = 0L
     ),
-    is_error_value = function(x) inherits(x, "errorValue"),
-    .package = "nanonext"
+    is_error_value = function(x) inherits(x, "errorValue")
   )
 
   expect_error(fetch_jwks("https://example.com/jwks"), "Failed to fetch JWKS")
@@ -887,8 +880,7 @@ test_that("fetch_jwks errors on non-200 status", {
       data = charToRaw("Server Error"),
       status = 500L
     ),
-    is_error_value = function(x) FALSE,
-    .package = "nanonext"
+    is_error_value = function(x) FALSE
   )
 
   expect_error(fetch_jwks("https://example.com/jwks"), "Failed to fetch JWKS")
@@ -901,8 +893,7 @@ test_that("fetch_jwks errors on empty keys", {
       status = 200L,
       headers = list()
     ),
-    is_error_value = function(x) FALSE,
-    .package = "nanonext"
+    is_error_value = function(x) FALSE
   )
 
   expect_error(fetch_jwks("https://example.com/jwks"), "No keys found")
@@ -922,8 +913,7 @@ test_that("fetch_jwks skips keys without kid", {
       status = 200L,
       headers = list()
     ),
-    is_error_value = function(x) FALSE,
-    .package = "nanonext"
+    is_error_value = function(x) FALSE
   )
 
   result <- fetch_jwks("https://example.com/jwks")
@@ -944,8 +934,7 @@ test_that("fetch_jwks skips unparseable keys", {
       status = 200L,
       headers = list()
     ),
-    is_error_value = function(x) FALSE,
-    .package = "nanonext"
+    is_error_value = function(x) FALSE
   )
 
   result <- fetch_jwks("https://example.com/jwks")

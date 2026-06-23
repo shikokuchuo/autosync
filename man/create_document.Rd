@@ -17,3 +17,10 @@ Document ID string.
 \description{
 Creates a new empty Automerge document and registers it with the server.
 }
+\examples{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+server <- sync_server()
+doc_id <- create_document(server)
+server$close()
+\dontshow{\}) # examplesIf}
+}

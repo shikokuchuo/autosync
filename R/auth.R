@@ -28,9 +28,9 @@ oidc_issuer <- function() {
 #' @keywords internal
 discover_jwks_uri <- function(issuer) {
   config_url <- paste0(issuer, "/.well-known/openid-configuration")
-  resp <- nanonext::ncurl(config_url, timeout = 5000L)
+  resp <- ncurl(config_url, timeout = 5000L)
 
-  if (nanonext::is_error_value(resp$data) || resp$status != 200L) {
+  if (is_error_value(resp$data) || resp$status != 200L) {
     stop("Failed to fetch OIDC configuration from: ", config_url)
   }
 
@@ -53,13 +53,13 @@ discover_jwks_uri <- function(issuer) {
 #'
 #' @keywords internal
 fetch_jwks <- function(jwks_uri) {
-  resp <- nanonext::ncurl(
+  resp <- ncurl(
     jwks_uri,
     timeout = 5000L,
     response = "Cache-Control"
   )
 
-  if (nanonext::is_error_value(resp$data) || resp$status != 200L) {
+  if (is_error_value(resp$data) || resp$status != 200L) {
     stop("Failed to fetch JWKS from: ", jwks_uri)
   }
 
@@ -76,7 +76,7 @@ fetch_jwks <- function(jwks_uri) {
       next
     }
     key <- tryCatch(
-      jose::read_jwk(jsonenc(jwk)),
+      read_jwk(jsonenc(jwk)),
       error = function(e) NULL
     )
     if (!is.null(key)) {
@@ -167,7 +167,7 @@ validate_token <- function(
   }
 
   header <- tryCatch(
-    jsondec(jose::base64url_decode(parts[1L])),
+    jsondec(base64dec(parts[1L], url = TRUE)),
     error = function(e) NULL
   )
   if (is.null(header) || is.null(header$kid)) {
@@ -189,7 +189,7 @@ validate_token <- function(
 
   # Verify signature and decode claims
   claims <- tryCatch(
-    jose::jwt_decode_sig(token, key),
+    jwt_decode_sig(token, key),
     error = function(e) {
       msg <- conditionMessage(e)
       if (grepl("expired", msg, ignore.case = TRUE)) {

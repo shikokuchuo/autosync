@@ -13,3 +13,7 @@ Character string (Base58Check encoded).
 Creates a new unique document ID compatible with automerge-repo.
 The ID is a 16-byte random value encoded with Base58Check.
 }
+\examples{
+generate_document_id()
+
+}

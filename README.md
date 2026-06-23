@@ -20,6 +20,14 @@ R sync server and client for [Automerge](https://automerge.org/) CRDT documents.
 
 ## Installation
 
+Install the released version from CRAN:
+
+``` r
+install.packages("autosync")
+```
+
+Or the development version from GitHub:
+
 ``` r
 pak::pak("shikokuchuo/autosync")
 ```
