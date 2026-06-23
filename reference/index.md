@@ -18,7 +18,7 @@
   : Create an authentication configuration
 - [`autosync-package`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
   [`autosync`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
-  : autosync: Automerge Sync Server for R
+  : autosync: 'Automerge' Sync Server and Client for R
 - [`create_document()`](http://shikokuchuo.net/autosync/reference/create_document.md)
   : Create a new document on the server
 - [`generate_document_id()`](http://shikokuchuo.net/autosync/reference/generate_document_id.md)

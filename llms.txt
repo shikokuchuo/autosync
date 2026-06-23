@@ -1,9 +1,10 @@
 # autosync
 
-R sync server for [Automerge](https://automerge.org/) CRDT documents.
-Implements the `automerge-repo` WebSocket protocol, enabling R to serve
-as a synchronization hub for Automerge clients in R, JavaScript, Rust,
-and other languages.
+R sync server and client for [Automerge](https://automerge.org/) CRDT
+documents. Implements the `automerge-repo` WebSocket protocol, enabling
+R to serve as a synchronization hub for Automerge clients in R,
+JavaScript, Rust, and other languages, and to act as a client that
+fetches, edits, and synchronizes documents hosted on remote servers.
 
 [![Ask
 DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/shikokuchuo/autosync)
@@ -228,7 +229,7 @@ doc_id <- generate_document_id()
   : Create an authentication configuration
 - [`autosync-package`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
   [`autosync`](http://shikokuchuo.net/autosync/reference/autosync-package.md)
-  : autosync: Automerge Sync Server for R
+  : autosync: 'Automerge' Sync Server and Client for R
 - [`create_document()`](http://shikokuchuo.net/autosync/reference/create_document.md)
   : Create a new document on the server
 - [`generate_document_id()`](http://shikokuchuo.net/autosync/reference/generate_document_id.md)
