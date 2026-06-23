@@ -33,7 +33,7 @@ Install with: `pak::pak("shikokuchuo/autosync")`
 
 ### Core Components
 
-**Server (R/server.R)**: `amsync_server()` creates a WebSocket server using nanonext's `http_server()`. The server maintains state in environments for:
+**Server (R/server.R)**: `sync_server()` creates a WebSocket server using nanonext's `http_server()`. The server maintains state in environments for:
 - `documents` - Loaded Automerge documents keyed by document ID
 - `sync_states` - Per-client, per-document sync states (nested: `sync_states[[client_id]][[doc_id]]`)
 - `connections` - WebSocket connection objects keyed by both temp ID and client ID
@@ -45,9 +45,9 @@ Install with: `pak::pak("shikokuchuo/autosync")`
 - `handle_ephemeral` - Transient message forwarding (point-to-point or broadcast)
 - `broadcast_sync` - Propagates changes to all peers subscribed to a document
 
-**Auth (R/auth.R)**: Optional OAuth2 authentication via `auth_config()`. Validates Google OAuth2 tokens, supports email/domain allowlists and custom validators. TLS is mandatory when auth is enabled. Uses `later::later()` for auth timeout enforcement. `amsync_token()` obtains an ID token interactively by delegating the Authorization Code + PKCE flow to httr2 (`oauth_server_metadata()` for discovery, `oauth_flow_auth_code()` for the browser handshake and token exchange).
+**Auth (R/auth.R)**: Optional OAuth2 authentication via `auth_config()`. Validates Google OAuth2 tokens, supports email/domain allowlists and custom validators. TLS is mandatory when auth is enabled. Uses `later::later()` for auth timeout enforcement. `sync_token()` obtains an ID token interactively by delegating the Authorization Code + PKCE flow to httr2 (`oauth_server_metadata()` for discovery, `oauth_flow_auth_code()` for the browser handshake and token exchange).
 
-**Client (R/client.R)**: `amsync_fetch()` implements the client-side protocol for fetching documents from any automerge-repo server.
+**Client (R/client.R)**: `sync_fetch()` implements the client-side protocol for fetching documents from any automerge-repo server.
 
 **Storage (R/storage.R)**: Persistence layer using `.automerge` files in a configurable data directory.
 

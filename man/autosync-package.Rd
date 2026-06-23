@@ -15,7 +15,7 @@ synchronizing documents hosted on remote servers.
 \section{Main Functions}{
 
 \describe{
-\item{\code{\link[=amsync_server]{amsync_server()}}}{Create a new sync server with \verb{$start()} and
+\item{\code{\link[=sync_server]{sync_server()}}}{Create a new sync server with \verb{$start()} and
 \verb{$close()} methods}
 }
 }
@@ -36,7 +36,7 @@ synchronizing documents hosted on remote servers.
 \item{\code{\link[=amsync_app]{amsync_app()}}}{Launch a single-window Shiny app to connect to a
 project, browse its file tree, and edit files in a live code editor}
 \item{\code{\link[=amsync_project]{amsync_project()}}}{Open the files in a project document}
-\item{\verb{$edit()}}{The document handle from \code{\link[=amsync_client]{amsync_client()}}'s \verb{$open_doc()}
+\item{\verb{$edit()}}{The document handle from \code{\link[=sync_client]{sync_client()}}'s \verb{$open_doc()}
 edits a synced text object in a live Shiny code editor}
 }
 }
@@ -57,7 +57,7 @@ Messages are CBOR-encoded and include:
 
 \preformatted{
 # Create and start a server
-server <- amsync_server()
+server <- sync_server()
 server$start()
 server$url
 

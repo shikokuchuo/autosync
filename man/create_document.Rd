@@ -7,7 +7,7 @@
 create_document(server, doc_id = NULL)
 }
 \arguments{
-\item{server}{An amsync_server object.}
+\item{server}{A sync_server object.}
 
 \item{doc_id}{Optional document ID. If NULL, generates a new ID.}
 }

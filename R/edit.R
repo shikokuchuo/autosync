@@ -2,14 +2,14 @@
 
 #' Run the live editor for an open document handle
 #'
-#' Implements the `$edit()` method on the `amsync_doc` handle returned by
-#' [amsync_client()]'s `$open_doc()`: opens the document's text object at `at`
+#' Implements the `$edit()` method on the `sync_doc` handle returned by
+#' [sync_client()]'s `$open_doc()`: opens the document's text object at `at`
 #' in a Shiny [bslib::input_code_editor()] that stays in sync with the live
 #' document in both directions, blocks until the editor closes, then prints a
 #' one-line summary. The user-facing description and caveats live on
-#' [amsync_client()].
+#' [sync_client()].
 #'
-#' @param doc An `amsync_doc` handle backed by an active connection.
+#' @param doc A `sync_doc` handle backed by an active connection.
 #' @param at Character path to the text object within the document. A single
 #'   string addresses a top-level key; a character vector navigates nested
 #'   objects with `[[`. Default `"text"`.
@@ -126,7 +126,7 @@ poll_doc_to_editor <- function(target, shown) {
 #' we wrote, and the poll skips while the document still matches it.
 #'
 #' @param input The Shiny session's `input`.
-#' @param st An environment exposing `$doc` (an `amsync_doc` handle or `NULL`
+#' @param st An environment exposing `$doc` (a `sync_doc` handle or `NULL`
 #'   when nothing is open), `$at` (the text object's path), `$base` (the open
 #'   content, for trailing-newline state), and a mutable `$shown`.
 #' @param poll_ms How often (ms) to poll the live document for remote changes.
@@ -213,7 +213,7 @@ editor_body_ui <- function(value, ext, debounce) {
 #' the editor. Blocks until the app exits, returning the document's final
 #' content.
 #'
-#' @param doc An `amsync_doc` handle.
+#' @param doc A `sync_doc` handle.
 #' @param at Character path to the text object.
 #' @param ext File extension used to choose the syntax-highlighting language.
 #' @param debounce Milliseconds to debounce outgoing editor changes.

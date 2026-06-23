@@ -74,28 +74,28 @@ join_msg <- function(peer_id) {
 #' holds no documents on its own; open one or more live documents over it with
 #' the `$open_doc()` method. Each document stays synced — receiving real-time
 #' updates from other peers and flushing local changes — for as long as the
-#' connection is open. Unlike [amsync_fetch()], which performs a one-off
+#' connection is open. Unlike [sync_fetch()], which performs a one-off
 #' retrieval over a throwaway connection, several documents can share a single
 #' connection here.
 #'
-#' @inheritParams amsync_fetch
+#' @inheritParams sync_fetch
 #' @param interval Interval in milliseconds for pushing local changes to
 #'   the server. Default 1000. Uses [later::later()] to periodically check
 #'   for and send local changes for every open document. This is a cheap no-op
 #'   when there are no changes.
 #'
-#' @return An environment of class `"amsync_client"` with reference semantics,
+#' @return An environment of class `"sync_client"` with reference semantics,
 #'   representing the connection:
 #'   \describe{
 #'     \item{`open_doc(doc_id, timeout)`}{Open a live document over this
-#'       connection and return an `amsync_doc` handle for it (see below).
+#'       connection and return a `sync_doc` handle for it (see below).
 #'       Repeated calls for the same `doc_id` reuse the document already open
 #'       on the connection rather than requesting it again.}
 #'     \item{`close()`}{Disconnect and stop syncing all open documents.}
 #'     \item{`active`}{Logical, whether the connection is active.}
 #'   }
 #'
-#'   An `amsync_doc` handle returned by `$open_doc()` is itself an environment
+#'   A `sync_doc` handle returned by `$open_doc()` is itself an environment
 #'   with:
 #'   \describe{
 #'     \item{`doc`}{The live automerge document, kept in sync with the server.}
@@ -136,11 +136,11 @@ join_msg <- function(peer_id) {
 #' state is preserved.
 #'
 #' @examplesIf interactive()
-#' server <- amsync_server()
+#' server <- sync_server()
 #' server$start()
 #' doc_id <- create_document(server)
 #'
-#' conn <- amsync_client(server$url)
+#' conn <- sync_client(server$url)
 #' doc <- conn$open_doc(doc_id)
 #' automerge::am_keys(doc$doc)
 #'
@@ -156,7 +156,7 @@ join_msg <- function(peer_id) {
 #' server$close()
 #'
 #' @export
-amsync_client <- function(
+sync_client <- function(
   url,
   timeout = 5000L,
   tls = NULL,
@@ -357,7 +357,7 @@ amsync_client <- function(
       },
       handle
     )
-    class(handle) <- "amsync_doc"
+    class(handle) <- "sync_doc"
     handle
   }
 
@@ -365,7 +365,7 @@ amsync_client <- function(
 
   open_doc <- function(doc_id, timeout = client$timeout) {
     if (!isTRUE(client$active)) {
-      stop("Connection is not active; reconnect with amsync_client()")
+      stop("Connection is not active; reconnect with sync_client()")
     }
     existing <- client$documents[[doc_id]]
     if (!is.null(existing)) {
@@ -450,7 +450,7 @@ amsync_client <- function(
     invisible()
   }
 
-  class(client) <- "amsync_client"
+  class(client) <- "sync_client"
   on.exit() # stream now owned by client$close
 
   # Start the async loops
@@ -461,7 +461,7 @@ amsync_client <- function(
 }
 
 #' @export
-print.amsync_client <- function(x, ...) {
+print.sync_client <- function(x, ...) {
   cat("Automerge Sync Connection\n")
   cat("  Server:", x$url, "\n")
   cat("  Documents:", length(x$documents), "\n")
@@ -470,7 +470,7 @@ print.amsync_client <- function(x, ...) {
 }
 
 #' @export
-print.amsync_doc <- function(x, ...) {
+print.sync_doc <- function(x, ...) {
   cat("Automerge Document\n")
   cat("  Document:", x$doc_id, "\n")
   cat("  Active:", x$active, "\n")
@@ -510,18 +510,18 @@ print.amsync_doc <- function(x, ...) {
 #'
 #' @examplesIf interactive()
 #' # Fetch from public sync server
-#' doc <- amsync_fetch("wss://sync.automerge.org", "4F63WJPDzbHkkfKa66h1Qrr1sC5U")
+#' doc <- sync_fetch("wss://sync.automerge.org", "4F63WJPDzbHkkfKa66h1Qrr1sC5U")
 #'
 #' # Fetch from local server with debug output
-#' doc <- amsync_fetch(server$url, "myDocId", verbose = TRUE)
+#' doc <- sync_fetch(server$url, "myDocId", verbose = TRUE)
 #'
 #' # Fetch from server with self-signed certificate
 #' cert <- nanonext::write_cert()
 #' tls <- nanonext::tls_config(client = cert$client)
-#' doc <- amsync_fetch(server$url, "myDocId", tls = tls)
+#' doc <- sync_fetch(server$url, "myDocId", tls = tls)
 #'
 #' # Fetch from authenticated server
-#' doc <- amsync_fetch(
+#' doc <- sync_fetch(
 #'   "wss://secure.example.com",
 #'   "myDocId",
 #'   token = "eyJhbGciOi..."
@@ -531,7 +531,7 @@ print.amsync_doc <- function(x, ...) {
 #' automerge::am_keys(doc)
 #'
 #' @export
-amsync_fetch <- function(
+sync_fetch <- function(
   url,
   doc_id,
   timeout = 5000L,

@@ -7,10 +7,10 @@
 #'
 #' * **Connect** -- enter a sync-server URL and a project document ID, and
 #'   optionally authenticate. The **Authenticate** button runs the same OIDC
-#'   browser flow as [amsync_token()]; client ID, secret, and issuer can be set
+#'   browser flow as [sync_token()]; client ID, secret, and issuer can be set
 #'   under **Advanced** (prefilled from the `OIDC_CLIENT_ID`,
 #'   `OIDC_CLIENT_SECRET`, and `OIDC_ISSUER` environment variables). Passing a
-#'   `token` obtained earlier from [amsync_token()] starts the app already
+#'   `token` obtained earlier from [sync_token()] starts the app already
 #'   signed in, skipping that step. Leaving the sign-in untouched connects
 #'   without a token, for open servers.
 #' * **Browse & edit** -- once connected, the project's file tree appears in a
@@ -26,7 +26,7 @@
 #' @param server Initial sync-server URL to prefill in the connect form.
 #'   Default `""`.
 #' @param proj_id Initial project document ID to prefill. Default `""`.
-#' @param token (optional) A JWT obtained earlier from [amsync_token()]. When
+#' @param token (optional) A JWT obtained earlier from [sync_token()]. When
 #'   supplied, the app starts already signed in; you can still re-authenticate
 #'   from the form. Default `NULL` (sign in from the form, or connect with no
 #'   token).
@@ -46,7 +46,7 @@
 #' amsync_app("wss://quarto-hub.com/ws", proj_id = "4F63WJPDzbHkkfKa66h1Qrr1sC5U")
 #'
 #' # Reuse a token obtained earlier, so the app starts signed in:
-#' token <- amsync_token()
+#' token <- sync_token()
 #' amsync_app("wss://quarto-hub.com/ws", proj_id = "4F63WJPD...", token = token)
 #'
 #' @importFrom automerge am_text_content
@@ -77,7 +77,7 @@ amsync_app <- function(
       (!is.character(token) || length(token) != 1L || is.na(token) ||
         !nzchar(token))
   ) {
-    stop("`token` must be a single non-empty string (from `amsync_token()`), or NULL")
+    stop("`token` must be a single non-empty string (from `sync_token()`), or NULL")
   }
 
   app <- build_amsync_app(server, proj_id, token, tls, timeout, files_key, debounce)
@@ -120,7 +120,7 @@ build_amsync_app <- function(
     st <- new.env(parent = emptyenv())
     st$proj <- NULL # the amsync_project connection, once connected
     st$token <- token # JWT, pre-supplied or from the Authenticate flow
-    st$doc <- NULL # the currently-open amsync_doc handle
+    st$doc <- NULL # the currently-open sync_doc handle
     st$at <- "text" # path to the text object within a file document
     st$base <- "" # the open file's content (for trailing-newline state)
     st$shown <- "" # content the editor and document last agreed on
@@ -162,13 +162,13 @@ build_amsync_app <- function(
 
     # --- Connect screen: authenticate ---
 
-    # amsync_token() drives the shared event loop with run_now() while it waits
+    # sync_token() drives the shared event loop with run_now() while it waits
     # for the OAuth callback; run_now() is reentrant-safe, so calling it from
     # within this observer is fine. The browser opening is the user's feedback.
     shiny::observeEvent(input$authenticate, {
       issuer <- trimws(input$issuer %||% "")
       token <- tryCatch(
-        amsync_token(
+        sync_token(
           client_id = trimws(input$client_id %||% ""),
           client_secret = input$client_secret %||% "",
           issuer = if (nzchar(issuer)) issuer else oidc_issuer()

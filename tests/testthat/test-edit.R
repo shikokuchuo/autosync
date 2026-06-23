@@ -14,10 +14,10 @@ local_text_doc <- function(content, key = "text") {
   doc
 }
 
-# Helper: a fake amsync_doc handle backed by a standalone text document, for
+# Helper: a fake sync_doc handle backed by a standalone text document, for
 # exercising the editor without a live connection. `$push` just counts calls.
 fake_doc_handle <- function(content, key = "text", active = TRUE) {
-  handle <- structure(new.env(parent = emptyenv()), class = "amsync_doc")
+  handle <- structure(new.env(parent = emptyenv()), class = "sync_doc")
   handle$active <- active
   handle$doc <- local_text_doc(content, key)
   handle$push_count <- 0L
@@ -32,12 +32,12 @@ test_that("sync_editor_to_doc applies edits and pushes to the server", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
   doc_id <- seed_text_doc(server, "hello world")
-  conn <- amsync_client(server$url)
+  conn <- sync_client(server$url)
   on.exit(conn$close(), add = TRUE)
   doc <- conn$open_doc(doc_id)
 
@@ -156,7 +156,7 @@ test_that("doc$edit errors when the target is not a text object", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -164,7 +164,7 @@ test_that("doc$edit errors when the target is not a text object", {
   doc <- get_document(server, doc_id)
   doc[["num"]] <- 42L
 
-  conn <- amsync_client(server$url)
+  conn <- sync_client(server$url)
   on.exit(conn$close(), add = TRUE)
   handle <- conn$open_doc(doc_id)
 
@@ -177,7 +177,7 @@ test_that("doc$edit errors when the target is not a text object", {
 })
 
 test_that("edit_doc validates its arguments", {
-  fake <- structure(new.env(parent = emptyenv()), class = "amsync_doc")
+  fake <- structure(new.env(parent = emptyenv()), class = "sync_doc")
   fake$active <- FALSE
   expect_error(edit_doc(fake), "not active")
 

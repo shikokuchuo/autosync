@@ -8,7 +8,7 @@
 #'
 #' @section Main Functions:
 #' \describe{
-#'   \item{[amsync_server()]}{Create a new sync server with `$start()` and
+#'   \item{[sync_server()]}{Create a new sync server with `$start()` and
 #'     `$close()` methods}
 #' }
 #'
@@ -25,7 +25,7 @@
 #'   \item{[amsync_app()]}{Launch a single-window Shiny app to connect to a
 #'     project, browse its file tree, and edit files in a live code editor}
 #'   \item{[amsync_project()]}{Open the files in a project document}
-#'   \item{`$edit()`}{The document handle from [amsync_client()]'s `$open_doc()`
+#'   \item{`$edit()`}{The document handle from [sync_client()]'s `$open_doc()`
 #'     edits a synced text object in a live Shiny code editor}
 #' }
 #'
@@ -42,7 +42,7 @@
 #' @section Example:
 #' \preformatted{
 #' # Create and start a server
-#' server <- amsync_server()
+#' server <- sync_server()
 #' server$start()
 #' server$url
 #'

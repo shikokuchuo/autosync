@@ -392,7 +392,7 @@ auth_config <- function(
 #' `.well-known` metadata via [httr2::oauth_server_metadata()], and the flow is
 #' run by [httr2::oauth_flow_auth_code()]: it opens the system browser, listens
 #' on a loopback redirect for the callback, and returns the ID token for use
-#' with [amsync_fetch()].
+#' with [sync_fetch()].
 #'
 #' For Google, register the OAuth client as a "Desktop app" and set both
 #' `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`. Google's Desktop app secret is
@@ -429,19 +429,19 @@ auth_config <- function(
 #'
 #' @examplesIf interactive()
 #' # Uses OIDC_CLIENT_ID and OIDC_CLIENT_SECRET env vars by default
-#' token <- amsync_token()
+#' token <- sync_token()
 #'
 #' # Or supply credentials directly
-#' token <- amsync_token(
+#' token <- sync_token(
 #'   client_id = "YOUR_CLIENT_ID.apps.googleusercontent.com",
 #'   client_secret = "YOUR_CLIENT_SECRET"
 #' )
 #'
-#' # Use with amsync_fetch
-#' doc <- amsync_fetch(server$url, "myDocId", token = token, tls = tls)
+#' # Use with sync_fetch
+#' doc <- sync_fetch(server$url, "myDocId", token = token, tls = tls)
 #'
 #' @export
-amsync_token <- function(
+sync_token <- function(
   client_id = Sys.getenv("OIDC_CLIENT_ID"),
   client_secret = Sys.getenv("OIDC_CLIENT_SECRET"),
   issuer = oidc_issuer(),
@@ -449,7 +449,7 @@ amsync_token <- function(
   redirect_uri = oauth_redirect_uri()
 ) {
   if (!is_interactive()) {
-    stop("amsync_token() requires an interactive session")
+    stop("sync_token() requires an interactive session")
   }
 
   if (

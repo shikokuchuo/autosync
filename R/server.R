@@ -36,7 +36,7 @@
 #'       or `FALSE` (deny access). Called per client and per document.
 #'   }
 #'
-#' @return An amsync_server object inheriting from 'nanoServer', with
+#' @return A sync_server object inheriting from 'nanoServer', with
 #'   `$start()` and `$close()` methods.
 #'
 #' @details
@@ -45,7 +45,7 @@
 #'
 #' @examplesIf interactive()
 #' # Create and start a server
-#' server <- amsync_server()
+#' server <- sync_server()
 #' server$start()
 #'
 #' # Server is now running in the background
@@ -57,7 +57,7 @@
 #' # With TLS for secure connections
 #' cert <- nanonext::write_cert()
 #' tls <- nanonext::tls_config(server = cert$server)
-#' server <- amsync_server(tls = tls)
+#' server <- sync_server(tls = tls)
 #' server$start()
 #' server$url
 #' server$close()
@@ -65,7 +65,7 @@
 #' # Server with OIDC authentication (requires TLS)
 #' cert <- nanonext::write_cert()
 #' tls <- nanonext::tls_config(server = cert$server)
-#' server <- amsync_server(
+#' server <- sync_server(
 #'   tls = tls,
 #'   auth = auth_config(
 #'     client_id = "123456789.apps.googleusercontent.com",
@@ -74,7 +74,7 @@
 #' )
 #'
 #' @export
-amsync_server <- function(
+sync_server <- function(
   port = 0L,
   host = "127.0.0.1",
   data_dir = ".automerge",
@@ -191,7 +191,7 @@ amsync_server <- function(
   )
 
   attr(server, "sync") <- state
-  class(server) <- c("amsync_server", class(server))
+  class(server) <- c("sync_server", class(server))
 
   server
 }
@@ -200,7 +200,7 @@ amsync_server <- function(
 #'
 #' Retrieves an Automerge document by its ID.
 #'
-#' @param server An amsync_server object.
+#' @param server A sync_server object.
 #' @param doc_id Document ID string.
 #'
 #' @return Automerge document object, or NULL if not found.
@@ -214,7 +214,7 @@ get_document <- function(server, doc_id) {
 #'
 #' Returns the IDs of all documents currently loaded in the server.
 #'
-#' @param server An amsync_server object.
+#' @param server A sync_server object.
 #'
 #' @return Character vector of document IDs.
 #'
@@ -227,7 +227,7 @@ list_documents <- function(server) {
 #'
 #' Creates a new empty Automerge document and registers it with the server.
 #'
-#' @param server An amsync_server object.
+#' @param server A sync_server object.
 #' @param doc_id Optional document ID. If NULL, generates a new ID.
 #'
 #' @return Document ID string.
@@ -248,16 +248,16 @@ create_document <- function(server, doc_id = NULL) {
   doc_id
 }
 
-#' Print method for amsync_server
+#' Print method for sync_server
 #'
-#' @param x An amsync_server object.
+#' @param x A sync_server object.
 #' @param ... Ignored.
 #'
 #' @return Invisibly returns x.
 #'
 #' @keywords internal
 #' @export
-print.amsync_server <- function(x, ...) {
+print.sync_server <- function(x, ...) {
   state <- attr(x, "sync")
   cat("Automerge Sync Server\n")
   cat("  URL:", x$url, "\n")

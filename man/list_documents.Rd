@@ -7,7 +7,7 @@
 list_documents(server)
 }
 \arguments{
-\item{server}{An amsync_server object.}
+\item{server}{A sync_server object.}
 }
 \value{
 Character vector of document IDs.

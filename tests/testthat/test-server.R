@@ -1,9 +1,9 @@
-test_that("amsync_server creates valid server object", {
-  server <- amsync_server(data_dir = tempdir())
+test_that("sync_server creates valid server object", {
+  server <- sync_server(data_dir = tempdir())
   on.exit(server$close())
 
   state <- attr(server, "sync")
-  expect_s3_class(server, "amsync_server")
+  expect_s3_class(server, "sync_server")
   expect_type(state$peer_id, "character")
   expect_type(state$storage_id, "character")
   expect_true(is.environment(state$documents))
@@ -11,8 +11,8 @@ test_that("amsync_server creates valid server object", {
   expect_true(is.environment(state$connections))
 })
 
-test_that("amsync_server with TLS creates wss URL", {
-  server <- amsync_server(
+test_that("sync_server with TLS creates wss URL", {
+  server <- sync_server(
     port = 3030L,
     tls = nanonext::tls_config(server = nanonext::write_cert()$server),
     data_dir = tempdir()
@@ -22,15 +22,15 @@ test_that("amsync_server with TLS creates wss URL", {
   expect_true(grepl("^wss://", server$url))
 })
 
-test_that("amsync_server without TLS creates ws URL", {
-  server <- amsync_server(data_dir = tempdir())
+test_that("sync_server without TLS creates ws URL", {
+  server <- sync_server(data_dir = tempdir())
   on.exit(server$close())
 
   expect_true(grepl("^ws://", server$url))
 })
 
-test_that("amsync_server with ephemeral storage_id", {
-  server <- amsync_server(storage_id = NA, data_dir = tempdir())
+test_that("sync_server with ephemeral storage_id", {
+  server <- sync_server(storage_id = NA, data_dir = tempdir())
   on.exit(server$close())
 
   state <- attr(server, "sync")
@@ -38,7 +38,7 @@ test_that("amsync_server with ephemeral storage_id", {
 })
 
 test_that("create_document generates valid ID", {
-  server <- amsync_server(data_dir = tempdir())
+  server <- sync_server(data_dir = tempdir())
   on.exit({
     server$close()
     unlink(file.path(tempdir(), "*.automerge"))
@@ -51,7 +51,7 @@ test_that("create_document generates valid ID", {
 })
 
 test_that("get_document retrieves created document", {
-  server <- amsync_server(data_dir = tempdir())
+  server <- sync_server(data_dir = tempdir())
   on.exit({
     server$close()
     unlink(file.path(tempdir(), "*.automerge"))
@@ -63,7 +63,7 @@ test_that("get_document retrieves created document", {
 })
 
 test_that("list_documents returns all documents", {
-  server <- amsync_server(data_dir = tempdir())
+  server <- sync_server(data_dir = tempdir())
   on.exit({
     server$close()
     unlink(file.path(tempdir(), "*.automerge"))
@@ -80,8 +80,8 @@ test_that("list_documents returns all documents", {
   expect_true(id2 %in% docs)
 })
 
-test_that("print.amsync_server works", {
-  server <- amsync_server(data_dir = tempdir())
+test_that("print.sync_server works", {
+  server <- sync_server(data_dir = tempdir())
   on.exit(server$close())
 
   output <- capture.output(print(server))
@@ -98,8 +98,8 @@ test_that("generate_document_id creates valid IDs", {
   expect_length(bytes, 16L)
 })
 
-test_that("amsync_server with custom storage_id", {
-  server <- amsync_server(
+test_that("sync_server with custom storage_id", {
+  server <- sync_server(
     storage_id = "customStorageId",
     data_dir = tempdir()
   )

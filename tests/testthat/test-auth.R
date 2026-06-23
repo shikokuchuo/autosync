@@ -1009,10 +1009,10 @@ test_that("validate_token rejects JWT with missing exp claim", {
   expect_equal(result$error, "Token expired")
 })
 
-# ---- amsync_token tests ----
+# ---- sync_token tests ----
 
 # Stub oauth_server_metadata(): returns a metadata object advertising the
-# endpoints amsync_token reads. The "httr2_oauth_server_metadata" class lets the
+# endpoints sync_token reads. The "httr2_oauth_server_metadata" class lets the
 # real oauth_client() accept it via metadata=.
 stub_metadata <- function(
   authorization_endpoint = "https://auth.example.com/authorize",
@@ -1029,37 +1029,37 @@ stub_metadata <- function(
   }
 }
 
-test_that("amsync_token errors in non-interactive session", {
+test_that("sync_token errors in non-interactive session", {
   local_mocked_bindings(
     is_interactive = function() FALSE
   )
   expect_error(
-    amsync_token(client_id = "test-id"),
+    sync_token(client_id = "test-id"),
     "requires an interactive session"
   )
 })
 
-test_that("amsync_token errors with invalid client_id", {
+test_that("sync_token errors with invalid client_id", {
   local_mocked_bindings(
     is_interactive = function() TRUE
   )
-  expect_error(amsync_token(client_id = ""), "'client_id' must be set")
-  expect_error(amsync_token(client_id = 123), "'client_id' must be set")
+  expect_error(sync_token(client_id = ""), "'client_id' must be set")
+  expect_error(sync_token(client_id = 123), "'client_id' must be set")
 })
 
-test_that("amsync_token errors on metadata missing endpoints", {
+test_that("sync_token errors on metadata missing endpoints", {
   local_mocked_bindings(
     is_interactive = function() TRUE,
     oauth_server_metadata = function(issuer, ...) list(issuer = issuer)
   )
 
   expect_error(
-    amsync_token(client_id = "test-id", issuer = "https://example.com"),
+    sync_token(client_id = "test-id", issuer = "https://example.com"),
     "missing authorization_endpoint or token_endpoint"
   )
 })
 
-test_that("amsync_token succeeds with valid OAuth flow", {
+test_that("sync_token succeeds with valid OAuth flow", {
   local_mocked_bindings(
     is_interactive = function() TRUE,
     oauth_server_metadata = stub_metadata(),
@@ -1068,7 +1068,7 @@ test_that("amsync_token succeeds with valid OAuth flow", {
     }
   )
 
-  result <- amsync_token(
+  result <- sync_token(
     client_id = "test-client",
     client_secret = "",
     issuer = "https://issuer.example.com"
@@ -1077,7 +1077,7 @@ test_that("amsync_token succeeds with valid OAuth flow", {
   expect_equal(result, "mock.jwt.token")
 })
 
-test_that("amsync_token errors when response has no id_token", {
+test_that("sync_token errors when response has no id_token", {
   local_mocked_bindings(
     is_interactive = function() TRUE,
     oauth_server_metadata = stub_metadata(),
@@ -1085,7 +1085,7 @@ test_that("amsync_token errors when response has no id_token", {
   )
 
   expect_error(
-    amsync_token(
+    sync_token(
       client_id = "test-client",
       client_secret = "",
       issuer = "https://issuer.example.com"
@@ -1094,7 +1094,7 @@ test_that("amsync_token errors when response has no id_token", {
   )
 })
 
-test_that("amsync_token propagates OAuth flow errors", {
+test_that("sync_token propagates OAuth flow errors", {
   local_mocked_bindings(
     is_interactive = function() TRUE,
     oauth_server_metadata = stub_metadata(),
@@ -1104,7 +1104,7 @@ test_that("amsync_token propagates OAuth flow errors", {
   )
 
   expect_error(
-    amsync_token(
+    sync_token(
       client_id = "test-client",
       client_secret = "",
       issuer = "https://issuer.example.com"
@@ -1113,7 +1113,7 @@ test_that("amsync_token propagates OAuth flow errors", {
   )
 })
 
-test_that("amsync_token builds a confidential client when a secret is given", {
+test_that("sync_token builds a confidential client when a secret is given", {
   captured <- NULL
   local_mocked_bindings(
     is_interactive = function() TRUE,
@@ -1124,7 +1124,7 @@ test_that("amsync_token builds a confidential client when a secret is given", {
     }
   )
 
-  amsync_token(
+  sync_token(
     client_id = "test-client",
     client_secret = "my-secret",
     issuer = "https://issuer.example.com"
@@ -1137,7 +1137,7 @@ test_that("amsync_token builds a confidential client when a secret is given", {
   expect_equal(captured$token_url, "https://auth.example.com/token")
 })
 
-test_that("amsync_token builds a public client when no secret is given", {
+test_that("sync_token builds a public client when no secret is given", {
   captured <- NULL
   local_mocked_bindings(
     is_interactive = function() TRUE,
@@ -1148,7 +1148,7 @@ test_that("amsync_token builds a public client when no secret is given", {
     }
   )
 
-  amsync_token(
+  sync_token(
     client_id = "test-client",
     client_secret = "",
     issuer = "https://issuer.example.com"
@@ -1159,7 +1159,7 @@ test_that("amsync_token builds a public client when no secret is given", {
   expect_null(captured$secret)
 })
 
-test_that("amsync_token forwards endpoints, scopes, and redirect_uri", {
+test_that("sync_token forwards endpoints, scopes, and redirect_uri", {
   captured <- NULL
   local_mocked_bindings(
     is_interactive = function() TRUE,
@@ -1175,7 +1175,7 @@ test_that("amsync_token forwards endpoints, scopes, and redirect_uri", {
     }
   )
 
-  amsync_token(
+  sync_token(
     client_id = "test-client",
     client_secret = "",
     issuer = "https://issuer.example.com",
@@ -1194,7 +1194,7 @@ test_that("amsync_token forwards endpoints, scopes, and redirect_uri", {
 
 test_that("server requires TLS when auth is enabled", {
   expect_snapshot(
-    amsync_server(
+    sync_server(
       auth = auth_config(
         issuer = "https://accounts.google.com",
         client_id = "test-id"
@@ -1210,7 +1210,7 @@ test_that("server allows auth with TLS configured", {
   cert <- nanonext::write_cert()
   tls <- nanonext::tls_config(server = cert$server)
 
-  server <- amsync_server(
+  server <- sync_server(
     tls = tls,
     auth = auth_config(
       issuer = "https://accounts.google.com",
@@ -1220,7 +1220,7 @@ test_that("server allows auth with TLS configured", {
   )
   on.exit(server$close())
 
-  expect_s3_class(server, "amsync_server")
+  expect_s3_class(server, "sync_server")
   state <- attr(server, "sync")
   expect_s3_class(state$auth, "amsync_auth_config")
 })
@@ -1232,7 +1232,7 @@ test_that("server rejects unauthenticated client when auth enabled", {
   tls <- nanonext::tls_config(server = cert$server)
   client_tls <- nanonext::tls_config(client = cert$client)
 
-  server <- amsync_server(
+  server <- sync_server(
     tls = tls,
     auth = auth_config(
       issuer = "https://accounts.google.com",
@@ -1245,7 +1245,7 @@ test_that("server rejects unauthenticated client when auth enabled", {
 
   # Client without token should be rejected
   expect_snapshot(
-    amsync_fetch(
+    sync_fetch(
       url = server$url,
       doc_id = generate_document_id(),
       tls = client_tls

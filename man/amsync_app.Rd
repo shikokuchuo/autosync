@@ -20,7 +20,7 @@ Default \code{""}.}
 
 \item{proj_id}{Initial project document ID to prefill. Default \code{""}.}
 
-\item{token}{(optional) A JWT obtained earlier from \code{\link[=amsync_token]{amsync_token()}}. When
+\item{token}{(optional) A JWT obtained earlier from \code{\link[=sync_token]{sync_token()}}. When
 supplied, the app starts already signed in; you can still re-authenticate
 from the form. Default \code{NULL} (sign in from the form, or connect with no
 token).}
@@ -48,10 +48,10 @@ without any other R commands. It has two screens served in one window:
 \itemize{
 \item \strong{Connect} -- enter a sync-server URL and a project document ID, and
 optionally authenticate. The \strong{Authenticate} button runs the same OIDC
-browser flow as \code{\link[=amsync_token]{amsync_token()}}; client ID, secret, and issuer can be set
+browser flow as \code{\link[=sync_token]{sync_token()}}; client ID, secret, and issuer can be set
 under \strong{Advanced} (prefilled from the \code{OIDC_CLIENT_ID},
 \code{OIDC_CLIENT_SECRET}, and \code{OIDC_ISSUER} environment variables). Passing a
-\code{token} obtained earlier from \code{\link[=amsync_token]{amsync_token()}} starts the app already
+\code{token} obtained earlier from \code{\link[=sync_token]{sync_token()}} starts the app already
 signed in, skipping that step. Leaving the sign-in untouched connects
 without a token, for open servers.
 \item \strong{Browse & edit} -- once connected, the project's file tree appears in a
@@ -75,7 +75,7 @@ amsync_app()
 amsync_app("wss://quarto-hub.com/ws", proj_id = "4F63WJPDzbHkkfKa66h1Qrr1sC5U")
 
 # Reuse a token obtained earlier, so the app starts signed in:
-token <- amsync_token()
+token <- sync_token()
 amsync_app("wss://quarto-hub.com/ws", proj_id = "4F63WJPD...", token = token)
 \dontshow{\}) # examplesIf}
 }

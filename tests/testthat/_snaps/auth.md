@@ -25,18 +25,18 @@
 # server requires TLS when auth is enabled
 
     Code
-      amsync_server(auth = auth_config(issuer = "https://accounts.google.com",
+      sync_server(auth = auth_config(issuer = "https://accounts.google.com",
         client_id = "test-id"))
     Condition
-      Error in `amsync_server()`:
+      Error in `sync_server()`:
       ! Authentication requires TLS. Provide a 'tls' configuration.
       Transmitting tokens over unencrypted connections is a security risk.
 
 # server rejects unauthenticated client when auth enabled
 
     Code
-      amsync_fetch(url = server$url, doc_id = generate_document_id(), tls = client_tls)
+      sync_fetch(url = server$url, doc_id = generate_document_id(), tls = client_tls)
     Condition
-      Error in `amsync_fetch()`:
+      Error in `sync_fetch()`:
       ! Server error: Authentication failed
 

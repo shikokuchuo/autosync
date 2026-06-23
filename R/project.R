@@ -14,7 +14,7 @@
 #' [amsync_app()] for an interactive browser. Call `$close()` when finished to
 #' disconnect.
 #'
-#' @inheritParams amsync_fetch
+#' @inheritParams sync_fetch
 #' @param proj_id Document ID of the project.
 #' @param files_key Key of the files map within the project document. Default
 #'   `"files"`.
@@ -23,11 +23,11 @@
 #'   with the following fields and methods:
 #'   \describe{
 #'     \item{`doc`}{The live project document, kept in sync with the server.}
-#'     \item{`conn`}{The underlying [amsync_client()] connection.}
+#'     \item{`conn`}{The underlying [sync_client()] connection.}
 #'     \item{`paths()`}{Current sorted file paths.}
 #'     \item{`doc_id(path)`}{Resolve a path to its document ID.}
 #'     \item{`open(path)`}{Open the file's document over the project connection
-#'       and return its `amsync_doc` handle. Reuses the connection and any
+#'       and return its `sync_doc` handle. Reuses the connection and any
 #'       already-open document.}
 #'     \item{`refresh()`}{Re-resolve the file tree to pick up added or removed
 #'       files (the project document syncs live, so this just settles pending
@@ -36,7 +36,7 @@
 #'   }
 #'
 #' @examplesIf interactive()
-#' proj <- amsync_project("wss://quarto-hub.com/ws", proj_id, token = amsync_token())
+#' proj <- amsync_project("wss://quarto-hub.com/ws", proj_id, token = sync_token())
 #' proj                                   # prints the file tree
 #' doc <- proj$open("/charlie/index.qmd") # open a file over the connection
 #' doc$edit(at = "text", ext = ".qmd")    # edit it live
@@ -53,7 +53,7 @@ amsync_project <- function(
   timeout = 5000L,
   files_key = "files"
 ) {
-  conn <- amsync_client(url, timeout = timeout, tls = tls, token = token)
+  conn <- sync_client(url, timeout = timeout, tls = tls, token = token)
 
   # Sync the project document over the connection, then validate its files map.
   # Tear the connection down if either step fails so we never leak a socket.

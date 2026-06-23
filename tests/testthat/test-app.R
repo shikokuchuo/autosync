@@ -193,7 +193,7 @@ test_that("the app connects, browses, and edits over a live server", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -236,7 +236,7 @@ test_that("the app connects, browses, and edits over a live server", {
     session$setInputs(file = "/notes.md")
     expect_equal(rv$selected, "/notes.md")
     expect_equal(st$base, "hello world")
-    expect_s3_class(st$doc, "amsync_doc")
+    expect_s3_class(st$doc, "sync_doc")
 
     # Typing in the editor writes the minimal diff into the live document.
     session$setInputs(content = "hello brave world")
@@ -252,11 +252,11 @@ test_that("the app connects, browses, and edits over a live server", {
   })
 })
 
-test_that("the Authenticate button signs in via amsync_token()", {
+test_that("the Authenticate button signs in via sync_token()", {
   skip_if_not_installed("shiny")
   skip_if_not_installed("bslib")
 
-  local_mocked_bindings(amsync_token = function(...) "fresh.jwt")
+  local_mocked_bindings(sync_token = function(...) "fresh.jwt")
   app <- build_amsync_app("", "", NULL, NULL, 5000L, "files", 300L)
   shiny::testServer(app, {
     expect_false(rv$authed)
@@ -272,7 +272,7 @@ test_that("a failed Authenticate leaves the session signed out", {
   skip_if_not_installed("shiny")
   skip_if_not_installed("bslib")
 
-  local_mocked_bindings(amsync_token = function(...) stop("denied"))
+  local_mocked_bindings(sync_token = function(...) stop("denied"))
   app <- build_amsync_app("", "", NULL, NULL, 5000L, "files", 300L)
   shiny::testServer(app, {
     # Blank issuer falls back to oidc_issuer() (the other branch).

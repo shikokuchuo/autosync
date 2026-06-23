@@ -6,7 +6,7 @@ test_that("document persistence survives server restart", {
   on.exit(unlink(data_dir, recursive = TRUE))
 
   # Create server, add document
-  server1 <- amsync_server(data_dir = data_dir)
+  server1 <- sync_server(data_dir = data_dir)
 
   doc_id <- create_document(server1)
   doc <- get_document(server1, doc_id)
@@ -16,7 +16,7 @@ test_that("document persistence survives server restart", {
   server1$close()
 
   # Create new server with same data_dir
-  server2 <- amsync_server(data_dir = data_dir)
+  server2 <- sync_server(data_dir = data_dir)
   on.exit(server2$close(), add = TRUE)
 
   # Document should be loaded
@@ -32,7 +32,7 @@ test_that("server creates data directory if it doesn't exist", {
 
   expect_false(dir.exists(data_dir))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   on.exit(server$close(), add = TRUE)
 
   expect_true(dir.exists(data_dir))
@@ -43,7 +43,7 @@ test_that("multiple documents can be managed simultaneously", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   on.exit(server$close(), add = TRUE)
 
   # Create multiple documents
@@ -66,7 +66,7 @@ test_that("get_document returns NULL for non-existent document", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   on.exit(server$close())
 
   result <- get_document(server, "nonexistent123")
@@ -78,7 +78,7 @@ test_that("create_document with explicit ID", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   on.exit(server$close())
 
   explicit_id <- generate_document_id()
@@ -93,7 +93,7 @@ test_that("server URL format is correct", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(host = "127.0.0.1", data_dir = data_dir)
+  server <- sync_server(host = "127.0.0.1", data_dir = data_dir)
   on.exit(server$close())
 
   expect_true(grepl("^ws://127\\.0\\.0\\.1:\\d+$", server$url))

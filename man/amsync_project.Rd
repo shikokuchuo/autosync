@@ -37,11 +37,11 @@ An environment of class \code{"amsync_project"} (reference semantics)
 with the following fields and methods:
 \describe{
 \item{\code{doc}}{The live project document, kept in sync with the server.}
-\item{\code{conn}}{The underlying \code{\link[=amsync_client]{amsync_client()}} connection.}
+\item{\code{conn}}{The underlying \code{\link[=sync_client]{sync_client()}} connection.}
 \item{\code{paths()}}{Current sorted file paths.}
 \item{\code{doc_id(path)}}{Resolve a path to its document ID.}
 \item{\code{open(path)}}{Open the file's document over the project connection
-and return its \code{amsync_doc} handle. Reuses the connection and any
+and return its \code{sync_doc} handle. Reuses the connection and any
 already-open document.}
 \item{\code{refresh()}}{Re-resolve the file tree to pick up added or removed
 files (the project document syncs live, so this just settles pending
@@ -65,7 +65,7 @@ disconnect.
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
-proj <- amsync_project("wss://quarto-hub.com/ws", proj_id, token = amsync_token())
+proj <- amsync_project("wss://quarto-hub.com/ws", proj_id, token = sync_token())
 proj                                   # prints the file tree
 doc <- proj$open("/charlie/index.qmd") # open a file over the connection
 doc$edit(at = "text", ext = ".qmd")    # edit it live

@@ -26,7 +26,7 @@ test_that("amsync_project lists paths and resolves doc-ids", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -53,7 +53,7 @@ test_that("amsync_project opens files over a single reused connection", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -89,7 +89,7 @@ test_that("amsync_project closes the connection when the project fails to open",
 
   # A server that never auto-creates documents reports the project unavailable,
   # so open_doc() throws and amsync_project() must tear the connection down.
-  server <- amsync_server(data_dir = data_dir, auto_create_docs = FALSE)
+  server <- sync_server(data_dir = data_dir, auto_create_docs = FALSE)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -106,7 +106,7 @@ test_that("amsync_project errors when the files key is not a map", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -128,7 +128,7 @@ test_that("amsync_project$doc_id errors when an entry is not a text object", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -152,7 +152,7 @@ test_that("amsync_project$refresh re-resolves the file tree", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -179,7 +179,7 @@ test_that("amsync_project errors on a missing files map", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -201,7 +201,7 @@ test_that("amsync_project$doc_id errors on an unknown path", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
@@ -224,7 +224,7 @@ test_that("print.amsync_project shows the tree and metadata", {
   dir.create(data_dir)
   on.exit(unlink(data_dir, recursive = TRUE))
 
-  server <- amsync_server(data_dir = data_dir)
+  server <- sync_server(data_dir = data_dir)
   server$start()
   on.exit(server$close(), add = TRUE)
 
