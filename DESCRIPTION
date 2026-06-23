@@ -20,7 +20,7 @@ Depends:
     R (>= 4.4)
 Imports:
     automerge (>= 0.4.0),
-    httr2 (>= 1.2.2.9000),
+    httr2 (>= 1.2.3),
     jose,
     later,
     nanonext (>= 1.8.1),
@@ -34,8 +34,6 @@ Suggests:
     openssl,
     shiny,
     testthat (>= 3.0.0)
-Remotes:
-    r-lib/httr2
 Config/Needs/website: tidyverse/tidytemplate
 Config/roxygen2/markdown: TRUE
 Config/roxygen2/version: 8.0.0
