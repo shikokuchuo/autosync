@@ -441,11 +441,11 @@ test_that("sync_client connects and open_doc receives document", {
   conn <- sync_client(server$url)
   on.exit(conn$close(), add = TRUE)
 
-  expect_s3_class(conn, "sync_client")
+  expect_s3_class(conn, "autosync_client")
   expect_true(conn$active)
 
   handle <- conn$open_doc(doc_id)
-  expect_s3_class(handle, "sync_doc")
+  expect_s3_class(handle, "autosync_doc")
   expect_true(handle$active)
   expect_equal(handle$doc_id, doc_id)
   expect_equal(

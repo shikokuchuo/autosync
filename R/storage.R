@@ -2,7 +2,7 @@
 
 #' Save a document to disk
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param doc_id Document ID string.
 #' @param doc Automerge document object.
 #'
@@ -17,7 +17,7 @@ save_document <- function(server, doc_id, doc) {
 #' Loads all .automerge files from the server's data directory
 #' into the documents environment.
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #'
 #' @noRd
 load_all_documents <- function(server) {

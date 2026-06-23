@@ -7,7 +7,7 @@
 authenticate_header(auth_config, headers)
 }
 \arguments{
-\item{auth_config}{A \code{sync_auth_config} object.}
+\item{auth_config}{A \code{autosync_auth_config} object.}
 
 \item{headers}{Named list of HTTP request headers.}
 }

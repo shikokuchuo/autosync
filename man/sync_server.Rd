@@ -55,7 +55,7 @@ or \code{FALSE} (deny access). Called per client and per document.
 }}
 }
 \value{
-A sync_server object inheriting from 'nanoServer', with
+An autosync_server object inheriting from 'nanoServer', with
 \verb{$start()} and \verb{$close()} methods.
 }
 \description{

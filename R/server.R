@@ -36,7 +36,7 @@
 #'       or `FALSE` (deny access). Called per client and per document.
 #'   }
 #'
-#' @return A sync_server object inheriting from 'nanoServer', with
+#' @return An autosync_server object inheriting from 'nanoServer', with
 #'   `$start()` and `$close()` methods.
 #'
 #' @details
@@ -191,7 +191,7 @@ sync_server <- function(
   )
 
   attr(server, "sync") <- state
-  class(server) <- c("sync_server", class(server))
+  class(server) <- c("autosync_server", class(server))
 
   server
 }
@@ -200,7 +200,7 @@ sync_server <- function(
 #'
 #' Retrieves an Automerge document by its ID.
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param doc_id Document ID string.
 #'
 #' @return Automerge document object, or NULL if not found.
@@ -220,7 +220,7 @@ get_document <- function(server, doc_id) {
 #'
 #' Returns the IDs of all documents currently loaded in the server.
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #'
 #' @return Character vector of document IDs.
 #'
@@ -239,7 +239,7 @@ list_documents <- function(server) {
 #'
 #' Creates a new empty Automerge document and registers it with the server.
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param doc_id Optional document ID. If NULL, generates a new ID.
 #'
 #' @return Document ID string.
@@ -265,16 +265,16 @@ create_document <- function(server, doc_id = NULL) {
   doc_id
 }
 
-#' Print method for sync_server
+#' Print method for autosync_server
 #'
-#' @param x A sync_server object.
+#' @param x An autosync_server object.
 #' @param ... Ignored.
 #'
 #' @return Invisibly returns x.
 #'
 #' @keywords internal
 #' @export
-print.sync_server <- function(x, ...) {
+print.autosync_server <- function(x, ...) {
   state <- attr(x, "sync")
   cat("Automerge Sync Server\n")
   cat("  URL:", x$url, "\n")

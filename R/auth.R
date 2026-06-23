@@ -329,7 +329,7 @@ validate_token <- function(
 #' @param custom_validator Function(claims) returning TRUE/FALSE for
 #'   custom validation logic. Receives the decoded JWT claims as a list.
 #'
-#' @return An object of class `"sync_auth_config"`.
+#' @return An object of class `"autosync_auth_config"`.
 #'
 #' @examples
 #' # Google (default issuer)
@@ -380,7 +380,7 @@ auth_config <- function(
       allowed_domains = allowed_domains,
       custom_validator = custom_validator
     ),
-    class = "sync_auth_config"
+    class = "autosync_auth_config"
   )
 }
 
@@ -496,7 +496,7 @@ sync_token <- function(
 #' Extracts and validates a Bearer token (JWT) from the Authorization header
 #' of the WebSocket upgrade request.
 #'
-#' @param auth_config A `sync_auth_config` object.
+#' @param auth_config A `autosync_auth_config` object.
 #' @param headers Named list of HTTP request headers.
 #'
 #' @return List with `valid` (logical), `email` (character or NULL),

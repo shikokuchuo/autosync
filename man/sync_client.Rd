@@ -26,18 +26,18 @@ for and send local changes for every open document. This is a cheap no-op
 when there are no changes.}
 }
 \value{
-An environment of class \code{"sync_client"} with reference semantics,
+An environment of class \code{"autosync_client"} with reference semantics,
 representing the connection:
 \describe{
 \item{\code{open_doc(doc_id, timeout)}}{Open a live document over this
-connection and return a \code{sync_doc} handle for it (see below).
+connection and return a \code{autosync_doc} handle for it (see below).
 Repeated calls for the same \code{doc_id} reuse the document already open
 on the connection rather than requesting it again.}
 \item{\code{close()}}{Disconnect and stop syncing all open documents.}
 \item{\code{active}}{Logical, whether the connection is active.}
 }
 
-A \code{sync_doc} handle returned by \verb{$open_doc()} is itself an environment
+A \code{autosync_doc} handle returned by \verb{$open_doc()} is itself an environment
 with:
 \describe{
 \item{\code{doc}}{The live automerge document, kept in sync with the server.}

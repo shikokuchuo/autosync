@@ -17,7 +17,7 @@ eval_share <- function(share, client_id, doc_id) {
 #'
 #' Routes incoming CBOR messages to the appropriate handler.
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param client_id Client's peer ID (or temp_id if pre-handshake).
 #' @param temp_id Temporary connection ID.
 #' @param raw_msg Raw CBOR message bytes.
@@ -62,7 +62,7 @@ handle_message <- function(server, client_id, temp_id, raw_msg) {
 
 #' Handle join handshake message
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param temp_id Temporary connection ID.
 #' @param msg Decoded join message.
 #'
@@ -143,7 +143,7 @@ handle_join <- function(server, temp_id, msg) {
 #'
 #' Creates sync state if needed and sends a sync message.
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param client_id Client's peer ID.
 #' @param doc_id Document ID.
 #' @param doc Automerge document object.
@@ -178,7 +178,7 @@ sync_to_peer <- function(server, client_id, doc_id, doc) {
 
 #' Handle sync or request message
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param client_id Client's peer ID.
 #' @param msg Decoded sync/request message.
 #' @param is_request Logical, TRUE for request messages.
@@ -275,7 +275,7 @@ handle_sync <- function(server, client_id, msg, is_request) {
 
 #' Handle leave message
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param client_id Client's peer ID.
 #' @param msg Decoded leave message.
 #'
@@ -292,7 +292,7 @@ handle_leave <- function(server, client_id, msg) {
 #' - Point-to-point: message with targetId forwards to specific peer
 #' - Broadcast: message with documentId relays to all peers on that document
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param client_id Client's peer ID.
 #' @param msg Decoded ephemeral message.
 #'
@@ -322,7 +322,7 @@ handle_ephemeral <- function(server, client_id, msg) {
 
 #' Add a client to a document's peer list
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param doc_id Document ID.
 #' @param client_id Client's peer ID.
 #'
@@ -339,7 +339,7 @@ add_doc_peer <- function(server, doc_id, client_id) {
 
 #' Remove a client from a document's peer list
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param doc_id Document ID.
 #' @param client_id Client's peer ID.
 #'
@@ -359,7 +359,7 @@ remove_doc_peer <- function(server, doc_id, client_id) {
 
 #' Remove a client from all document peer lists
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param client_id Client's peer ID.
 #'
 #' @noRd
@@ -372,7 +372,7 @@ remove_peer_from_all_docs <- function(server, client_id) {
 
 #' Broadcast ephemeral message to all peers on a document
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param sender_client_id ID of the client who sent the message.
 #' @param doc_id Document ID.
 #' @param msg The ephemeral message to broadcast.
@@ -399,7 +399,7 @@ broadcast_ephemeral <- function(server, sender_client_id, doc_id, msg) {
 
 #' Handle error message from client
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param client_id Client's peer ID.
 #' @param msg Decoded error message.
 #'
@@ -411,7 +411,7 @@ handle_error <- function(server, client_id, msg) {
 
 #' Clean up resources when client disconnects
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param client_id Client's peer ID.
 #'
 #' @noRd
@@ -437,7 +437,7 @@ handle_disconnect <- function(server, client_id) {
 
 #' Send message to specific peer
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param peer_id Target peer ID.
 #' @param msg List to encode and send.
 #'
@@ -452,7 +452,7 @@ send_to_peer <- function(server, peer_id, msg) {
 
 #' Send error message to peer
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param peer_id Target peer ID.
 #' @param message Error message string.
 #' @param temp_id Optional temporary connection ID for pre-handshake errors.
@@ -478,7 +478,7 @@ send_error <- function(server, peer_id, message, temp_id = NULL) {
 
 #' Send doc-unavailable message
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param client_id Client's peer ID.
 #' @param doc_id Document ID.
 #'
@@ -500,7 +500,7 @@ send_unavailable <- function(server, client_id, doc_id) {
 #' Called when a document is created via [create_document()] after peering is
 #' already established.
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param doc_id Document ID.
 #' @param doc Automerge document object.
 #'
@@ -517,7 +517,7 @@ announce_new_document <- function(server, doc_id, doc) {
 
 #' Broadcast sync changes to all connected peers
 #'
-#' @param server A sync_server object.
+#' @param server An autosync_server object.
 #' @param sender_client_id ID of the client who sent the change.
 #' @param doc_id Document ID.
 #' @param doc Automerge document object.

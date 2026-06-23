@@ -84,18 +84,18 @@ join_msg <- function(peer_id) {
 #'   for and send local changes for every open document. This is a cheap no-op
 #'   when there are no changes.
 #'
-#' @return An environment of class `"sync_client"` with reference semantics,
+#' @return An environment of class `"autosync_client"` with reference semantics,
 #'   representing the connection:
 #'   \describe{
 #'     \item{`open_doc(doc_id, timeout)`}{Open a live document over this
-#'       connection and return a `sync_doc` handle for it (see below).
+#'       connection and return a `autosync_doc` handle for it (see below).
 #'       Repeated calls for the same `doc_id` reuse the document already open
 #'       on the connection rather than requesting it again.}
 #'     \item{`close()`}{Disconnect and stop syncing all open documents.}
 #'     \item{`active`}{Logical, whether the connection is active.}
 #'   }
 #'
-#'   A `sync_doc` handle returned by `$open_doc()` is itself an environment
+#'   A `autosync_doc` handle returned by `$open_doc()` is itself an environment
 #'   with:
 #'   \describe{
 #'     \item{`doc`}{The live automerge document, kept in sync with the server.}
@@ -337,7 +337,7 @@ sync_client <- function(
       },
       handle
     )
-    class(handle) <- "sync_doc"
+    class(handle) <- "autosync_doc"
     handle
   }
 
@@ -430,7 +430,7 @@ sync_client <- function(
     invisible()
   }
 
-  class(client) <- "sync_client"
+  class(client) <- "autosync_client"
   on.exit() # stream now owned by client$close
 
   # Start the async loops
@@ -441,7 +441,7 @@ sync_client <- function(
 }
 
 #' @export
-print.sync_client <- function(x, ...) {
+print.autosync_client <- function(x, ...) {
   cat("Automerge Sync Connection\n")
   cat("  Server:", x$url, "\n")
   cat("  Documents:", length(x$documents), "\n")
@@ -450,7 +450,7 @@ print.sync_client <- function(x, ...) {
 }
 
 #' @export
-print.sync_doc <- function(x, ...) {
+print.autosync_doc <- function(x, ...) {
   cat("Automerge Document\n")
   cat("  Document:", x$doc_id, "\n")
   cat("  Active:", x$active, "\n")

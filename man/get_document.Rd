@@ -7,7 +7,7 @@
 get_document(server, doc_id)
 }
 \arguments{
-\item{server}{A sync_server object.}
+\item{server}{An autosync_server object.}
 
 \item{doc_id}{Document ID string.}
 }

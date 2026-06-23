@@ -3,7 +3,7 @@ test_that("sync_server creates valid server object", {
   on.exit(server$close())
 
   state <- attr(server, "sync")
-  expect_s3_class(server, "sync_server")
+  expect_s3_class(server, "autosync_server")
   expect_type(state$peer_id, "character")
   expect_type(state$storage_id, "character")
   expect_true(is.environment(state$documents))
@@ -80,7 +80,7 @@ test_that("list_documents returns all documents", {
   expect_true(id2 %in% docs)
 })
 
-test_that("print.sync_server works", {
+test_that("print.autosync_server works", {
   server <- sync_server(data_dir = tempdir())
   on.exit(server$close())
 

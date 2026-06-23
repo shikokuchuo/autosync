@@ -40,7 +40,7 @@ test_that("auth_config creates valid configuration", {
     allowed_emails = "test@example.com"
   )
 
-  expect_s3_class(cfg, "sync_auth_config")
+  expect_s3_class(cfg, "autosync_auth_config")
   expect_equal(cfg$issuer, "https://accounts.google.com")
   expect_equal(cfg$client_id, "test-client-id")
   expect_equal(cfg$allowed_domains, "example.com")
@@ -1209,9 +1209,9 @@ test_that("server allows auth with TLS configured", {
   )
   on.exit(server$close())
 
-  expect_s3_class(server, "sync_server")
+  expect_s3_class(server, "autosync_server")
   state <- attr(server, "sync")
-  expect_s3_class(state$auth, "sync_auth_config")
+  expect_s3_class(state$auth, "autosync_auth_config")
 })
 
 test_that("server rejects unauthenticated client when auth enabled", {
