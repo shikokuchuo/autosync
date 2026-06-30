@@ -1,7 +1,3 @@
-# autosync (development version)
+# autosync 0.1.0
 
 * Initial CRAN release.
-
-# autosync 0.0.1
-
-* Initial version.
